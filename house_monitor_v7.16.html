@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ハウス環境モニター</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #f2f2f7;
+  --card: rgba(255,255,255,0.85);
+  --card-border: rgba(0,0,0,0.06);
+  --text-primary: #1c1c1e;
+  --text-secondary: #8e8e93;
+  --text-tertiary: #aeaeb2;
+  --accent-green: #34c759;
+  --accent-blue: #007aff;
+  --accent-orange: #ff9500;
+  --accent-red: #ff3b30;
+  --accent-temp: #ff6b35;
+  --accent-hum: #007aff;
+  --shadow: 0 2px 20px rgba(0,0,0,0.08);
+  --radius: 18px;
+  --radius-sm: 12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'DM Sans', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* ヘッダー */
+.header {
+  background: rgba(242,242,247,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 14px 20px 10px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid var(--card-border);
+}
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.header h1 { font-size: 1rem; font-weight: 600; letter-spacing: -0.02em; }
+.header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.last-update { font-size: 0.65rem; color: var(--text-tertiary); font-family: 'DM Mono', monospace; }
+.header-mini { display: flex; align-items: center; gap: 6px; }
+.header-mini-item { font-size: 0.75rem; font-weight: 500; color: var(--text-primary); font-family: 'DM Mono', monospace; }
+.header-mini-sep { font-size: 0.7rem; color: var(--text-tertiary); }
+
+.status-badge {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.72rem; font-weight: 500;
+  padding: 4px 10px; border-radius: 20px; transition: all 0.3s;
+}
+.status-badge.online  { background: rgba(52,199,89,0.12);  color: var(--accent-green); }
+.status-badge.offline { background: rgba(255,59,48,0.12);  color: var(--accent-red); }
+.status-badge.loading { background: rgba(255,149,0,0.12);  color: var(--accent-orange); }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.online  .status-dot { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+.offline .status-dot { background: var(--accent-red); }
+.loading .status-dot { background: var(--accent-orange); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* コンテンツ共通 */
+.content {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* カード */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.card-label {
+  font-size: 0.72rem; font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em; text-transform: uppercase;
+}
+
+/* オフラインバナー */
+.offline-banner {
+  display: none;
+  background: rgba(255,59,48,0.08);
+  border: 1px solid rgba(255,59,48,0.2);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  align-items: center; gap: 12px;
+}
+.offline-banner.show { display: flex; }
+.offline-icon { font-size: 1.6rem; }
+.offline-text h3 { font-size: 0.9rem; font-weight: 600; color: var(--accent-red); margin-bottom: 2px; }
+.offline-text p { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4; }
+
+/* メトリクス */
+.metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.metric-card {
+  background: var(--card); border-radius: var(--radius);
+  border: 1px solid var(--card-border); box-shadow: var(--shadow);
+  padding: 18px; position: relative; overflow: hidden;
+  transition: transform 0.15s;
+}
+.metric-card:active { transform: scale(0.97); }
+.metric-card::before {
+  content: ''; position: absolute; top: 0; right: 0;
+  width: 80px; height: 80px; border-radius: 50%; opacity: 0.07;
+  transform: translate(20px,-20px);
+}
+.metric-card.temp::before { background: var(--accent-temp); }
+.metric-card.hum::before  { background: var(--accent-hum); }
+.metric-icon { font-size: 1.3rem; margin-bottom: 10px; display: block; }
+.metric-label { font-size: 0.68rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.metric-value { font-family: 'DM Mono', monospace; font-size: 2.2rem; font-weight: 500; letter-spacing: -0.03em; line-height: 1; margin-bottom: 6px; }
+.metric-card.temp .metric-value { color: var(--accent-temp); }
+.metric-card.hum  .metric-value { color: var(--accent-hum); }
+.metric-unit { font-size: 1rem; font-weight: 400; opacity: 0.7; }
+.metric-status { font-size: 0.68rem; font-weight: 500; padding: 3px 8px; border-radius: 6px; display: inline-block; }
+.status-normal { background: rgba(52,199,89,0.12);  color: var(--accent-green); }
+.status-warn   { background: rgba(255,149,0,0.12);  color: var(--accent-orange); }
+.status-danger { background: rgba(255,59,48,0.12);  color: var(--accent-red); }
+
+/* グラフ */
+.chart-card { padding: 0 0 16px; }
+.chart-header { padding: 16px 18px 0; display: flex; align-items: center; justify-content: space-between; }
+.chart-tabs { display: flex; gap: 6px; padding: 0 18px; margin: 12px 0 14px; }
+.chart-tab {
+  font-size: 0.72rem; font-weight: 500; padding: 5px 12px;
+  border-radius: 8px; border: none; cursor: pointer;
+  transition: all 0.2s; background: rgba(0,0,0,0.05); color: var(--text-secondary);
+}
+.chart-tab.active.temp { background: rgba(255,107,53,0.12); color: var(--accent-temp); }
+.chart-tab.active.hum  { background: rgba(0,122,255,0.12);  color: var(--accent-hum); }
+.chart-wrap {
+  padding: 0 18px;
+  position: relative;
+  display: flex;
+}
+.chart-yaxis {
+  flex-shrink: 0;
+  width: 44px;
+  position: relative;
+  z-index: 2;
+}
+canvas#chartYAxis {
+  width: 44px !important;
+  display: block;
+}
+.chart-scroll {
+  flex: 1;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  cursor: grab;
+}
+.chart-scroll:active { cursor: grabbing; }
+.chart-canvas-inner {
+  position: relative;
+  min-width: 100%;
+}
+canvas#chart { height: 160px !important; display: block; }
+.chart-info { display: flex; justify-content: space-between; padding: 8px 18px 0; }
+.chart-info-item { text-align: center; }
+.chart-info-label { font-size: 0.62rem; color: var(--text-tertiary); margin-bottom: 1px; }
+.chart-info-val { font-size: 0.78rem; font-weight: 600; font-family: 'DM Mono', monospace; }
+
+/* 電池 */
+.battery-card { padding: 16px 18px 18px; }
+.battery-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.battery-label-row { display: flex; align-items: baseline; gap: 6px; }
+.battery-pct { font-family: 'DM Mono', monospace; font-size: 1.8rem; font-weight: 500; letter-spacing: -0.03em; line-height: 1; }
+.battery-sub { font-size: 0.72rem; color: var(--text-secondary); }
+.battery-bar-wrap { background: rgba(0,0,0,0.06); border-radius: 6px; height: 8px; overflow: hidden; margin-bottom: 8px; }
+.battery-bar-fill { height: 100%; border-radius: 6px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+.battery-detail { display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--text-tertiary); }
+
+/* 接続情報 */
+.conn-card { padding: 14px 18px; }
+.conn-rows { display: flex; flex-direction: column; gap: 10px; }
+.conn-row { display: flex; align-items: center; justify-content: space-between; }
+.conn-row-left { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-secondary); }
+.conn-row-icon { font-size: 0.9rem; width: 20px; text-align: center; }
+.conn-row-val { font-size: 0.8rem; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text-primary); }
+
+/* 更新ボタン */
+.refresh-btn {
+  width: 100%; background: var(--accent-blue); color: white;
+  border: none; border-radius: var(--radius-sm); padding: 14px;
+  font-size: 0.88rem; font-weight: 600; font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: all 0.15s; letter-spacing: -0.01em;
+}
+.refresh-btn:active { transform: scale(0.98); background: #0066dd; }
+.refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.footer { text-align: center; padding: 8px 0 24px; font-size: 0.65rem; color: var(--text-tertiary); font-family: 'DM Mono', monospace; }
+
+/* ========== PCレイアウト ========== */
+@media (min-width: 768px) {
+  body { background: #e5e5ea; }
+
+  .header { padding: 16px 40px; }
+  .header h1 { font-size: 1.1rem; }
+
+  .content {
+    max-width: 1200px;
+    padding: 28px 40px 40px;
+    gap: 20px;
+  }
+
+  /* 上段：メトリクス4列 */
+  .metrics-grid {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* 電池と接続情報を横並びに */
+  .battery-conn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* 中段：グラフを大きく */
+  .chart-card { padding-bottom: 22px; }
+  canvas#chart { height: 240px !important; }
+  canvas#chartYAxis { height: 240px !important; }
+
+  .metric-card { padding: 24px; }
+  .metric-value { font-size: 2.8rem; }
+  .metric-icon { font-size: 1.5rem; }
+
+  .battery-card { padding: 20px 24px 22px; }
+  .conn-card { padding: 18px 24px; }
+
+  .battery-pct { font-size: 2.2rem; }
+
+  .refresh-btn {
+    max-width: 320px;
+    margin: 0 auto;
+    display: block;
+    padding: 16px;
+    font-size: 0.95rem;
+  }
+
+  .footer { padding: 4px 0 40px; font-size: 0.7rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <h1>🌿 ハウス環境モニター</h1>
+    <div class="header-right">
+      <div class="header-mini">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
+          <span class="header-mini-item" id="sensorStatusIcon" style="font-size:0.78rem;">📡 <span id="sensorStatusText">確認中</span></span>
+          <span style="font-size:0.58rem;font-family:'DM Mono',monospace;" id="sensorElapsed">--分前</span>
+        </div>
+        <span class="header-mini-sep" id="headerSep">·</span>
+        <div class="status-badge loading" id="statusBadge">
+          <div class="status-dot"></div>
+          <span id="statusText">取得中</span>
+        </div>
+      </div>
+      <div class="last-update" id="lastUpdate">最終更新: --</div>
+    </div>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- オフラインバナー -->
+  <div class="offline-banner" id="offlineBanner">
+    <div class="offline-icon">⚠️</div>
+    <div class="offline-text">
+      <h3 id="offlineTitle">センサー未接続</h3>
+      <p id="offlineMsg">データが取得できません。センサーの電源・接続を確認してください。</p>
+    </div>
+  </div>
+
+  <!-- 温度・湿度（PC時は4列に拡張） -->
+  <div class="metrics-grid">
+    <div class="metric-card temp">
+      <span class="metric-icon">🌡️</span>
+      <div class="metric-label">気温</div>
+      <div class="metric-value" id="tempVal">--<span class="metric-unit">℃</span></div>
+      <div class="metric-status status-normal" id="tempStatus">--</div>
+    </div>
+    <div class="metric-card hum">
+      <span class="metric-icon">💧</span>
+      <div class="metric-label">湿度</div>
+      <div class="metric-value" id="humVal">--<span class="metric-unit">%</span></div>
+      <div class="metric-status status-normal" id="humStatus">--</div>
+    </div>
+    <!-- PC時のみ表示される追加カード -->
+    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
+      <span class="metric-icon">📈</span>
+      <div class="metric-label">本日最高気温</div>
+      <div class="metric-value" id="todayMax" style="color:#ff6b35;font-family:'DM Mono',monospace;font-size:2.2rem;font-weight:500;letter-spacing:-0.03em;line-height:1;margin-bottom:6px;">--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span></div>
+      <div class="metric-status status-normal" id="todayMaxStatus">--</div>
+    </div>
+    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
+      <span class="metric-icon">📉</span>
+      <div class="metric-label">本日最低気温</div>
+      <div class="metric-value" id="todayMin" style="color:#007aff;font-family:'DM Mono',monospace;font-size:2.2rem;font-weight:500;letter-spacing:-0.03em;line-height:1;margin-bottom:6px;">--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span></div>
+      <div class="metric-status status-normal" id="todayMinStatus">--</div>
+    </div>
+  </div>
+
+  <!-- グラフ -->
+  <div class="card chart-card">
+    <div class="chart-header">
+      <span class="card-label">履歴グラフ</span>
+    </div>
+    <div class="chart-tabs">
+      <button class="chart-tab active temp" onclick="switchChart('temp')">気温</button>
+      <button class="chart-tab hum" onclick="switchChart('hum')">湿度</button>
+    </div>
+    <div class="chart-wrap">
+      <!-- Y軸（固定） -->
+      <div class="chart-yaxis">
+        <canvas id="chartYAxis"></canvas>
+      </div>
+      <!-- スクロールエリア -->
+      <div class="chart-scroll" id="chartWrap">
+        <div class="chart-canvas-inner" id="chartInner">
+          <canvas id="chart" height="160" style="display:block; width:100%; height:160px;"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="chart-info">
+      <div class="chart-info-item">
+        <div class="chart-info-label">最高</div>
+        <div class="chart-info-val" id="chartMax">--</div>
+      </div>
+      <div class="chart-info-item">
+        <div class="chart-info-label">平均</div>
+        <div class="chart-info-val" id="chartAvg">--</div>
+      </div>
+      <div class="chart-info-item">
+        <div class="chart-info-label">最低</div>
+        <div class="chart-info-val" id="chartMin">--</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 天気情報 -->
+  <div class="card" id="weatherCard" style="padding:14px 18px;">
+    <div style="font-size:0.68rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;">🌤️ 天気予報（国富町）</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="weatherGrid">
+      <div style="text-align:center;padding:10px;background:rgba(0,122,255,0.05);border-radius:12px;border:1px solid rgba(0,122,255,0.1);">
+        <div style="font-size:0.68rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">今日</div>
+        <div style="font-size:2rem;margin-bottom:4px;" id="todayWeatherIcon">--</div>
+        <div style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:4px;" id="todayWeatherDesc">取得中...</div>
+        <div style="font-size:0.78rem;font-weight:600;font-family:'DM Mono',monospace;" id="todayWeatherTemp">--/--℃</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:rgba(52,199,89,0.05);border-radius:12px;border:1px solid rgba(52,199,89,0.1);">
+        <div style="font-size:0.68rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">明日</div>
+        <div style="font-size:2rem;margin-bottom:4px;" id="tomorrowWeatherIcon">--</div>
+        <div style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:4px;" id="tomorrowWeatherDesc">取得中...</div>
+        <div style="font-size:0.78rem;font-weight:600;font-family:'DM Mono',monospace;" id="tomorrowWeatherTemp">--/--℃</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 接続情報のみ（コンパクト） -->
+  <div class="card" style="padding:12px 16px;">
+    <div style="font-size:0.68rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">接続情報</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px 12px;">
+      <div style="font-size:0.7rem;color:var(--text-secondary);">📡 ルーター</div>
+      <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">RUT241</div>
+      <div style="font-size:0.7rem;color:var(--text-secondary);">🌐 回線</div>
+      <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">SORACOM</div>
+      <div style="font-size:0.7rem;color:var(--text-secondary);">📊 チャンネル</div>
+      <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">99929</div>
+      <div style="font-size:0.7rem;color:var(--text-secondary);">⏱️ 送信間隔</div>
+      <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">5分</div>
+    </div>
+  </div>
+  <!-- 更新ボタン -->
+  <button class="refresh-btn" id="refreshBtn" onclick="fetchData()">データを更新</button>
+
+  <div class="footer">Ambient ch.99929 · DeepSleep省電力モード · 自動更新 5分</div>
+
+</div>
+
+<script>
+const CHANNEL_ID = 99929;
+const READ_KEY = 'd024ac32d02366de';
+const NTFY_TOPIC = 'yuuki-house-monitor-99929';
+
+let chartMode = 'temp';
+let tempHistory = [];
+let humHistory = [];
+let timeLabels = [];
+let lastNotifiedLevel = 0; // 0=正常 1=オレンジ 2=赤（連続通知防止）
+
+async function sendNtfy(title, body, priority = 'default') {
+  try {
+    await fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+      method: 'POST',
+      headers: {
+        'Title': title,
+        'Priority': priority,
+        'Content-Type': 'text/plain; charset=utf-8'
+      },
+      body: body
+    });
+    console.log('📲 ntfy送信:', title);
+  } catch(e) {
+    console.log('ntfy送信失敗:', e);
+  }
+}
+
+// グラフ描画
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+
+const yAxisCanvas = document.getElementById('chartYAxis');
+const yCtx = yAxisCanvas.getContext('2d');
+
+function drawYAxis(min, max, displayH, dpr) {
+  const range = max - min || 1;
+  const pad = { top: 14, bottom: 36 };
+  const ch = displayH - pad.top - pad.bottom;
+  const w = 44;
+
+  yAxisCanvas.style.height = displayH + 'px';
+  yAxisCanvas.width = w * dpr;
+  yAxisCanvas.height = displayH * dpr;
+  yCtx.scale(dpr, dpr);
+  yCtx.clearRect(0, 0, w, displayH);
+
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (ch / 4) * i;
+    const val = max - (range / 4) * i;
+    yCtx.fillStyle = 'rgba(0,0,0,0.3)';
+    yCtx.font = '10px DM Mono, monospace';
+    yCtx.textAlign = 'right';
+    yCtx.fillText(val.toFixed(0), w - 5, y + 4);
+    // 区切り線
+    yCtx.strokeStyle = 'rgba(0,0,0,0.08)';
+    yCtx.lineWidth = 1;
+    yCtx.beginPath();
+    yCtx.moveTo(w - 2, y);
+    yCtx.lineTo(w, y);
+    yCtx.stroke();
+  }
+}
+
+function drawChart(data, color, unit, retry = 0) {
+  const dpr = window.devicePixelRatio || 1;
+  const chartWrap = document.getElementById('chartWrap');
+  const wrapW = chartWrap.offsetWidth;
+
+  if (wrapW === 0) {
+    if (retry < 10) setTimeout(() => drawChart(data, color, unit, retry + 1), 150);
+    return;
+  }
+
+  const pad = { top: 12, right: 12, bottom: 28, left: 40 };
+  const validData = (data || []).filter(v => v !== null);
+
+  const isPC = window.innerWidth >= 768;
+  const displayH = isPC ? 240 : 160;
+
+  // データ量に応じてcanvas幅を拡張（スクロール対応）
+  const PX_PER_POINT = 13; // 1データ点あたりのピクセル
+  const totalW = Math.max(wrapW, (data ? data.length : 0) * PX_PER_POINT + pad.left + pad.right);
+
+  const inner = document.getElementById('chartInner');
+  inner.style.width = totalW + 'px';
+  canvas.style.width = totalW + 'px';
+  canvas.style.height = displayH + 'px';
+  canvas.width  = totalW * dpr;
+  canvas.height = displayH * dpr;
+  ctx.scale(dpr, dpr);
+
+  const w = totalW;
+  const h = displayH;
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, w, h);
+
+  if (!data || validData.length < 2) {
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.font = '13px DM Sans, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('データ取得中...', w / 2, h / 2);
+    return;
+  }
+
+  const min = Math.min(...validData) - 1;
+  const max = Math.max(...validData) + 1;
+  const range = max - min || 1;
+  const xStep = cw / (data.length - 1);
+
+  // グリッド線＋Y軸ラベル
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (ch / 4) * i;
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+    const val = max - (range / 4) * i;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.font = '10px DM Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(val.toFixed(0), pad.left - 5, y + 4);
+  }
+
+  // X軸時刻ラベル（30分刻み）
+  if (timeLabels && timeLabels.length > 0) {
+    let lastLabel = null;
+    const labLen = Math.min(timeLabels.length, data.length);
+    for (let i = 0; i < labLen; i++) {
+      const t = timeLabels[i];
+      if (!t) continue;
+      const totalMins = t.getHours() * 60 + t.getMinutes();
+      const nearestHalf = Math.round(totalMins / 30) * 30;
+      if (Math.abs(totalMins - nearestHalf) > 2) continue;
+      const labelStr = String(Math.floor(nearestHalf / 60) % 24).padStart(2,'0') + ':' + String(nearestHalf % 60).padStart(2,'0');
+      if (labelStr === lastLabel) continue;
+      lastLabel = labelStr;
+      const x = pad.left + i * xStep;
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.font = '9px DM Mono, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(labelStr, x, h - 4);
+    }
+  }
+
+  // グラデーション
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+  grad.addColorStop(0, color + '30');
+  grad.addColorStop(1, color + '00');
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    if (v === null) return;
+    const x = pad.left + i * xStep;
+    const y = pad.top + ch - ((v - min) / range) * ch;
+    i === 0 || data.slice(0,i).every(d => d === null) ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  const lastIdx = data.reduce((acc, v, i) => v !== null ? i : acc, -1);
+  if (lastIdx >= 0) ctx.lineTo(pad.left + lastIdx * xStep, pad.top + ch);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // ライン
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  let started = false;
+  data.forEach((v, i) => {
+    if (v === null) return;
+    const x = pad.left + i * xStep;
+    const y = pad.top + ch - ((v - min) / range) * ch;
+    if (!started) { ctx.moveTo(x, y); started = true; }
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // 最新点
+  if (lastIdx >= 0) {
+    const lx = pad.left + lastIdx * xStep;
+    const ly = pad.top + ch - ((data[lastIdx] - min) / range) * ch;
+    ctx.beginPath(); ctx.arc(lx, ly, 5, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  // 最右端にスクロール
+  chartWrap.scrollLeft = chartWrap.scrollWidth;
+}
+
+function switchChart(mode) {
+  chartMode = mode;
+  document.querySelectorAll('.chart-tab').forEach(t => {
+    t.classList.remove('active');
+    if (t.classList.contains(mode)) t.classList.add('active');
+  });
+  updateChart();
+}
+
+function updateChart() {
+  const data = chartMode === 'temp' ? tempHistory : humHistory;
+  const color = chartMode === 'temp' ? '#ff6b35' : '#007aff';
+  const unit = chartMode === 'temp' ? '℃' : '%';
+
+  // canvas幅が確定してから描画（スマホ対策・最大1秒リトライ）
+  const tryDraw = (retry) => {
+    const w = document.getElementById('chartWrap').offsetWidth;
+    if (w > 0) {
+      drawChart(data, color, unit);
+    } else if (retry > 0) {
+      setTimeout(() => tryDraw(retry - 1), 100);
+    }
+  };
+  tryDraw(10);
+
+  const validArr = data.filter(v => v !== null);
+  if (validArr.length > 0) {
+    const max = Math.max(...validArr).toFixed(1);
+    const min = Math.min(...validArr).toFixed(1);
+    const avg = (validArr.reduce((a, b) => a + b, 0) / validArr.length).toFixed(1);
+    document.getElementById('chartMax').textContent = max + unit;
+    document.getElementById('chartMin').textContent = min + unit;
+    document.getElementById('chartAvg').textContent = avg + unit;
+  }
+}
+
+function getTempStatus(t) {
+  if (t >= 40) return ['🔥 高温警告', 'status-danger'];
+  if (t >= 35) return ['⚠️ やや高め', 'status-warn'];
+  if (t <= 10) return ['🧊 低温注意', 'status-warn'];
+  return ['✅ 正常', 'status-normal'];
+}
+
+function getHumStatus(h) {
+  if (h >= 90) return ['💦 過湿', 'status-warn'];
+  if (h <= 40) return ['🏜️ 乾燥', 'status-warn'];
+  return ['✅ 正常', 'status-normal'];
+}
+
+function updateSensorStatus(lastTime) {
+  const iconEl   = document.getElementById('sensorStatusIcon');
+  const textEl   = document.getElementById('sensorStatusText');
+  const elapsed  = document.getElementById('sensorElapsed');
+  const badge    = document.getElementById('statusBadge');
+  const banner   = document.getElementById('offlineBanner');
+  const title    = document.getElementById('offlineTitle');
+  const msg      = document.getElementById('offlineMsg');
+
+  if (!lastTime || isNaN(lastTime)) {
+    iconEl.style.color = 'var(--text-tertiary)';
+    textEl.textContent = '不明';
+    elapsed.textContent = '--分前';
+    elapsed.style.color = 'var(--text-tertiary)';
+    return;
+  }
+
+  const diffMin = (Date.now() - lastTime.getTime()) / 60000;
+  const diffRound = Math.round(diffMin);
+
+  // 経過時間テキスト
+  if (diffMin < 60) {
+    elapsed.textContent = diffRound + '分前';
+  } else {
+    const h = Math.floor(diffMin / 60);
+    const m = Math.round(diffMin % 60);
+    elapsed.textContent = h + '時間' + m + '分前';
+  }
+
+  if (diffMin <= 10) {
+    // 🟢 正常
+    iconEl.style.color = 'var(--accent-green)';
+    textEl.textContent = '受信中';
+    elapsed.style.color = 'var(--text-tertiary)';
+    badge.className = 'status-badge online';
+    document.getElementById('statusText').textContent = 'オンライン';
+    banner.classList.remove('show');
+    // 復旧通知（オレンジ or 赤から戻った時だけ）
+    if (lastNotifiedLevel >= 1) {
+      sendNtfy('✅ センサー復旧', 'ハウスモニターのセンサーが復旧しました。');
+    }
+    lastNotifiedLevel = 0;
+  } else if (diffMin <= 30) {
+    // 🟡 要注意 → 気温・湿度を---に
+    iconEl.style.color = 'var(--accent-orange)';
+    textEl.textContent = '電波不良の可能性';
+    elapsed.style.color = 'var(--accent-orange)';
+    badge.className = 'status-badge offline';
+    document.getElementById('statusText').textContent = '要注意';
+    banner.classList.add('show');
+    title.textContent = '⚠️ データが途切れています';
+    msg.textContent = `最終受信から${diffRound}分経過。電波状況を確認してください。`;
+    clearSensorValues();
+    // オレンジ通知（初回のみ）
+    if (lastNotifiedLevel < 1) {
+      sendNtfy('⚠️ 電波不良の可能性', `最終受信から${diffRound}分経過。電波状況を確認してください。`, 'high');
+      lastNotifiedLevel = 1;
+    }
+  } else {
+    // 🔴 電池切れの可能性 → 気温・湿度を---に
+    iconEl.style.color = 'var(--accent-red)';
+    textEl.textContent = '電池切れの可能性';
+    elapsed.style.color = 'var(--accent-red)';
+    badge.className = 'status-badge offline';
+    document.getElementById('statusText').textContent = '未接続';
+    banner.classList.add('show');
+    title.textContent = '📵 センサーが停止しています';
+    msg.textContent = `最終受信から${diffRound >= 60 ? Math.floor(diffMin/60)+'時間以上' : diffRound+'分'}経過。電池切れの可能性があります。現地を確認してください。`;
+    clearSensorValues();
+    // 赤通知（初回のみ）
+    if (lastNotifiedLevel < 2) {
+      sendNtfy('📵 センサー停止', `最終受信から${diffRound >= 60 ? Math.floor(diffMin/60)+'時間以上' : diffRound+'分'}経過。電池切れの可能性があります。`, 'urgent');
+      lastNotifiedLevel = 2;
+    }
+  }
+}
+
+function clearSensorValues() {
+  document.getElementById('tempVal').innerHTML  = '---<span class="metric-unit">℃</span>';
+  document.getElementById('humVal').innerHTML   = '---<span class="metric-unit">%</span>';
+  document.getElementById('tempStatus').textContent = '--';
+  document.getElementById('tempStatus').className   = 'metric-status status-normal';
+  document.getElementById('humStatus').textContent  = '--';
+  document.getElementById('humStatus').className    = 'metric-status status-normal';
+
+  // グラフ末尾にnullを追加して線を途切れさせる
+  const alreadyNull = tempHistory.length > 0 && tempHistory[tempHistory.length - 1] === null;
+  if (!alreadyNull) {
+    tempHistory.push(null);
+    humHistory.push(null);
+    timeLabels.push(new Date());
+    updateChart();
+  }
+}
+
+// 天気コード→絵文字・説明
+function getWeatherInfo(code) {
+  if (code === 0)              return { icon: '☀️',  desc: '快晴' };
+  if (code <= 2)               return { icon: '🌤️', desc: '晴れ' };
+  if (code === 3)              return { icon: '☁️',  desc: '曇り' };
+  if (code <= 49)              return { icon: '🌫️', desc: '霧' };
+  if (code <= 55)              return { icon: '🌧️', desc: '霧雨' };
+  if (code <= 65)              return { icon: '🌧️', desc: '雨' };
+  if (code <= 77)              return { icon: '🌨️', desc: '雪' };
+  if (code <= 82)              return { icon: '🌦️', desc: 'にわか雨' };
+  if (code <= 99)              return { icon: '⛈️',  desc: '雷雨' };
+  return { icon: '🌡️', desc: '不明' };
+}
+
+async function fetchWeather() {
+  // 国富町の緯度経度
+  const lat = 31.9167;
+  const lon = 131.2167;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=2`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('weather API error');
+    const data = await res.json();
+
+    const days = data.daily;
+
+    // 今日
+    const todayCode = days.weathercode[0];
+    const todayMax  = Math.round(days.temperature_2m_max[0]);
+    const todayMin  = Math.round(days.temperature_2m_min[0]);
+    const todayInfo = getWeatherInfo(todayCode);
+    document.getElementById('todayWeatherIcon').textContent = todayInfo.icon;
+    document.getElementById('todayWeatherDesc').textContent = todayInfo.desc;
+    document.getElementById('todayWeatherTemp').textContent = `${todayMax}℃ / ${todayMin}℃`;
+
+    // 明日
+    const tmrCode = days.weathercode[1];
+    const tmrMax  = Math.round(days.temperature_2m_max[1]);
+    const tmrMin  = Math.round(days.temperature_2m_min[1]);
+    const tmrInfo = getWeatherInfo(tmrCode);
+    document.getElementById('tomorrowWeatherIcon').textContent = tmrInfo.icon;
+    document.getElementById('tomorrowWeatherDesc').textContent = tmrInfo.desc;
+    document.getElementById('tomorrowWeatherTemp').textContent = `${tmrMax}℃ / ${tmrMin}℃`;
+
+  } catch(e) {
+    document.getElementById('todayWeatherDesc').textContent = '取得失敗';
+    document.getElementById('tomorrowWeatherDesc').textContent = '取得失敗';
+  }
+}
+
+async function fetchTodayData() {
+  // 今日0:00〜現在のデータを取得して最高・最低を計算
+  // AmbientはJST（日本時間）で日時指定する
+  const now = new Date();
+  const jstOffset = 9 * 60; // JST = UTC+9
+  const nowJST = new Date(now.getTime() + jstOffset * 60000);
+
+  const y = nowJST.getUTCFullYear();
+  const m = String(nowJST.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(nowJST.getUTCDate()).padStart(2, '0');
+
+  const fromStr = `${y}-${m}-${d}T00:00:00`;
+  const toStr   = `${y}-${m}-${d}T23:59:59`;
+
+  try {
+    const url = `https://ambidata.io/api/v2/channels/${CHANNEL_ID}/data?readKey=${READ_KEY}&from=${fromStr}&to=${toStr}`;
+    console.log('📅 fetchTodayData URL:', url);
+    console.log('📅 from:', fromStr, '/ to:', toStr);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    if (!data || data.length === 0) throw new Error('no today data');
+
+    // 取得データを今日（JST）の日付でフィルタリング ← 昨日以前を除外
+    const todayDateStr = `${y}-${m}-${d}`;
+    const filtered = data.filter(item => {
+      const raw = item.created_at || item.created;
+      if (!raw) return false;
+      const t = new Date(raw);
+      // JSTに変換して日付を確認
+      const tJST = new Date(t.getTime() + 9 * 60 * 60000);
+      const tDate = tJST.getUTCFullYear() + '-'
+        + String(tJST.getUTCMonth() + 1).padStart(2,'0') + '-'
+        + String(tJST.getUTCDate()).padStart(2,'0');
+      return tDate === todayDateStr;
+    });
+    console.log('📅 取得件数:', data.length, '/ 今日分:', filtered.length,
+      '/ 先頭時刻:', data[data.length-1]?.created || data[data.length-1]?.created_at,
+      '/ 末尾時刻:', data[0]?.created || data[0]?.created_at);
+    const temps = filtered.map(d => parseFloat(d.d1)).filter(v => !isNaN(v));
+    console.log('📅 気温データ（今日分）:', temps.slice(0,5), '...');
+    if (temps.length === 0) throw new Error('no today temp data');
+
+    const todayMax = Math.max(...temps).toFixed(1);
+    const todayMin = Math.min(...temps).toFixed(1);
+
+    document.getElementById('todayMax').innerHTML = todayMax + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
+    document.getElementById('todayMin').innerHTML = todayMin + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
+    const [tmLabel, tmClass] = getTempStatus(parseFloat(todayMax));
+    const [tnLabel, tnClass] = getTempStatus(parseFloat(todayMin));
+    document.getElementById('todayMaxStatus').textContent = tmLabel;
+    document.getElementById('todayMaxStatus').className = 'metric-status ' + tmClass;
+    document.getElementById('todayMinStatus').textContent = tnLabel;
+    document.getElementById('todayMinStatus').className = 'metric-status ' + tnClass;
+
+  } catch(e) {
+    document.getElementById('todayMax').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
+    document.getElementById('todayMin').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
+    document.getElementById('todayMaxStatus').textContent = '--';
+    document.getElementById('todayMinStatus').textContent = '--';
+  }
+}
+
+async function fetchData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true; btn.textContent = '取得中...';
+  const badge = document.getElementById('statusBadge');
+  badge.className = 'status-badge loading';
+  document.getElementById('statusText').textContent = '取得中';
+
+  try {
+    // 48時間前〜現在をJSTで指定
+    const now48 = new Date();
+    const jst48 = new Date(now48.getTime() + 9 * 60 * 60000);
+    const to48 = jst48.toISOString().slice(0, 19);
+    const from48 = new Date(jst48.getTime() - 48 * 60 * 60000).toISOString().slice(0, 19);
+    const url = `https://ambidata.io/api/v2/channels/${CHANNEL_ID}/data?readKey=${READ_KEY}&from=${from48}&to=${to48}&n=3000`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    if (!data || data.length === 0) throw new Error('no data');
+
+    const latest = data[0];
+    const temp = parseFloat(latest.d1);
+    const hum  = parseFloat(latest.d2);
+    const volt = parseFloat(latest.d3) || 0;
+
+    const reversed = [...data].reverse();
+    // Ambientの時刻フィールドを自動検出
+    const timeKey = reversed[0].created_at ? 'created_at' : reversed[0].created ? 'created' : null;
+
+    // データをそのまま配列に入れる（nullなし・全点繋ぐ）
+    tempHistory = reversed.map(d => { const v = parseFloat(d.d1); return isNaN(v) ? null : v; });
+    humHistory  = reversed.map(d => { const v = parseFloat(d.d2); return isNaN(v) ? null : v; });
+    timeLabels  = reversed.map(d => {
+      const raw = timeKey ? d[timeKey] : null;
+      return raw ? new Date(raw) : null;
+    });
+
+    // 基本表示
+    document.getElementById('tempVal').innerHTML = temp.toFixed(1) + '<span class="metric-unit">℃</span>';
+    document.getElementById('humVal').innerHTML  = hum.toFixed(0)  + '<span class="metric-unit">%</span>';
+
+    const [tLabel, tClass] = getTempStatus(temp);
+    const [hLabel, hClass] = getHumStatus(hum);
+    const ts = document.getElementById('tempStatus');
+    const hs = document.getElementById('humStatus');
+    ts.textContent = tLabel; ts.className = 'metric-status ' + tClass;
+    hs.textContent = hLabel; hs.className = 'metric-status ' + hClass;
+
+    fetchTodayData();
+    updateChart();
+
+    // 最終受信時刻を取得してセンサー状態を更新（オンライン/警告/電池切れ判定も内包）
+    const timeKey2 = latest.created_at ? 'created_at' : latest.created ? 'created' : null;
+    const lastTime = timeKey2 ? new Date(latest[timeKey2]) : null;
+    updateSensorStatus(lastTime);
+
+    // 最終更新時刻を表示
+    if (lastTime && !isNaN(lastTime)) {
+      document.getElementById('lastUpdate').textContent =
+        '最終更新: ' + lastTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    } else {
+      document.getElementById('lastUpdate').textContent =
+        '最終更新: ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    }
+
+  } catch(e) {
+    updateSensorStatus(null);
+    document.getElementById('lastUpdate').textContent = '最終更新: 取得失敗';
+    drawChart([], '#ff6b35', '℃');
+    document.getElementById('offlineTitle').textContent = 'センサー未接続';
+    document.getElementById('offlineMsg').textContent = 'データが取得できません。センサーの電源・接続を確認してください。';
+  }
+
+  btn.disabled = false; btn.textContent = 'データを更新';
+}
+
+// PC/スマホ判定でレイアウト調整
+function applyLayout() {
+  // battConnRowは削除済みのため何もしない
+}
+
+window.addEventListener('load', () => {
+  applyLayout();
+  fetchData();
+  fetchTodayData();
+  fetchWeather();
+  setInterval(fetchData, 300000);
+  setInterval(fetchTodayData, 300000);
+  setInterval(fetchWeather, 3600000); // 1時間ごとに天気更新
+});
+window.addEventListener('resize', () => { applyLayout(); updateChart(); });
+</script>
+</body>
+</html>
