@@ -316,16 +316,40 @@ canvas#chart { height: 160px !important; display: block; }
     </div>
     <!-- PC時のみ表示される追加カード -->
     <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
-      <span class="metric-icon">📈</span>
-      <div class="metric-label">本日最高気温</div>
-      <div class="metric-value" id="todayMax" style="color:#ff6b35;font-family:'DM Mono',monospace;font-size:2.2rem;font-weight:500;letter-spacing:-0.03em;line-height:1;margin-bottom:6px;">--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span></div>
+      <span class="metric-icon">🌡️</span>
+      <div class="metric-label">本日気温</div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最高</div>
+          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#ff6b35;line-height:1;" id="todayMax">--<span style="font-size:0.85rem;opacity:0.7;">℃</span></div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最低</div>
+          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#007aff;line-height:1;" id="todayMin">--<span style="font-size:0.85rem;opacity:0.7;">℃</span></div>
+        </div>
+      </div>
       <div class="metric-status status-normal" id="todayMaxStatus">--</div>
     </div>
     <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
-      <span class="metric-icon">📉</span>
-      <div class="metric-label">本日最低気温</div>
-      <div class="metric-value" id="todayMin" style="color:#007aff;font-family:'DM Mono',monospace;font-size:2.2rem;font-weight:500;letter-spacing:-0.03em;line-height:1;margin-bottom:6px;">--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span></div>
-      <div class="metric-status status-normal" id="todayMinStatus">--</div>
+      <span class="metric-icon">💦</span>
+      <div class="metric-label">本日湿度</div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最高</div>
+          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#007aff;line-height:1;" id="todayMaxHum">--<span style="font-size:0.85rem;opacity:0.7;">%</span></div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最低</div>
+          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#34c759;line-height:1;" id="todayMinHum">--<span style="font-size:0.85rem;opacity:0.7;">%</span></div>
+        </div>
+      </div>
+      <div class="metric-status status-normal" id="todayMaxHumStatus">--</div>
+    </div>
+    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
+      <span class="metric-icon">🌱</span>
+      <div class="metric-label">土壌水分</div>
+      <div class="metric-value" id="soilVal" style="color:#34c759;font-family:'DM Mono',monospace;font-size:2.2rem;font-weight:500;letter-spacing:-0.03em;line-height:1;margin-bottom:6px;">--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">%</span></div>
+      <div class="metric-status status-normal" id="soilStatus">--</div>
     </div>
   </div>
 
@@ -646,6 +670,13 @@ function getHumStatus(h) {
   return ['✅ 正常', 'status-normal'];
 }
 
+function getSoilStatus(s) {
+  if (s >= 80) return ['💧 過湿', 'status-warn'];
+  if (s >= 40) return ['✅ 適正', 'status-normal'];
+  if (s >= 20) return ['⚠️ やや乾燥', 'status-warn'];
+  return ['🏜️ 乾燥', 'status-danger'];
+}
+
 function updateSensorStatus(lastTime) {
   const iconEl   = document.getElementById('sensorStatusIcon');
   const textEl   = document.getElementById('sensorStatusText');
@@ -831,6 +862,7 @@ async function fetchTodayData() {
       '/ 先頭時刻:', data[data.length-1]?.created || data[data.length-1]?.created_at,
       '/ 末尾時刻:', data[0]?.created || data[0]?.created_at);
     const temps = filtered.map(d => parseFloat(d.d1)).filter(v => !isNaN(v));
+    const hums  = filtered.map(d => parseFloat(d.d2)).filter(v => !isNaN(v));
     console.log('📅 気温データ（今日分）:', temps.slice(0,5), '...');
     if (temps.length === 0) throw new Error('no today temp data');
 
@@ -840,11 +872,19 @@ async function fetchTodayData() {
     document.getElementById('todayMax').innerHTML = todayMax + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
     document.getElementById('todayMin').innerHTML = todayMin + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
     const [tmLabel, tmClass] = getTempStatus(parseFloat(todayMax));
-    const [tnLabel, tnClass] = getTempStatus(parseFloat(todayMin));
-    document.getElementById('todayMaxStatus').textContent = tmLabel;
+    document.getElementById('todayMaxStatus').textContent = `最高 ${tmLabel}`;
     document.getElementById('todayMaxStatus').className = 'metric-status ' + tmClass;
-    document.getElementById('todayMinStatus').textContent = tnLabel;
-    document.getElementById('todayMinStatus').className = 'metric-status ' + tnClass;
+
+    // 本日最高・最低湿度
+    if (hums.length > 0) {
+      const todayMaxHum = Math.max(...hums).toFixed(0);
+      const todayMinHum = Math.min(...hums).toFixed(0);
+      document.getElementById('todayMaxHum').innerHTML = todayMaxHum + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">%</span>';
+      document.getElementById('todayMinHum').innerHTML = todayMinHum + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">%</span>';
+      const [hmaxLabel, hmaxClass] = getHumStatus(parseFloat(todayMaxHum));
+      document.getElementById('todayMaxHumStatus').textContent = `最高 ${hmaxLabel}`;
+      document.getElementById('todayMaxHumStatus').className = 'metric-status ' + hmaxClass;
+    }
 
   } catch(e) {
     document.getElementById('todayMax').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
@@ -876,7 +916,11 @@ async function fetchData() {
     const latest = data[0];
     const temp = parseFloat(latest.d1);
     const hum  = parseFloat(latest.d2);
-    const volt = parseFloat(latest.d3) || 0;
+
+    // d3は最新レコードにない場合があるので直近の有効値を探す
+    const latestSoilRecord = data.find(d => d.d3 !== undefined && d.d3 !== null && d.d3 !== '' && !isNaN(parseFloat(d.d3)));
+    const soil = latestSoilRecord ? parseFloat(latestSoilRecord.d3) : NaN;
+    console.log('🌱 d3(soil):', latestSoilRecord?.d3, '→ parsed:', soil);
 
     const reversed = [...data].reverse();
     // Ambientの時刻フィールドを自動検出
@@ -900,6 +944,14 @@ async function fetchData() {
     const hs = document.getElementById('humStatus');
     ts.textContent = tLabel; ts.className = 'metric-status ' + tClass;
     hs.textContent = hLabel; hs.className = 'metric-status ' + hClass;
+
+    // 土壌水分表示
+    if (!isNaN(soil)) {
+      document.getElementById('soilVal').innerHTML = soil.toFixed(0) + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">%</span>';
+      const [sLabel, sClass] = getSoilStatus(soil);
+      document.getElementById('soilStatus').textContent = sLabel;
+      document.getElementById('soilStatus').className = 'metric-status ' + sClass;
+    }
 
     fetchTodayData();
     updateChart();
