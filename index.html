@@ -153,6 +153,7 @@ body {
 }
 .chart-tab.active.temp { background: rgba(255,107,53,0.12); color: var(--accent-temp); }
 .chart-tab.active.hum  { background: rgba(0,122,255,0.12);  color: var(--accent-hum); }
+.chart-tab.active.soil { background: rgba(52,199,89,0.12);  color: var(--accent-green); }
 .chart-wrap {
   padding: 0 18px;
   position: relative;
@@ -351,6 +352,21 @@ canvas#chart { height: 160px !important; display: block; }
       <div class="metric-value" id="soilVal" style="color:#34c759;font-family:'DM Mono',monospace;font-size:2.2rem;font-weight:500;letter-spacing:-0.03em;line-height:1;margin-bottom:6px;">--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">%</span></div>
       <div class="metric-status status-normal" id="soilStatus">--</div>
     </div>
+    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
+      <span class="metric-icon">🌱</span>
+      <div class="metric-label">本日土壌水分</div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最高</div>
+          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#34c759;line-height:1;" id="todayMaxSoil">--<span style="font-size:0.85rem;opacity:0.7;">%</span></div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最低</div>
+          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#f5a623;line-height:1;" id="todayMinSoil">--<span style="font-size:0.85rem;opacity:0.7;">%</span></div>
+        </div>
+      </div>
+      <div class="metric-status status-normal" id="todayMaxSoilStatus">--</div>
+    </div>
   </div>
 
   <!-- グラフ -->
@@ -361,6 +377,7 @@ canvas#chart { height: 160px !important; display: block; }
     <div class="chart-tabs">
       <button class="chart-tab active temp" onclick="switchChart('temp')">気温</button>
       <button class="chart-tab hum" onclick="switchChart('hum')">湿度</button>
+      <button class="chart-tab soil" onclick="switchChart('soil')">土壌水分</button>
     </div>
     <div class="chart-wrap">
       <!-- Y軸（固定） -->
@@ -438,6 +455,7 @@ const NTFY_TOPIC = 'yuuki-house-monitor-99929';
 let chartMode = 'temp';
 let tempHistory = [];
 let humHistory = [];
+let soilHistory = [];
 let timeLabels = [];
 let lastNotifiedLevel = 0; // 0=正常 1=オレンジ 2=赤（連続通知防止）
 
@@ -621,20 +639,11 @@ function switchChart(mode) {
 }
 
 function updateChart() {
-  const data = chartMode === 'temp' ? tempHistory : humHistory;
-  const color = chartMode === 'temp' ? '#ff6b35' : '#007aff';
-  const unit = chartMode === 'temp' ? '℃' : '%';
+  const data  = chartMode === 'temp' ? tempHistory : chartMode === 'hum' ? humHistory : soilHistory;
+  const color = chartMode === 'temp' ? '#ff6b35' : chartMode === 'hum' ? '#007aff' : '#34c759';
+  const unit  = chartMode === 'soil' ? '%' : chartMode === 'temp' ? '℃' : '%';
 
-  // canvas幅が確定してから描画（スマホ対策・最大1秒リトライ）
-  const tryDraw = (retry) => {
-    const w = document.getElementById('chartWrap').offsetWidth;
-    if (w > 0) {
-      drawChart(data, color, unit);
-    } else if (retry > 0) {
-      setTimeout(() => tryDraw(retry - 1), 100);
-    }
-  };
-  tryDraw(10);
+  drawChart(data, color, unit);
 
   const validArr = data.filter(v => v !== null);
   if (validArr.length > 0) {
@@ -876,6 +885,18 @@ async function fetchTodayData() {
       document.getElementById('todayMaxHumStatus').className = 'metric-status ' + hmaxClass;
     }
 
+    // 本日最高・最低土壌水分
+    const soils = filtered.map(d => parseFloat(d.d3)).filter(v => !isNaN(v));
+    if (soils.length > 0) {
+      const todayMaxSoil = Math.max(...soils).toFixed(0);
+      const todayMinSoil = Math.min(...soils).toFixed(0);
+      document.getElementById('todayMaxSoil').innerHTML = todayMaxSoil + '<span style="font-size:0.85rem;opacity:0.7;">%</span>';
+      document.getElementById('todayMinSoil').innerHTML = todayMinSoil + '<span style="font-size:0.85rem;opacity:0.7;">%</span>';
+      const [smaxLabel, smaxClass] = getSoilStatus(parseFloat(todayMaxSoil));
+      document.getElementById('todayMaxSoilStatus').textContent = `最高 ${smaxLabel}`;
+      document.getElementById('todayMaxSoilStatus').className = 'metric-status ' + smaxClass;
+    }
+
   } catch(e) {
     document.getElementById('todayMax').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
     document.getElementById('todayMin').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
@@ -919,6 +940,7 @@ async function fetchData() {
     // データをそのまま配列に入れる（nullなし・全点繋ぐ）
     tempHistory = reversed.map(d => { const v = parseFloat(d.d1); return isNaN(v) ? null : v; });
     humHistory  = reversed.map(d => { const v = parseFloat(d.d2); return isNaN(v) ? null : v; });
+    soilHistory = reversed.map(d => { const v = parseFloat(d.d3); return isNaN(v) ? null : v; });
     timeLabels  = reversed.map(d => {
       const raw = timeKey ? d[timeKey] : null;
       return raw ? new Date(raw) : null;
