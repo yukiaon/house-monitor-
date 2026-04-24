@@ -20,6 +20,7 @@
   --accent-red: #ff3b30;
   --accent-temp: #ff6b35;
   --accent-hum: #007aff;
+  --accent-vpd: #af52de;
   --shadow: 0 2px 20px rgba(0,0,0,0.08);
   --radius: 18px;
   --radius-sm: 12px;
@@ -154,6 +155,7 @@ body {
 .chart-tab.active.temp { background: rgba(255,107,53,0.12); color: var(--accent-temp); }
 .chart-tab.active.hum  { background: rgba(0,122,255,0.12);  color: var(--accent-hum); }
 .chart-tab.active.soil { background: rgba(52,199,89,0.12);  color: var(--accent-green); }
+.chart-tab.active.vpd  { background: rgba(175,82,222,0.12); color: var(--accent-vpd); }
 .chart-wrap {
   padding: 0 18px;
   position: relative;
@@ -367,6 +369,41 @@ canvas#chart { height: 160px !important; display: block; }
       </div>
       <div class="metric-status status-normal" id="todayMaxSoilStatus">--</div>
     </div>
+    <!-- VPDカード（現在値） -->
+    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;position:relative;overflow:hidden;">
+      <div style="content:'';position:absolute;top:0;right:0;width:80px;height:80px;border-radius:50%;opacity:0.07;transform:translate(20px,-20px);background:var(--accent-vpd);"></div>
+      <span class="metric-icon">🍃</span>
+      <div class="metric-label">飽差 (VPD)</div>
+      <div class="metric-value" id="vpdVal" style="color:var(--accent-vpd);font-family:'DM Mono',monospace;font-size:2.2rem;font-weight:500;letter-spacing:-0.03em;line-height:1;margin-bottom:6px;">--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">kPa</span></div>
+      <div class="metric-status status-normal" id="vpdStatus">--</div>
+    </div>
+    <!-- 本日VPDカード -->
+    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
+      <span class="metric-icon">🍃</span>
+      <div class="metric-label">本日飽差</div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最高</div>
+          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#af52de;line-height:1;" id="todayMaxVpd">--<span style="font-size:0.85rem;opacity:0.7;">kPa</span></div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最低</div>
+          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#007aff;line-height:1;" id="todayMinVpd">--<span style="font-size:0.85rem;opacity:0.7;">kPa</span></div>
+        </div>
+      </div>
+      <div class="metric-status status-normal" id="todayMaxVpdStatus">--</div>
+    </div>
+  </div>
+
+  <!-- 💡 ハウス管理アドバイス -->
+  <div class="card" id="adviceCard" style="padding:16px 18px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <span class="card-label">💡 ハウス管理アドバイス</span>
+      <span style="font-size:0.62rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="adviceTime">--</span>
+    </div>
+    <div id="adviceList" style="display:flex;flex-direction:column;gap:8px;">
+      <div style="font-size:0.8rem;color:var(--text-tertiary);padding:8px 0;">データ取得後に表示されます...</div>
+    </div>
   </div>
 
   <!-- グラフ -->
@@ -378,6 +415,7 @@ canvas#chart { height: 160px !important; display: block; }
       <button class="chart-tab active temp" onclick="switchChart('temp')">気温</button>
       <button class="chart-tab hum" onclick="switchChart('hum')">湿度</button>
       <button class="chart-tab soil" onclick="switchChart('soil')">土壌水分</button>
+      <button class="chart-tab vpd" onclick="switchChart('vpd')">飽差</button>
     </div>
     <div class="chart-wrap">
       <!-- Y軸（固定） -->
@@ -456,8 +494,28 @@ let chartMode = 'temp';
 let tempHistory = [];
 let humHistory = [];
 let soilHistory = [];
+let vpdHistory = [];
 let timeLabels = [];
 let lastNotifiedLevel = 0; // 0=正常 1=オレンジ 2=赤（連続通知防止）
+
+// 最新状態を保持（アドバイス生成で参照）
+let latestState = {
+  temp: null,
+  hum: null,
+  soil: null,
+  vpd: null,
+  todayWeather: null,   // {code, max, min}
+  tomorrowWeather: null
+};
+
+// ===== VPD (飽差) 計算 =====
+// Tetens式: 飽和水蒸気圧 SVP(kPa) = 0.6108 * exp(17.27*T / (T+237.3))
+// VPD = SVP * (1 - RH/100)
+function calcVPD(temp, hum) {
+  if (isNaN(temp) || isNaN(hum)) return NaN;
+  const svp = 0.6108 * Math.exp((17.27 * temp) / (temp + 237.3));
+  return svp * (1 - hum / 100);
+}
 
 async function sendNtfy(title, body, priority = 'default') {
   try {
@@ -543,12 +601,16 @@ function drawChart(data, color, unit, retry = 0) {
     return;
   }
 
-  const min = Math.min(...validData) - 1;
-  const max = Math.max(...validData) + 1;
+  // VPDは範囲が小さいので余白も小さく
+  const pad_range = (chartMode === 'vpd') ? 0.1 : 1;
+  const min = Math.min(...validData) - pad_range;
+  const max = Math.max(...validData) + pad_range;
   const range = max - min || 1;
   const xStep = cw / (data.length - 1);
 
   // グリッド線＋Y軸ラベル
+  // VPDモードは小数第2位、それ以外は整数
+  const yDigits = (chartMode === 'vpd') ? 2 : 0;
   for (let i = 0; i <= 4; i++) {
     const y = pad.top + (ch / 4) * i;
     ctx.strokeStyle = 'rgba(0,0,0,0.06)';
@@ -558,7 +620,7 @@ function drawChart(data, color, unit, retry = 0) {
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.font = '10px DM Mono, monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(val.toFixed(0), pad.left - 5, y + 4);
+    ctx.fillText(val.toFixed(yDigits), pad.left - 5, y + 4);
   }
 
   // X軸時刻ラベル（30分刻み・最小60px間隔）
@@ -639,17 +701,20 @@ function switchChart(mode) {
 }
 
 function updateChart() {
-  const data  = chartMode === 'temp' ? tempHistory : chartMode === 'hum' ? humHistory : soilHistory;
-  const color = chartMode === 'temp' ? '#ff6b35' : chartMode === 'hum' ? '#007aff' : '#34c759';
-  const unit  = chartMode === 'soil' ? '%' : chartMode === 'temp' ? '℃' : '%';
+  let data, color, unit;
+  if (chartMode === 'temp') { data = tempHistory; color = '#ff6b35'; unit = '℃'; }
+  else if (chartMode === 'hum')  { data = humHistory;  color = '#007aff'; unit = '%'; }
+  else if (chartMode === 'soil') { data = soilHistory; color = '#34c759'; unit = '%'; }
+  else if (chartMode === 'vpd')  { data = vpdHistory;  color = '#af52de'; unit = 'kPa'; }
 
   drawChart(data, color, unit);
 
-  const validArr = data.filter(v => v !== null);
+  const validArr = data.filter(v => v !== null && !isNaN(v));
   if (validArr.length > 0) {
-    const max = Math.max(...validArr).toFixed(1);
-    const min = Math.min(...validArr).toFixed(1);
-    const avg = (validArr.reduce((a, b) => a + b, 0) / validArr.length).toFixed(1);
+    const digits = (chartMode === 'vpd') ? 2 : 1;
+    const max = Math.max(...validArr).toFixed(digits);
+    const min = Math.min(...validArr).toFixed(digits);
+    const avg = (validArr.reduce((a, b) => a + b, 0) / validArr.length).toFixed(digits);
     document.getElementById('chartMax').textContent = max + unit;
     document.getElementById('chartMin').textContent = min + unit;
     document.getElementById('chartAvg').textContent = avg + unit;
@@ -674,6 +739,218 @@ function getSoilStatus(s) {
   if (s >= 40) return ['✅ 適正', 'status-normal'];
   if (s >= 20) return ['⚠️ やや乾燥', 'status-warn'];
   return ['🏜️ 乾燥', 'status-danger'];
+}
+
+// ピーマンの適正VPD: 0.5〜1.2kPa
+function getVpdStatus(v) {
+  if (isNaN(v)) return ['--', 'status-normal'];
+  if (v < 0.3)  return ['💧 低すぎ(蒸散停止)', 'status-warn'];
+  if (v < 0.5)  return ['🌀 やや低', 'status-warn'];
+  if (v <= 1.2) return ['✅ 最適', 'status-normal'];
+  if (v <= 1.5) return ['⚠️ やや高', 'status-warn'];
+  return ['🔥 高すぎ(気孔閉鎖)', 'status-danger'];
+}
+
+// ===== ハウス管理アドバイス生成 =====
+// level: 'danger'(赤) / 'warn'(黄) / 'info'(青) / 'ok'(緑)
+// 優先度: danger > warn > info > ok
+function generateAdvice() {
+  const s = latestState;
+  const now = new Date();
+  const hour = now.getHours();
+  const isMorning   = hour >= 5  && hour < 10;  // 朝
+  const isDaytime   = hour >= 10 && hour < 16;  // 日中
+  const isEvening   = hour >= 16 && hour < 19;  // 夕方
+  const isNight     = hour >= 19 || hour < 5;   // 夜間
+
+  const advices = [];
+
+  // ========== 🔴 緊急レベル (danger) ==========
+  if (s.vpd !== null && s.vpd >= 1.8) {
+    advices.push({
+      level: 'danger',
+      icon: '🔥',
+      title: 'VPD危険水準（気孔閉鎖のリスク）',
+      body: `VPD ${s.vpd.toFixed(2)}kPa。直ちに細霧散布・遮光カーテン展開を。光合成が止まり、しおれの危険があります。`
+    });
+  } else if (s.vpd !== null && s.vpd <= 0.2 && isNight) {
+    advices.push({
+      level: 'danger',
+      icon: '🦠',
+      title: '灰色かび病の高リスク',
+      body: `夜間VPD ${s.vpd.toFixed(2)}kPa・湿度${s.hum?.toFixed(0)}%。結露による病気発生の可能性大。暖房加温+循環扇を検討。`
+    });
+  }
+
+  if (s.temp !== null && s.temp >= 38) {
+    advices.push({
+      level: 'danger',
+      icon: '🌡️',
+      title: 'ハウス内高温警告',
+      body: `気温${s.temp.toFixed(1)}℃。天窓・側窓を全開、遮光50%以上、細霧で冷却してください。`
+    });
+  }
+
+  if (s.temp !== null && s.temp <= 8) {
+    advices.push({
+      level: 'danger',
+      icon: '🧊',
+      title: '低温注意',
+      body: `気温${s.temp.toFixed(1)}℃。暖房運転を確認してください。夜間の最低温度割れに注意。`
+    });
+  }
+
+  if (s.soil !== null && s.soil < 15) {
+    advices.push({
+      level: 'danger',
+      icon: '🏜️',
+      title: '土壌水分不足',
+      body: `土壌水分${s.soil.toFixed(0)}%。水ストレスで草勢低下の恐れ。早急にかん水を。`
+    });
+  }
+
+  // ========== 🟡 注意レベル (warn) ==========
+  if (s.vpd !== null && s.vpd > 1.2 && s.vpd < 1.8 && isDaytime) {
+    advices.push({
+      level: 'warn',
+      icon: '💦',
+      title: 'VPDやや高め',
+      body: `VPD ${s.vpd.toFixed(2)}kPa。蒸散過多ぎみ。細霧または遮光20〜30%で調整を。`
+    });
+  }
+
+  if (s.vpd !== null && s.vpd < 0.3 && !isNight) {
+    advices.push({
+      level: 'warn',
+      icon: '🌀',
+      title: '蒸散不足',
+      body: `VPD ${s.vpd.toFixed(2)}kPa。湿度が高すぎて光合成効率が低下中。天窓・側窓を開けて換気を。`
+    });
+  }
+
+  if (s.hum !== null && s.hum >= 90 && isMorning) {
+    advices.push({
+      level: 'warn',
+      icon: '🌫️',
+      title: '朝の結露注意',
+      body: `湿度${s.hum.toFixed(0)}%。葉面結露で病気リスク。日の出後すぐ換気・循環扇で乾かすと良いです。`
+    });
+  }
+
+  if (s.soil !== null && s.soil >= 20 && s.soil < 35 && s.vpd !== null && s.vpd > 1.0) {
+    advices.push({
+      level: 'warn',
+      icon: '💧',
+      title: 'かん水検討タイミング',
+      body: `土壌水分${s.soil.toFixed(0)}% + VPD${s.vpd.toFixed(2)}kPa。蒸散が多く乾燥進行中。午前中のかん水が効果的。`
+    });
+  }
+
+  if (s.soil !== null && s.soil >= 85) {
+    advices.push({
+      level: 'warn',
+      icon: '🌊',
+      title: '土壌過湿',
+      body: `土壌水分${s.soil.toFixed(0)}%。根腐れ・疫病リスク。かん水を控えめに、排水確認を。`
+    });
+  }
+
+  // 天気連動
+  if (s.tomorrowWeather && (s.tomorrowWeather.code >= 51 && s.tomorrowWeather.code <= 82)) {
+    if (isEvening || isNight) {
+      advices.push({
+        level: 'warn',
+        icon: '🌧️',
+        title: '明日は雨予報',
+        body: `湿度が上がりやすい一日に。朝の換気は早めに、細霧は控えめに運用を。`
+      });
+    }
+  }
+
+  // ========== 🔵 通常アドバイス (info) ==========
+  if (s.vpd !== null && s.vpd >= 0.5 && s.vpd <= 1.2) {
+    if (isDaytime) {
+      advices.push({
+        level: 'info',
+        icon: '☀️',
+        title: '光合成ゴールデンタイム',
+        body: `VPD ${s.vpd.toFixed(2)}kPa（最適域）。今の換気バランスを維持。CO2補給があればさらに効果的。`
+      });
+    } else {
+      advices.push({
+        level: 'info',
+        icon: '✅',
+        title: 'VPD最適',
+        body: `VPD ${s.vpd.toFixed(2)}kPa。ピーマンに理想的な環境です。`
+      });
+    }
+  }
+
+  if (isMorning && s.vpd !== null && s.vpd >= 0.3 && s.vpd < 0.5) {
+    advices.push({
+      level: 'info',
+      icon: '🌅',
+      title: '換気開始のタイミング',
+      body: `朝のVPDが上昇中。天窓を徐々に開けて、昼に向けて最適域へ持っていきましょう。`
+    });
+  }
+
+  if (isEvening && s.temp !== null && s.temp > 20) {
+    advices.push({
+      level: 'info',
+      icon: '🌆',
+      title: '換気の閉め時',
+      body: `夕方にかけて気温低下。側窓を徐々に閉めて、夜温低下を防ぎましょう。`
+    });
+  }
+
+  // 何も該当しない場合のデフォルト
+  if (advices.length === 0) {
+    advices.push({
+      level: 'ok',
+      icon: '🌱',
+      title: '特に問題なし',
+      body: 'すべての指標が安定範囲内です。'
+    });
+  }
+
+  return advices;
+}
+
+function renderAdvice() {
+  const list = document.getElementById('adviceList');
+  const timeEl = document.getElementById('adviceTime');
+  const now = new Date();
+  timeEl.textContent = now.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}) + ' 時点';
+
+  const advices = generateAdvice();
+
+  // 優先度ソート: danger > warn > info > ok
+  const order = { danger: 0, warn: 1, info: 2, ok: 3 };
+  advices.sort((a, b) => order[a.level] - order[b.level]);
+
+  // 最大3件
+  const top = advices.slice(0, 3);
+
+  const colorMap = {
+    danger: { bg: 'rgba(255,59,48,0.08)',  border: 'rgba(255,59,48,0.25)', title: '#ff3b30' },
+    warn:   { bg: 'rgba(255,149,0,0.08)',  border: 'rgba(255,149,0,0.25)', title: '#ff9500' },
+    info:   { bg: 'rgba(0,122,255,0.06)',  border: 'rgba(0,122,255,0.18)', title: '#007aff' },
+    ok:     { bg: 'rgba(52,199,89,0.06)',  border: 'rgba(52,199,89,0.18)', title: '#34c759' }
+  };
+
+  list.innerHTML = top.map(a => {
+    const c = colorMap[a.level];
+    return `
+      <div style="display:flex;gap:10px;padding:10px 12px;background:${c.bg};border:1px solid ${c.border};border-radius:12px;">
+        <div style="font-size:1.3rem;flex-shrink:0;line-height:1.2;">${a.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.82rem;font-weight:600;color:${c.title};margin-bottom:3px;">${a.title}</div>
+          <div style="font-size:0.74rem;color:var(--text-secondary);line-height:1.45;">${a.body}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 function updateSensorStatus(lastTime) {
@@ -766,8 +1043,23 @@ function clearSensorValues() {
   if (!alreadyNull) {
     tempHistory.push(null);
     humHistory.push(null);
+    vpdHistory.push(null);
     timeLabels.push(new Date());
     updateChart();
+  }
+
+  // アドバイスも「データ途絶」表示に
+  const list = document.getElementById('adviceList');
+  if (list) {
+    list.innerHTML = `
+      <div style="display:flex;gap:10px;padding:10px 12px;background:rgba(142,142,147,0.08);border:1px solid rgba(142,142,147,0.2);border-radius:12px;">
+        <div style="font-size:1.3rem;flex-shrink:0;">📵</div>
+        <div style="flex:1;">
+          <div style="font-size:0.82rem;font-weight:600;color:#8e8e93;margin-bottom:3px;">データ途絶中</div>
+          <div style="font-size:0.74rem;color:var(--text-secondary);">センサー復旧後に再開します。</div>
+        </div>
+      </div>
+    `;
   }
 }
 
@@ -814,6 +1106,12 @@ async function fetchWeather() {
     document.getElementById('tomorrowWeatherIcon').textContent = tmrInfo.icon;
     document.getElementById('tomorrowWeatherDesc').textContent = tmrInfo.desc;
     document.getElementById('tomorrowWeatherTemp').textContent = `${tmrMax}℃ / ${tmrMin}℃`;
+
+    // 天気情報をlatestStateに保存してアドバイス再生成
+    latestState.todayWeather    = { code: todayCode, max: todayMax, min: todayMin };
+    latestState.tomorrowWeather = { code: tmrCode,   max: tmrMax,   min: tmrMin   };
+    // センサーデータがあればアドバイス再描画
+    if (latestState.vpd !== null) renderAdvice();
 
   } catch(e) {
     document.getElementById('todayWeatherDesc').textContent = '取得失敗';
@@ -897,6 +1195,23 @@ async function fetchTodayData() {
       document.getElementById('todayMaxSoilStatus').className = 'metric-status ' + smaxClass;
     }
 
+    // 本日最高・最低 VPD（気温・湿度の両方が揃ったレコードから算出）
+    const vpds = filtered.map(d => {
+      const t = parseFloat(d.d1);
+      const h = parseFloat(d.d2);
+      if (isNaN(t) || isNaN(h)) return NaN;
+      return calcVPD(t, h);
+    }).filter(v => !isNaN(v));
+    if (vpds.length > 0) {
+      const todayMaxVpd = Math.max(...vpds).toFixed(2);
+      const todayMinVpd = Math.min(...vpds).toFixed(2);
+      document.getElementById('todayMaxVpd').innerHTML = todayMaxVpd + '<span style="font-size:0.85rem;opacity:0.7;">kPa</span>';
+      document.getElementById('todayMinVpd').innerHTML = todayMinVpd + '<span style="font-size:0.85rem;opacity:0.7;">kPa</span>';
+      const [vmaxLabel, vmaxClass] = getVpdStatus(parseFloat(todayMaxVpd));
+      document.getElementById('todayMaxVpdStatus').textContent = `最高 ${vmaxLabel}`;
+      document.getElementById('todayMaxVpdStatus').className = 'metric-status ' + vmaxClass;
+    }
+
   } catch(e) {
     document.getElementById('todayMax').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
     document.getElementById('todayMin').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
@@ -941,6 +1256,13 @@ async function fetchData() {
     tempHistory = reversed.map(d => { const v = parseFloat(d.d1); return isNaN(v) ? null : v; });
     humHistory  = reversed.map(d => { const v = parseFloat(d.d2); return isNaN(v) ? null : v; });
     soilHistory = reversed.map(d => { const v = parseFloat(d.d3); return isNaN(v) ? null : v; });
+    // VPD履歴（気温・湿度の両方が有効な時のみ計算）
+    vpdHistory = reversed.map(d => {
+      const t = parseFloat(d.d1);
+      const h = parseFloat(d.d2);
+      if (isNaN(t) || isNaN(h)) return null;
+      return calcVPD(t, h);
+    });
     timeLabels  = reversed.map(d => {
       const raw = timeKey ? d[timeKey] : null;
       return raw ? new Date(raw) : null;
@@ -964,6 +1286,22 @@ async function fetchData() {
       document.getElementById('soilStatus').textContent = sLabel;
       document.getElementById('soilStatus').className = 'metric-status ' + sClass;
     }
+
+    // VPD（飽差）表示
+    const vpd = calcVPD(temp, hum);
+    if (!isNaN(vpd)) {
+      document.getElementById('vpdVal').innerHTML = vpd.toFixed(2) + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">kPa</span>';
+      const [vLabel, vClass] = getVpdStatus(vpd);
+      document.getElementById('vpdStatus').textContent = vLabel;
+      document.getElementById('vpdStatus').className = 'metric-status ' + vClass;
+    }
+
+    // 最新状態を保存してアドバイス再生成
+    latestState.temp = isNaN(temp) ? null : temp;
+    latestState.hum  = isNaN(hum)  ? null : hum;
+    latestState.soil = isNaN(soil) ? null : soil;
+    latestState.vpd  = isNaN(vpd)  ? null : vpd;
+    renderAdvice();
 
     fetchTodayData();
     updateChart();
