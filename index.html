@@ -166,6 +166,7 @@ body {
   width: 44px;
   position: relative;
   z-index: 2;
+  background: var(--card);
 }
 canvas#chartYAxis {
   width: 44px !important;
@@ -180,9 +181,10 @@ canvas#chartYAxis {
 .chart-scroll:active { cursor: grabbing; }
 .chart-canvas-inner {
   position: relative;
-  min-width: 100%;
+  min-width: 1920px;  /* 48h × 40px/h = 1920px */
+  height: 100%;
 }
-canvas#chart { height: 160px !important; display: block; }
+canvas#chart { height: 160px !important; display: block; width: 100% !important; }
 .chart-info { display: flex; justify-content: space-between; padding: 8px 18px 0; }
 .chart-info-item { text-align: center; }
 .chart-info-label { font-size: 0.62rem; color: var(--text-tertiary); margin-bottom: 1px; }
@@ -410,6 +412,7 @@ canvas#chart { height: 160px !important; display: block; }
   <div class="card chart-card">
     <div class="chart-header">
       <span class="card-label">履歴グラフ</span>
+      <span style="font-size:0.7rem;color:var(--text-secondary);font-family:'DM Mono',monospace;font-weight:600;" id="chartUnitLabel">--</span>
     </div>
     <div class="chart-tabs">
       <button class="chart-tab active temp" onclick="switchChart('temp')">気温</button>
@@ -418,8 +421,8 @@ canvas#chart { height: 160px !important; display: block; }
       <button class="chart-tab vpd" onclick="switchChart('vpd')">飽差</button>
     </div>
     <div class="chart-wrap">
-      <!-- Y軸（固定） -->
-      <div class="chart-yaxis" style="display:none;">
+      <!-- Y軸（固定表示） -->
+      <div class="chart-yaxis">
         <canvas id="chartYAxis"></canvas>
       </div>
       <!-- スクロールエリア -->
@@ -491,6 +494,13 @@ const READ_KEY = 'd024ac32d02366de';
 const NTFY_TOPIC = 'yuuki-house-monitor-99929';
 
 let chartMode = 'temp';
+
+// グラフ表示期間（48時間・横スクロール）
+const CHART_HOURS = 48;
+// X軸ラベル間隔: 3時間ごと
+const LABEL_INTERVAL_MIN = 180;
+// グラフ本体の最小幅（48時間分・1時間あたり40pxで1920px）
+const CHART_MIN_WIDTH_PX = 48 * 40;
 let tempHistory = [];
 let humHistory = [];
 let soilHistory = [];
@@ -541,32 +551,33 @@ const ctx = canvas.getContext('2d');
 const yAxisCanvas = document.getElementById('chartYAxis');
 const yCtx = yAxisCanvas.getContext('2d');
 
-function drawYAxis(min, max, displayH, dpr) {
+function drawYAxis(min, max, displayH, dpr, digits = 0, unit = '') {
   const range = max - min || 1;
-  const pad = { top: 14, bottom: 36 };
+  // 本体グラフと同じpadを使用（縦の位置を一致させる）
+  const pad = { top: 12, bottom: 28 };
   const ch = displayH - pad.top - pad.bottom;
   const w = 44;
 
   yAxisCanvas.style.height = displayH + 'px';
+  yAxisCanvas.style.width = w + 'px';
   yAxisCanvas.width = w * dpr;
   yAxisCanvas.height = displayH * dpr;
-  yCtx.scale(dpr, dpr);
-  yCtx.clearRect(0, 0, w, displayH);
+  const yC = yAxisCanvas.getContext('2d');
+  yC.setTransform(1, 0, 0, 1, 0, 0);  // 既存のtransformリセット
+  yC.scale(dpr, dpr);
+  yC.clearRect(0, 0, w, displayH);
+
+  // 単位ラベル（グラフヘッダー右に表示）
+  const unitEl = document.getElementById('chartUnitLabel');
+  if (unitEl) unitEl.textContent = unit ? `単位: ${unit}` : '';
 
   for (let i = 0; i <= 4; i++) {
     const y = pad.top + (ch / 4) * i;
     const val = max - (range / 4) * i;
-    yCtx.fillStyle = 'rgba(0,0,0,0.3)';
-    yCtx.font = '10px DM Mono, monospace';
-    yCtx.textAlign = 'right';
-    yCtx.fillText(val.toFixed(0), w - 5, y + 4);
-    // 区切り線
-    yCtx.strokeStyle = 'rgba(0,0,0,0.08)';
-    yCtx.lineWidth = 1;
-    yCtx.beginPath();
-    yCtx.moveTo(w - 2, y);
-    yCtx.lineTo(w, y);
-    yCtx.stroke();
+    yC.fillStyle = 'rgba(0,0,0,0.55)';
+    yC.font = '10px DM Mono, monospace';
+    yC.textAlign = 'right';
+    yC.fillText(val.toFixed(digits), w - 4, y + 4);
   }
 }
 
@@ -586,7 +597,8 @@ function drawChart(data, color, unit, retry = 0) {
 
   const w = canvas.offsetWidth;
   const h = canvas.offsetHeight;
-  const pad = { top: 12, right: 12, bottom: 28, left: 40 };
+  // Y軸ラベルは外側固定パネルが担当するので、左パディングを最小化
+  const pad = { top: 12, right: 12, bottom: 28, left: 8 };
   const cw = w - pad.left - pad.right;
   const ch = h - pad.top - pad.bottom;
 
@@ -608,22 +620,19 @@ function drawChart(data, color, unit, retry = 0) {
   const range = max - min || 1;
   const xStep = cw / (data.length - 1);
 
-  // グリッド線＋Y軸ラベル
-  // VPDモードは小数第2位、それ以外は整数
-  const yDigits = (chartMode === 'vpd') ? 2 : 0;
+  // 横グリッド線のみ（Y軸ラベルは外側固定パネルへ）
   for (let i = 0; i <= 4; i++) {
     const y = pad.top + (ch / 4) * i;
     ctx.strokeStyle = 'rgba(0,0,0,0.06)';
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
-    const val = max - (range / 4) * i;
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.font = '10px DM Mono, monospace';
-    ctx.textAlign = 'right';
-    ctx.fillText(val.toFixed(yDigits), pad.left - 5, y + 4);
   }
 
-  // X軸時刻ラベル（30分刻み・最小60px間隔）
+  // 固定Y軸を描画（外側パネルに、本体と同じmin/maxで）
+  const yDigits = (chartMode === 'vpd') ? 2 : 0;
+  drawYAxis(min, max, h, dpr, yDigits, unit);
+
+  // X軸時刻ラベル（24時間 = 3時間ごと）
   if (timeLabels && timeLabels.length > 0) {
     let lastLabel = null;
     let lastLabelX = -999;
@@ -632,12 +641,17 @@ function drawChart(data, color, unit, retry = 0) {
       const t = timeLabels[i];
       if (!t) continue;
       const totalMins = t.getHours() * 60 + t.getMinutes();
-      const nearestHalf = Math.round(totalMins / 30) * 30;
-      if (Math.abs(totalMins - nearestHalf) > 2) continue;
-      const labelStr = String(Math.floor(nearestHalf / 60) % 24).padStart(2,'0') + ':' + String(nearestHalf % 60).padStart(2,'0');
+      const nearest = Math.round(totalMins / LABEL_INTERVAL_MIN) * LABEL_INTERVAL_MIN;
+      // 5分間隔データなので、誤差は2.5分以内で吸収
+      if (Math.abs(totalMins - nearest) > 2.5) continue;
+
+      const hh = String(Math.floor(nearest / 60) % 24).padStart(2,'0');
+      const mm = String(nearest % 60).padStart(2,'0');
+      const labelStr = `${hh}:${mm}`;
+
       if (labelStr === lastLabel) continue;
       const x = pad.left + i * xStep;
-      if (x - lastLabelX < 60) continue; // 60px未満なら間引く
+      if (x - lastLabelX < 50) continue; // 最小50px間隔
       lastLabel = labelStr;
       lastLabelX = x;
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -708,6 +722,14 @@ function updateChart() {
   else if (chartMode === 'vpd')  { data = vpdHistory;  color = '#af52de'; unit = 'kPa'; }
 
   drawChart(data, color, unit);
+
+  // タブ切替後は右端（最新）にスクロール
+  const wrap = document.getElementById('chartWrap');
+  if (wrap) {
+    requestAnimationFrame(() => {
+      wrap.scrollLeft = wrap.scrollWidth;
+    });
+  }
 
   const validArr = data.filter(v => v !== null && !isNaN(v));
   if (validArr.length > 0) {
@@ -1130,13 +1152,15 @@ async function fetchTodayData() {
   const m = String(nowJST.getUTCMonth() + 1).padStart(2, '0');
   const d = String(nowJST.getUTCDate()).padStart(2, '0');
 
-  const fromStr = `${y}-${m}-${d}T00:00:00`;
-  const toStr   = `${y}-${m}-${d}T23:59:59`;
+  const fromStr = `${y}-${m}-${d} 00:00:00`;
+  const toStr   = `${y}-${m}-${d} 23:59:59`;
+  const dateStr = `${y}-${m}-${d}`;
 
   try {
-    const url = `https://ambidata.io/api/v2/channels/${CHANNEL_ID}/data?readKey=${READ_KEY}&from=${fromStr}&to=${toStr}`;
+    // date=YYYY-mm-dd パラメータでその日のデータを取得（Ambient公式推奨）
+    const url = `https://ambidata.io/api/v2/channels/${CHANNEL_ID}/data?readKey=${READ_KEY}&date=${dateStr}`;
     console.log('📅 fetchTodayData URL:', url);
-    console.log('📅 from:', fromStr, '/ to:', toStr);
+    console.log('📅 date:', dateStr);
     const res = await fetch(url);
     if (!res.ok) throw new Error('API error');
     const data = await res.json();
@@ -1228,16 +1252,41 @@ async function fetchData() {
   document.getElementById('statusText').textContent = '取得中';
 
   try {
-    // 48時間前〜現在をJSTで指定
-    const now48 = new Date();
-    const jst48 = new Date(now48.getTime() + 9 * 60 * 60000);
-    const to48 = jst48.toISOString().slice(0, 19);
-    const from48 = new Date(jst48.getTime() - 48 * 60 * 60000).toISOString().slice(0, 19);
-    const url = `https://ambidata.io/api/v2/channels/${CHANNEL_ID}/data?readKey=${READ_KEY}&from=${from48}&to=${to48}&n=3000`;
+    // 24時間分のデータを取得
+    // Ambient API は start/end を「日本時間」で受け取る（YYYY-mm-dd HH:MM:SS形式）
+    // 公式仕様: https://ambidata.io/refs/node-js/
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60000);
+    const jstFrom = new Date(jstNow.getTime() - CHART_HOURS * 60 * 60000);
+    const fmtJST = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
+    const startStr = fmtJST(jstFrom);
+    const endStr   = fmtJST(jstNow);
+
+    // 5分間隔で24時間 = 288点。余裕を見て 500件取得
+    const fetchN = 500;
+
+    // ★Ambient正しいパラメータ名: start / end （from/to ではない！）
+    const url = `https://ambidata.io/api/v2/channels/${CHANNEL_ID}/data`
+      + `?readKey=${READ_KEY}`
+      + `&start=${encodeURIComponent(startStr)}`
+      + `&end=${encodeURIComponent(endStr)}`
+      + `&n=${fetchN}`;
+    console.log('🔄 fetchData 24h start='+startStr+' / end='+endStr);
+
     const res = await fetch(url);
-    if (!res.ok) throw new Error('API error');
-    const data = await res.json();
+    if (!res.ok) throw new Error('API error: ' + res.status);
+    let data = await res.json();
     if (!data || data.length === 0) throw new Error('no data');
+
+    // 念のためクライアント側でも期間フィルタ
+    const fromTimeUTC = jstFrom.getTime() - 9 * 60 * 60000;
+    data = data.filter(d => {
+      const raw = d.created_at || d.created;
+      if (!raw) return false;
+      return new Date(raw).getTime() >= fromTimeUTC;
+    });
+    console.log('📊 取得件数: '+data.length);
+    if (data.length === 0) throw new Error('no data in range');
 
     const latest = data[0];
     const temp = parseFloat(latest.d1);
