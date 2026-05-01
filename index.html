@@ -3,6 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+<!-- ファビコン（ブラウザタブ） -->
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+<!-- iOS Safari ホーム画面アイコン -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<!-- PWA Manifest（Android Chrome等） -->
+<link rel="manifest" href="manifest.json">
+
+<!-- ホーム画面追加時にWebアプリとして起動 -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ハウスモニター">
+
+<!-- ブラウザのアドレスバー色（Android Chrome等） -->
+<meta name="theme-color" content="#16a34a">
+
 <title>ハウス環境モニター</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
@@ -76,6 +95,27 @@ body {
 .loading .status-dot { background: var(--accent-orange); animation: pulse 1s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
+/* 3センサー個別ステータス（ピル型バッジ） */
+.sensor-pills { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.sensor-pill {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 12px;
+  font-size: 0.66rem; font-family: 'DM Mono', monospace; font-weight: 500;
+  background: rgba(0,0,0,0.05); color: var(--text-secondary);
+  white-space: nowrap; transition: all 0.3s;
+}
+.sensor-pill .pill-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.sensor-pill .pill-name { font-weight: 600; }
+.sensor-pill .pill-elapsed { opacity: 0.85; font-size: 0.62rem; }
+.sensor-pill.ok    { background: rgba(52,199,89,0.12); color: var(--accent-green); }
+.sensor-pill.warn  { background: rgba(255,149,0,0.12); color: var(--accent-orange); }
+.sensor-pill.error { background: rgba(255,59,48,0.12); color: var(--accent-red); }
+.sensor-pill.idle  { background: rgba(0,0,0,0.05);    color: var(--text-tertiary); }
+.sensor-pill.ok    .pill-dot { background: var(--accent-green); box-shadow: 0 0 4px var(--accent-green); }
+.sensor-pill.warn  .pill-dot { background: var(--accent-orange); }
+.sensor-pill.error .pill-dot { background: var(--accent-red); animation: pulse 1.5s infinite; }
+.sensor-pill.idle  .pill-dot { background: var(--text-tertiary); }
+
 /* コンテンツ共通 */
 .content {
   max-width: 480px;
@@ -142,6 +182,41 @@ body {
 .status-normal { background: rgba(52,199,89,0.12);  color: var(--accent-green); }
 .status-warn   { background: rgba(255,149,0,0.12);  color: var(--accent-orange); }
 .status-danger { background: rgba(255,59,48,0.12);  color: var(--accent-red); }
+
+/* 差バッジ＆個別センサー値（2センサー対応） */
+.diff-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.66rem; font-weight: 600;
+  padding: 3px 8px; border-radius: 6px;
+  margin-top: 6px;
+  font-family: 'DM Mono', monospace;
+}
+.diff-badge.diff-ok     { background: rgba(52,199,89,0.10); color: var(--accent-green); }
+.diff-badge.diff-warn   { background: rgba(255,149,0,0.12); color: var(--accent-orange); }
+.diff-badge.diff-danger { background: rgba(255,59,48,0.12); color: var(--accent-red); }
+.sensor-mini-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px; margin-top: 10px;
+}
+.sensor-mini {
+  background: rgba(0,0,0,0.04);
+  border-radius: 8px;
+  padding: 6px 8px;
+  transition: opacity 0.2s;
+}
+.sensor-mini.offline { opacity: 0.4; }
+.sensor-mini-label {
+  font-size: 0.6rem; color: var(--text-tertiary);
+  font-weight: 600; letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.sensor-mini-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.92rem; font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.sensor-mini.offline .sensor-mini-val { color: var(--text-tertiary); }
 
 /* グラフ */
 .chart-card { padding: 0 0 16px; }
@@ -278,15 +353,21 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
   <div class="header-inner">
     <h1>🌿 ハウス環境モニター</h1>
     <div class="header-right">
-      <div class="header-mini">
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
-          <span class="header-mini-item" id="sensorStatusIcon" style="font-size:0.78rem;">📡 <span id="sensorStatusText">確認中</span></span>
-          <span style="font-size:0.58rem;font-family:'DM Mono',monospace;" id="sensorElapsed">--分前</span>
+      <div class="sensor-pills" id="sensorPills">
+        <div class="sensor-pill idle" id="pill-unit1">
+          <div class="pill-dot"></div>
+          <span class="pill-name">センサー1</span>
+          <span class="pill-elapsed" id="pill-unit1-elapsed">--</span>
         </div>
-        <span class="header-mini-sep" id="headerSep">·</span>
-        <div class="status-badge loading" id="statusBadge">
-          <div class="status-dot"></div>
-          <span id="statusText">取得中</span>
+        <div class="sensor-pill idle" id="pill-unit2">
+          <div class="pill-dot"></div>
+          <span class="pill-name">センサー2</span>
+          <span class="pill-elapsed" id="pill-unit2-elapsed">--</span>
+        </div>
+        <div class="sensor-pill idle" id="pill-soil">
+          <div class="pill-dot"></div>
+          <span class="pill-name">土壌</span>
+          <span class="pill-elapsed" id="pill-soil-elapsed">--</span>
         </div>
       </div>
       <div class="last-update" id="lastUpdate">最終更新: --</div>
@@ -309,15 +390,37 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
   <div class="metrics-grid">
     <div class="metric-card temp">
       <span class="metric-icon">🌡️</span>
-      <div class="metric-label">気温</div>
+      <div class="metric-label" id="tempLabel">気温（平均）</div>
       <div class="metric-value" id="tempVal">--<span class="metric-unit">℃</span></div>
       <div class="metric-status status-normal" id="tempStatus">--</div>
+      <div class="diff-badge diff-ok" id="tempDiff" style="display:none;">差 --℃</div>
+      <div class="sensor-mini-grid" id="tempMiniGrid">
+        <div class="sensor-mini" id="temp1Mini">
+          <div class="sensor-mini-label">センサー1</div>
+          <div class="sensor-mini-val" id="temp1Val">-- ℃</div>
+        </div>
+        <div class="sensor-mini" id="temp2Mini">
+          <div class="sensor-mini-label">センサー2</div>
+          <div class="sensor-mini-val" id="temp2Val">-- ℃</div>
+        </div>
+      </div>
     </div>
     <div class="metric-card hum">
       <span class="metric-icon">💧</span>
-      <div class="metric-label">湿度</div>
+      <div class="metric-label" id="humLabel">湿度（平均）</div>
       <div class="metric-value" id="humVal">--<span class="metric-unit">%</span></div>
       <div class="metric-status status-normal" id="humStatus">--</div>
+      <div class="diff-badge diff-ok" id="humDiff" style="display:none;">差 --%</div>
+      <div class="sensor-mini-grid" id="humMiniGrid">
+        <div class="sensor-mini" id="hum1Mini">
+          <div class="sensor-mini-label">センサー1</div>
+          <div class="sensor-mini-val" id="hum1Val">-- %</div>
+        </div>
+        <div class="sensor-mini" id="hum2Mini">
+          <div class="sensor-mini-label">センサー2</div>
+          <div class="sensor-mini-val" id="hum2Val">-- %</div>
+        </div>
+      </div>
     </div>
     <!-- PC時のみ表示される追加カード -->
     <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
@@ -450,19 +553,24 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
 
   <!-- 天気情報 -->
   <div class="card" id="weatherCard" style="padding:14px 18px;">
-    <div style="font-size:0.68rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;">🌤️ 天気予報（国富町）</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <span style="font-size:0.68rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌤️ 天気予報（国富町）</span>
+      <span style="font-size:0.6rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;">JMA</span>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="weatherGrid">
       <div style="text-align:center;padding:10px;background:rgba(0,122,255,0.05);border-radius:12px;border:1px solid rgba(0,122,255,0.1);">
         <div style="font-size:0.68rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">今日</div>
         <div style="font-size:2rem;margin-bottom:4px;" id="todayWeatherIcon">--</div>
         <div style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:4px;" id="todayWeatherDesc">取得中...</div>
-        <div style="font-size:0.78rem;font-weight:600;font-family:'DM Mono',monospace;" id="todayWeatherTemp">--/--℃</div>
+        <div style="font-size:0.78rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="todayWeatherTemp">--/--℃</div>
+        <div style="font-size:0.66rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="todayWeatherPrecip">--</div>
       </div>
       <div style="text-align:center;padding:10px;background:rgba(52,199,89,0.05);border-radius:12px;border:1px solid rgba(52,199,89,0.1);">
         <div style="font-size:0.68rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">明日</div>
         <div style="font-size:2rem;margin-bottom:4px;" id="tomorrowWeatherIcon">--</div>
         <div style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:4px;" id="tomorrowWeatherDesc">取得中...</div>
-        <div style="font-size:0.78rem;font-weight:600;font-family:'DM Mono',monospace;" id="tomorrowWeatherTemp">--/--℃</div>
+        <div style="font-size:0.78rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="tomorrowWeatherTemp">--/--℃</div>
+        <div style="font-size:0.66rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="tomorrowWeatherPrecip">--</div>
       </div>
     </div>
   </div>
@@ -478,13 +586,13 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       <div style="font-size:0.7rem;color:var(--text-secondary);">📊 チャンネル</div>
       <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">99929</div>
       <div style="font-size:0.7rem;color:var(--text-secondary);">⏱️ 送信間隔</div>
-      <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">5分</div>
+      <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">10分</div>
     </div>
   </div>
   <!-- 更新ボタン -->
   <button class="refresh-btn" id="refreshBtn" onclick="fetchData()">データを更新</button>
 
-  <div class="footer">Ambient ch.99929 · DeepSleep省電力モード · 自動更新 5分</div>
+  <div class="footer">Ambient ch.99929 · 2センサー対応 · 自動更新 5分 · 送信間隔 10分</div>
 
 </div>
 
@@ -506,7 +614,36 @@ let humHistory = [];
 let soilHistory = [];
 let vpdHistory = [];
 let timeLabels = [];
-let lastNotifiedLevel = 0; // 0=正常 1=オレンジ 2=赤（連続通知防止）
+
+// 3センサー独立の通知状態（0=正常 1=オレンジ 2=赤）
+const SENSOR_KEYS = ['unit1', 'unit2', 'soil'];
+// センサーの表示名（設置場所が決まったらここを書き換えるだけでOK）
+const SENSOR_NAMES = {
+  unit1: 'センサー1',
+  unit2: 'センサー2',
+  soil:  '土壌'
+};
+
+// センサーピル判定の閾値（分）
+// DeepSleep間隔が変わったらここを調整する
+//   5分間隔運用なら  OK=10分,  WARN=30分
+//   10分間隔運用なら OK=15分,  WARN=45分（現在の設定）
+//   15分間隔運用なら OK=20分,  WARN=60分
+const SENSOR_OK_MIN   = 15;  // ≦この値なら 🟢 正常
+const SENSOR_WARN_MIN = 45;  // ≦この値なら 🟡 警告、超えたら 🔴 停止
+
+// グラフのバケット幅（ミリ秒）
+// 各ESP32は独立に送信するので、レコードはセンサー1とセンサー2が交互に来る。
+// この時間窓で平均することで「真の2センサー平均」グラフになる。
+// DeepSleep間隔と揃えるとちょうど良い（10分間隔ならBUCKET_MIN=10）。
+const BUCKET_MIN = 10;  // バケット幅 10分（送信間隔と一致）
+const BUCKET_MS  = BUCKET_MIN * 60 * 1000;
+const SENSOR_LABELS = {
+  unit1: SENSOR_NAMES.unit1 + 'センサー',
+  unit2: SENSOR_NAMES.unit2 + 'センサー',
+  soil:  '土壌水分計'
+};
+let notifiedLevels = { unit1: 0, unit2: 0, soil: 0 };
 
 // 最新状態を保持（アドバイス生成で参照）
 let latestState = {
@@ -815,6 +952,130 @@ function getVpdStatus(v) {
   return ['🔥 高すぎ(気孔閉鎖)', 'status-danger'];
 }
 
+// 温度差／湿度差の判定（ピーマンハウス基準）
+// 温度差: <3℃正常 / 3-5℃注意 / ≥5℃警告
+// 湿度差: <10%正常 / 10-15%注意 / ≥15%警告
+function getDiffStatus(diff, type) {
+  const a = Math.abs(diff);
+  if (type === 'temp') {
+    if (a < 3) return { className: 'diff-ok',     text: '差 ' + diff.toFixed(1) + '℃' };
+    if (a < 5) return { className: 'diff-warn',   text: '⚠️ 差 ' + diff.toFixed(1) + '℃' };
+    return       { className: 'diff-danger', text: '🚨 差 ' + diff.toFixed(1) + '℃' };
+  } else { // hum
+    if (a < 10) return { className: 'diff-ok',     text: '差 ' + diff.toFixed(0) + '%' };
+    if (a < 15) return { className: 'diff-warn',   text: '⚠️ 差 ' + diff.toFixed(0) + '%' };
+    return        { className: 'diff-danger', text: '🚨 差 ' + diff.toFixed(0) + '%' };
+  }
+}
+
+// 2センサーの状態に応じて気温・湿度の表示を更新
+// t1,h1: センサー1(d1,d2)  t2,h2: センサー2(d4,d5)
+// u1Online, u2Online: 各センサーがオンラインか
+// 戻り値: { temp: 代表温度 or null, hum: 代表湿度 or null }
+function updateMainMetrics(t1, h1, t2, h2, u1Online, u2Online) {
+  const tempLabel = document.getElementById('tempLabel');
+  const humLabel  = document.getElementById('humLabel');
+  const tempVal   = document.getElementById('tempVal');
+  const humVal    = document.getElementById('humVal');
+  const tempStatus = document.getElementById('tempStatus');
+  const humStatus  = document.getElementById('humStatus');
+  const tempDiff   = document.getElementById('tempDiff');
+  const humDiff    = document.getElementById('humDiff');
+  const temp1Mini  = document.getElementById('temp1Mini');
+  const temp2Mini  = document.getElementById('temp2Mini');
+  const hum1Mini   = document.getElementById('hum1Mini');
+  const hum2Mini   = document.getElementById('hum2Mini');
+  const temp1ValEl = document.getElementById('temp1Val');
+  const temp2ValEl = document.getElementById('temp2Val');
+  const hum1ValEl  = document.getElementById('hum1Val');
+  const hum2ValEl  = document.getElementById('hum2Val');
+
+  // 個別値の表示（それぞれのオンライン状態で）
+  if (u1Online && !isNaN(t1)) {
+    temp1ValEl.textContent = t1.toFixed(1) + ' ℃';
+    hum1ValEl.textContent  = h1.toFixed(0) + ' %';
+    temp1Mini.classList.remove('offline');
+    hum1Mini.classList.remove('offline');
+  } else {
+    temp1ValEl.textContent = '── ──';
+    hum1ValEl.textContent  = '── ──';
+    temp1Mini.classList.add('offline');
+    hum1Mini.classList.add('offline');
+  }
+  if (u2Online && !isNaN(t2)) {
+    temp2ValEl.textContent = t2.toFixed(1) + ' ℃';
+    hum2ValEl.textContent  = h2.toFixed(0) + ' %';
+    temp2Mini.classList.remove('offline');
+    hum2Mini.classList.remove('offline');
+  } else {
+    temp2ValEl.textContent = '── ──';
+    hum2ValEl.textContent  = '── ──';
+    temp2Mini.classList.add('offline');
+    hum2Mini.classList.add('offline');
+  }
+
+  // メイン値の決定
+  let repTemp = null, repHum = null;
+  const u1Has = u1Online && !isNaN(t1) && !isNaN(h1);
+  const u2Has = u2Online && !isNaN(t2) && !isNaN(h2);
+
+  if (u1Has && u2Has) {
+    // 両方オンライン → 平均値・差を表示
+    repTemp = (t1 + t2) / 2;
+    repHum  = (h1 + h2) / 2;
+    tempLabel.textContent = '気温（平均）';
+    humLabel.textContent  = '湿度（平均）';
+
+    const dT = t2 - t1;
+    const dH = h2 - h1;
+    const dTs = getDiffStatus(dT, 'temp');
+    const dHs = getDiffStatus(dH, 'hum');
+    tempDiff.textContent = dTs.text;
+    tempDiff.className   = 'diff-badge ' + dTs.className;
+    tempDiff.style.display = 'inline-flex';
+    humDiff.textContent  = dHs.text;
+    humDiff.className    = 'diff-badge ' + dHs.className;
+    humDiff.style.display = 'inline-flex';
+  } else if (u1Has) {
+    // センサー1のみ
+    repTemp = t1; repHum = h1;
+    tempLabel.textContent = '気温（' + SENSOR_NAMES.unit1 + 'のみ）';
+    humLabel.textContent  = '湿度（' + SENSOR_NAMES.unit1 + 'のみ）';
+    tempDiff.style.display = 'none';
+    humDiff.style.display  = 'none';
+  } else if (u2Has) {
+    // センサー2のみ
+    repTemp = t2; repHum = h2;
+    tempLabel.textContent = '気温（' + SENSOR_NAMES.unit2 + 'のみ）';
+    humLabel.textContent  = '湿度（' + SENSOR_NAMES.unit2 + 'のみ）';
+    tempDiff.style.display = 'none';
+    humDiff.style.display  = 'none';
+  } else {
+    // 両方オフライン
+    tempLabel.textContent = '気温';
+    humLabel.textContent  = '湿度';
+    tempVal.innerHTML = '---<span class="metric-unit">℃</span>';
+    humVal.innerHTML  = '---<span class="metric-unit">%</span>';
+    tempStatus.textContent = '--';
+    tempStatus.className   = 'metric-status status-normal';
+    humStatus.textContent  = '--';
+    humStatus.className    = 'metric-status status-normal';
+    tempDiff.style.display = 'none';
+    humDiff.style.display  = 'none';
+    return { temp: null, hum: null };
+  }
+
+  // メイン数値・ステータス更新
+  tempVal.innerHTML = repTemp.toFixed(1) + '<span class="metric-unit">℃</span>';
+  humVal.innerHTML  = repHum.toFixed(0)  + '<span class="metric-unit">%</span>';
+  const [tLabel, tClass] = getTempStatus(repTemp);
+  const [hLabel, hClass] = getHumStatus(repHum);
+  tempStatus.textContent = tLabel; tempStatus.className = 'metric-status ' + tClass;
+  humStatus.textContent  = hLabel; humStatus.className  = 'metric-status ' + hClass;
+
+  return { temp: repTemp, hum: repHum };
+}
+
 // ===== ハウス管理アドバイス生成 =====
 // level: 'danger'(赤) / 'warn'(黄) / 'info'(青) / 'ok'(緑)
 // 優先度: danger > warn > info > ok
@@ -1017,81 +1278,160 @@ function renderAdvice() {
   }).join('');
 }
 
-function updateSensorStatus(lastTime) {
-  const iconEl   = document.getElementById('sensorStatusIcon');
-  const textEl   = document.getElementById('sensorStatusText');
-  const elapsed  = document.getElementById('sensorElapsed');
-  const badge    = document.getElementById('statusBadge');
-  const banner   = document.getElementById('offlineBanner');
-  const title    = document.getElementById('offlineTitle');
-  const msg      = document.getElementById('offlineMsg');
+// =====================================================================
+// 3センサー独立ステータス管理
+// =====================================================================
+// レコード r に指定フィールドのいずれかに有効値があるかチェック
+function hasValidField(r, fields) {
+  for (const f of fields) {
+    const v = r[f];
+    if (v !== undefined && v !== null && v !== '' && !isNaN(parseFloat(v))) return true;
+  }
+  return false;
+}
+
+// 直近のレコード（降順想定）から条件を満たす最新時刻を返す
+function findLastSeen(records, fields) {
+  for (const r of records) {
+    if (hasValidField(r, fields)) {
+      const raw = r.created_at || r.created;
+      if (raw) return new Date(raw);
+    }
+  }
+  return null;
+}
+
+// 各フィールドが全て揃った最新レコードから値を取得
+// fields: ['d1','d2'] のように指定すると両方が揃った最新レコードの値を返す
+function findLatestValues(records, fields) {
+  for (const r of records) {
+    const allValid = fields.every(f => {
+      const v = r[f];
+      return v !== undefined && v !== null && v !== '' && !isNaN(parseFloat(v));
+    });
+    if (allValid) {
+      const raw = r.created_at || r.created;
+      return {
+        values: fields.map(f => parseFloat(r[f])),
+        time: raw ? new Date(raw) : null
+      };
+    }
+  }
+  return { values: fields.map(() => NaN), time: null };
+}
+
+// 経過時間表示
+function formatElapsed(diffMin) {
+  const r = Math.round(diffMin);
+  if (diffMin < 60) return r + '分';
+  const h = Math.floor(diffMin / 60);
+  const m = Math.round(diffMin % 60);
+  return h + 'h' + m + 'm';
+}
+
+// 1センサーぶんのピル更新 + 通知判定
+// 戻り値: {state: 'ok'|'warn'|'error'|'idle', diffMin: 数値}
+function updateOneSensor(key, lastTime) {
+  const pill    = document.getElementById('pill-' + key);
+  const elapsed = document.getElementById('pill-' + key + '-elapsed');
 
   if (!lastTime || isNaN(lastTime)) {
-    iconEl.style.color = 'var(--text-tertiary)';
-    textEl.textContent = '不明';
-    elapsed.textContent = '--分前';
-    elapsed.style.color = 'var(--text-tertiary)';
-    return;
+    // 48時間以内に1度も受信なし → idle表示（通知はしない）
+    pill.className = 'sensor-pill idle';
+    elapsed.textContent = '未受信';
+    return { state: 'idle', diffMin: Infinity, lastTime: null };
   }
 
   const diffMin = (Date.now() - lastTime.getTime()) / 60000;
-  const diffRound = Math.round(diffMin);
+  elapsed.textContent = formatElapsed(diffMin) + '前';
 
-  // 経過時間テキスト
-  if (diffMin < 60) {
-    elapsed.textContent = diffRound + '分前';
-  } else {
-    const h = Math.floor(diffMin / 60);
-    const m = Math.round(diffMin % 60);
-    elapsed.textContent = h + '時間' + m + '分前';
-  }
+  const label = SENSOR_LABELS[key];
+  let state;
 
-  if (diffMin <= 10) {
+  if (diffMin <= SENSOR_OK_MIN) {
     // 🟢 正常
-    iconEl.style.color = 'var(--accent-green)';
-    textEl.textContent = '受信中';
-    elapsed.style.color = 'var(--text-tertiary)';
-    badge.className = 'status-badge online';
-    document.getElementById('statusText').textContent = 'オンライン';
-    banner.classList.remove('show');
-    // 復旧通知（オレンジ or 赤から戻った時だけ）
-    if (lastNotifiedLevel >= 1) {
-      sendNtfy('✅ センサー復旧', 'ハウスモニターのセンサーが復旧しました。');
+    pill.className = 'sensor-pill ok';
+    state = 'ok';
+    if (notifiedLevels[key] >= 1) {
+      sendNtfy('✅ ' + label + ' 復旧', label + 'のデータ受信が再開しました。');
     }
-    lastNotifiedLevel = 0;
-  } else if (diffMin <= 30) {
-    // 🟡 要注意 → 気温・湿度を---に
-    iconEl.style.color = 'var(--accent-orange)';
-    textEl.textContent = '電波不良の可能性';
-    elapsed.style.color = 'var(--accent-orange)';
-    badge.className = 'status-badge offline';
-    document.getElementById('statusText').textContent = '要注意';
-    banner.classList.add('show');
-    title.textContent = '⚠️ データが途切れています';
-    msg.textContent = `最終受信から${diffRound}分経過。電波状況を確認してください。`;
-    clearSensorValues();
-    // オレンジ通知（初回のみ）
-    if (lastNotifiedLevel < 1) {
-      sendNtfy('⚠️ 電波不良の可能性', `最終受信から${diffRound}分経過。電波状況を確認してください。`, 'high');
-      lastNotifiedLevel = 1;
+    notifiedLevels[key] = 0;
+  } else if (diffMin <= SENSOR_WARN_MIN) {
+    // 🟡 電波不良
+    pill.className = 'sensor-pill warn';
+    state = 'warn';
+    if (notifiedLevels[key] < 1) {
+      sendNtfy('⚠️ ' + label + ' 電波不良の可能性',
+        label + 'の最終受信から' + Math.round(diffMin) + '分経過。電波状況を確認してください。',
+        'high');
+      notifiedLevels[key] = 1;
     }
   } else {
-    // 🔴 電池切れの可能性 → 気温・湿度を---に
-    iconEl.style.color = 'var(--accent-red)';
-    textEl.textContent = '電池切れの可能性';
-    elapsed.style.color = 'var(--accent-red)';
-    badge.className = 'status-badge offline';
-    document.getElementById('statusText').textContent = '未接続';
-    banner.classList.add('show');
-    title.textContent = '📵 センサーが停止しています';
-    msg.textContent = `最終受信から${diffRound >= 60 ? Math.floor(diffMin/60)+'時間以上' : diffRound+'分'}経過。電池切れの可能性があります。現地を確認してください。`;
-    clearSensorValues();
-    // 赤通知（初回のみ）
-    if (lastNotifiedLevel < 2) {
-      sendNtfy('📵 センサー停止', `最終受信から${diffRound >= 60 ? Math.floor(diffMin/60)+'時間以上' : diffRound+'分'}経過。電池切れの可能性があります。`, 'urgent');
-      lastNotifiedLevel = 2;
+    // 🔴 停止
+    pill.className = 'sensor-pill error';
+    state = 'error';
+    if (notifiedLevels[key] < 2) {
+      const elapsedStr = diffMin >= 60
+        ? Math.floor(diffMin / 60) + '時間以上'
+        : Math.round(diffMin) + '分';
+      sendNtfy('📵 ' + label + ' 停止',
+        label + 'の最終受信から' + elapsedStr + '経過。電池切れの可能性があります。',
+        'urgent');
+      notifiedLevels[key] = 2;
     }
   }
+
+  return { state, diffMin, lastTime };
+}
+
+// 全センサーをまとめて更新
+// data: 降順のAmbientデータ配列
+function updateAllSensors(data) {
+  const dataArr = data || [];
+
+  // 各センサーの最終受信時刻を抽出
+  const unit1Last = findLastSeen(dataArr, ['d1', 'd2']);
+  const unit2Last = findLastSeen(dataArr, ['d4', 'd5']);
+  const soilLast  = findLastSeen(dataArr, ['d3']);
+
+  const r1 = updateOneSensor('unit1', unit1Last);
+  const r2 = updateOneSensor('unit2', unit2Last);
+  const rs = updateOneSensor('soil',  soilLast);
+
+  // 表示クリアは updateMainMetrics 側で扱うため、ここでは行わない
+
+  // オフラインバナー：警告中のセンサーがあれば列挙
+  updateOfflineBanner({ unit1: r1, unit2: r2, soil: rs });
+
+  return { unit1: r1, unit2: r2, soil: rs };
+}
+
+// バナーに「どのセンサーが落ちているか」をまとめて表示
+function updateOfflineBanner(results) {
+  const banner = document.getElementById('offlineBanner');
+  const title  = document.getElementById('offlineTitle');
+  const msg    = document.getElementById('offlineMsg');
+
+  const offlineList = [];
+  for (const key of SENSOR_KEYS) {
+    const r = results[key];
+    if (r.state === 'warn' || r.state === 'error') {
+      const elapsedStr = formatElapsed(r.diffMin);
+      const stateMark = r.state === 'error' ? '📵' : '⚠️';
+      offlineList.push(`${stateMark} ${SENSOR_LABELS[key]}（${elapsedStr}前）`);
+    }
+  }
+
+  if (offlineList.length === 0) {
+    banner.classList.remove('show');
+    return;
+  }
+
+  banner.classList.add('show');
+  // タイトル：最重度に合わせる
+  const hasError = Object.values(results).some(r => r.state === 'error');
+  title.textContent = hasError ? '📵 センサーが停止しています' : '⚠️ データが途切れています';
+  msg.innerHTML = offlineList.join('<br>');
 }
 
 function clearSensorValues() {
@@ -1146,7 +1486,12 @@ async function fetchWeather() {
   const lat = 31.9167;
   const lon = 131.2167;
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=2`;
+    // ★JMA Seamless モデル使用（日本特化・5km解像度MSM + 11日先GSM）
+    // ★降水量・降水時間も追加して「晴れ予報なのに雨」のチェックができるように
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+      + `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_hours`
+      + `&models=jma_seamless`
+      + `&timezone=Asia%2FTokyo&forecast_days=2`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('weather API error');
     const data = await res.json();
@@ -1157,23 +1502,29 @@ async function fetchWeather() {
     const todayCode = days.weathercode[0];
     const todayMax  = Math.round(days.temperature_2m_max[0]);
     const todayMin  = Math.round(days.temperature_2m_min[0]);
+    const todayPrecip = days.precipitation_sum?.[0] ?? null;
+    const todayPrecipHours = days.precipitation_hours?.[0] ?? null;
     const todayInfo = getWeatherInfo(todayCode);
     document.getElementById('todayWeatherIcon').textContent = todayInfo.icon;
     document.getElementById('todayWeatherDesc').textContent = todayInfo.desc;
     document.getElementById('todayWeatherTemp').textContent = `${todayMax}℃ / ${todayMin}℃`;
+    document.getElementById('todayWeatherPrecip').textContent = formatPrecip(todayPrecip, todayPrecipHours);
 
     // 明日
     const tmrCode = days.weathercode[1];
     const tmrMax  = Math.round(days.temperature_2m_max[1]);
     const tmrMin  = Math.round(days.temperature_2m_min[1]);
+    const tmrPrecip = days.precipitation_sum?.[1] ?? null;
+    const tmrPrecipHours = days.precipitation_hours?.[1] ?? null;
     const tmrInfo = getWeatherInfo(tmrCode);
     document.getElementById('tomorrowWeatherIcon').textContent = tmrInfo.icon;
     document.getElementById('tomorrowWeatherDesc').textContent = tmrInfo.desc;
     document.getElementById('tomorrowWeatherTemp').textContent = `${tmrMax}℃ / ${tmrMin}℃`;
+    document.getElementById('tomorrowWeatherPrecip').textContent = formatPrecip(tmrPrecip, tmrPrecipHours);
 
     // 天気情報をlatestStateに保存してアドバイス再生成
-    latestState.todayWeather    = { code: todayCode, max: todayMax, min: todayMin };
-    latestState.tomorrowWeather = { code: tmrCode,   max: tmrMax,   min: tmrMin   };
+    latestState.todayWeather    = { code: todayCode, max: todayMax, min: todayMin, precip: todayPrecip };
+    latestState.tomorrowWeather = { code: tmrCode,   max: tmrMax,   min: tmrMin,   precip: tmrPrecip   };
     // センサーデータがあればアドバイス再描画
     if (latestState.vpd !== null) renderAdvice();
 
@@ -1181,6 +1532,14 @@ async function fetchWeather() {
     document.getElementById('todayWeatherDesc').textContent = '取得失敗';
     document.getElementById('tomorrowWeatherDesc').textContent = '取得失敗';
   }
+}
+
+// 降水量フォーマット（0なら表示なし、>0なら「☔ 1.2mm/3h」など）
+function formatPrecip(mm, hours) {
+  if (mm === null || mm === undefined || isNaN(mm)) return '';
+  if (mm < 0.1) return '☀️ 降水なし';
+  const h = (hours !== null && !isNaN(hours)) ? `/${Math.round(hours)}h` : '';
+  return `☔ ${mm.toFixed(1)}mm${h}`;
 }
 
 async function fetchTodayData() {
@@ -1224,9 +1583,20 @@ async function fetchTodayData() {
     console.log('📅 取得件数:', data.length, '/ 今日分:', filtered.length,
       '/ 先頭時刻:', data[data.length-1]?.created || data[data.length-1]?.created_at,
       '/ 末尾時刻:', data[0]?.created || data[0]?.created_at);
-    const temps = filtered.map(d => parseFloat(d.d1)).filter(v => !isNaN(v));
-    const hums  = filtered.map(d => parseFloat(d.d2)).filter(v => !isNaN(v));
-    console.log('📅 気温データ（今日分）:', temps.slice(0,5), '...');
+    // 2センサー対応：d1とd4の両方から温度を集める（どちらか一方でも記録あれば反映）
+    const temps = [];
+    const hums  = [];
+    filtered.forEach(d => {
+      const t1 = parseFloat(d.d1);
+      const t2 = parseFloat(d.d4);
+      const h1 = parseFloat(d.d2);
+      const h2 = parseFloat(d.d5);
+      if (!isNaN(t1)) temps.push(t1);
+      if (!isNaN(t2)) temps.push(t2);
+      if (!isNaN(h1)) hums.push(h1);
+      if (!isNaN(h2)) hums.push(h2);
+    });
+    console.log('📅 気温データ（今日分・両センサー合算）:', temps.length, '件');
     if (temps.length === 0) throw new Error('no today temp data');
 
     const todayMax = Math.max(...temps).toFixed(1);
@@ -1238,7 +1608,7 @@ async function fetchTodayData() {
     document.getElementById('todayMaxStatus').textContent = `最高 ${tmLabel}`;
     document.getElementById('todayMaxStatus').className = 'metric-status ' + tmClass;
 
-    // 本日最高・最低湿度
+    // 本日最高・最低湿度（2センサー合算）
     if (hums.length > 0) {
       const todayMaxHum = Math.max(...hums).toFixed(0);
       const todayMinHum = Math.min(...hums).toFixed(0);
@@ -1261,13 +1631,14 @@ async function fetchTodayData() {
       document.getElementById('todayMaxSoilStatus').className = 'metric-status ' + smaxClass;
     }
 
-    // 本日最高・最低 VPD（気温・湿度の両方が揃ったレコードから算出）
-    const vpds = filtered.map(d => {
-      const t = parseFloat(d.d1);
-      const h = parseFloat(d.d2);
-      if (isNaN(t) || isNaN(h)) return NaN;
-      return calcVPD(t, h);
-    }).filter(v => !isNaN(v));
+    // 本日最高・最低 VPD（各センサーごとに温湿度が揃ったレコードから算出）
+    const vpds = [];
+    filtered.forEach(d => {
+      const t1 = parseFloat(d.d1), h1 = parseFloat(d.d2);
+      const t2 = parseFloat(d.d4), h2 = parseFloat(d.d5);
+      if (!isNaN(t1) && !isNaN(h1)) vpds.push(calcVPD(t1, h1));
+      if (!isNaN(t2) && !isNaN(h2)) vpds.push(calcVPD(t2, h2));
+    });
     if (vpds.length > 0) {
       const todayMaxVpd = Math.max(...vpds).toFixed(2);
       const todayMinVpd = Math.min(...vpds).toFixed(2);
@@ -1289,9 +1660,6 @@ async function fetchTodayData() {
 async function fetchData() {
   const btn = document.getElementById('refreshBtn');
   btn.disabled = true; btn.textContent = '取得中...';
-  const badge = document.getElementById('statusBadge');
-  badge.className = 'status-badge loading';
-  document.getElementById('statusText').textContent = '取得中';
 
   try {
     // 24時間分のデータを取得
@@ -1331,44 +1699,77 @@ async function fetchData() {
     if (data.length === 0) throw new Error('no data in range');
 
     const latest = data[0];
-    const temp = parseFloat(latest.d1);
-    const hum  = parseFloat(latest.d2);
 
-    // d3は最新レコードにない場合があるので直近の有効値を探す
+    // ===== 2センサー対応：各センサーの状態を判定 =====
+    // updateAllSensorsを先に呼び、各センサーのオンライン状態を取得
+    const sensorResults = updateAllSensors(data);
+    const u1Online = sensorResults.unit1.state === 'ok';
+    const u2Online = sensorResults.unit2.state === 'ok';
+
+    // 各センサーの最新有効値（d1+d2揃ったレコード / d4+d5揃ったレコード）
+    const u1Latest = findLatestValues(data, ['d1', 'd2']);
+    const u2Latest = findLatestValues(data, ['d4', 'd5']);
+    const t1 = u1Latest.values[0];  // センサー1温度
+    const h1 = u1Latest.values[1];  // センサー1湿度
+    const t2 = u2Latest.values[0];  // センサー2温度
+    const h2 = u2Latest.values[1];  // センサー2湿度
+
+    // 土壌水分は最新レコードに無い場合があるので直近の有効値を探す
     const latestSoilRecord = data.find(d => d.d3 !== undefined && d.d3 !== null && d.d3 !== '' && !isNaN(parseFloat(d.d3)));
     const soil = latestSoilRecord ? parseFloat(latestSoilRecord.d3) : NaN;
     console.log('🌱 d3(soil):', latestSoilRecord?.d3, '→ parsed:', soil);
+    console.log('🏠 sensor1:', t1, h1, 'online=', u1Online);
+    console.log('🏠 sensor2:', t2, h2, 'online=', u2Online);
 
     const reversed = [...data].reverse();
     // Ambientの時刻フィールドを自動検出
     const timeKey = reversed[0].created_at ? 'created_at' : reversed[0].created ? 'created' : null;
 
-    // データをそのまま配列に入れる（nullなし・全点繋ぐ）
-    tempHistory = reversed.map(d => { const v = parseFloat(d.d1); return isNaN(v) ? null : v; });
-    humHistory  = reversed.map(d => { const v = parseFloat(d.d2); return isNaN(v) ? null : v; });
-    soilHistory = reversed.map(d => { const v = parseFloat(d.d3); return isNaN(v) ? null : v; });
-    // VPD履歴（気温・湿度の両方が有効な時のみ計算）
-    vpdHistory = reversed.map(d => {
-      const t = parseFloat(d.d1);
-      const h = parseFloat(d.d2);
-      if (isNaN(t) || isNaN(h)) return null;
-      return calcVPD(t, h);
-    });
-    timeLabels  = reversed.map(d => {
+    // ===== 履歴データ：BUCKET_MIN分バケットで2センサー値を集計して真の平均を出す =====
+    // 各ESP32は独立に送信するので、レコードはセンサー1とセンサー2が交互に来る。
+    // バケット内の両センサー値を平均することで真の「2センサー平均」グラフになる。
+    const buckets = new Map(); // key: バケット開始時刻(ms), value: 集計データ
+
+    reversed.forEach(d => {
       const raw = timeKey ? d[timeKey] : null;
-      return raw ? new Date(raw) : null;
+      if (!raw) return;
+      const t = new Date(raw);
+      if (isNaN(t)) return;
+      const bucketStart = Math.floor(t.getTime() / BUCKET_MS) * BUCKET_MS;
+      if (!buckets.has(bucketStart)) {
+        buckets.set(bucketStart, { temps: [], hums: [], soils: [], time: new Date(bucketStart) });
+      }
+      const b = buckets.get(bucketStart);
+      const t1r = parseFloat(d.d1), t2r = parseFloat(d.d4);
+      const h1r = parseFloat(d.d2), h2r = parseFloat(d.d5);
+      const sr  = parseFloat(d.d3);
+      if (!isNaN(t1r)) b.temps.push(t1r);
+      if (!isNaN(t2r)) b.temps.push(t2r);
+      if (!isNaN(h1r)) b.hums.push(h1r);
+      if (!isNaN(h2r)) b.hums.push(h2r);
+      if (!isNaN(sr))  b.soils.push(sr);
     });
 
-    // 基本表示
-    document.getElementById('tempVal').innerHTML = temp.toFixed(1) + '<span class="metric-unit">℃</span>';
-    document.getElementById('humVal').innerHTML  = hum.toFixed(0)  + '<span class="metric-unit">%</span>';
+    // バケットを時刻昇順で配列化
+    const sortedBuckets = Array.from(buckets.values()).sort((a, b) => a.time - b.time);
+    const avg = (arr) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
 
-    const [tLabel, tClass] = getTempStatus(temp);
-    const [hLabel, hClass] = getHumStatus(hum);
-    const ts = document.getElementById('tempStatus');
-    const hs = document.getElementById('humStatus');
-    ts.textContent = tLabel; ts.className = 'metric-status ' + tClass;
-    hs.textContent = hLabel; hs.className = 'metric-status ' + hClass;
+    tempHistory = sortedBuckets.map(b => avg(b.temps));
+    humHistory  = sortedBuckets.map(b => avg(b.hums));
+    soilHistory = sortedBuckets.map(b => avg(b.soils));
+    // VPDはバケット平均の温度・湿度から計算
+    vpdHistory  = sortedBuckets.map(b => {
+      const at = avg(b.temps), ah = avg(b.hums);
+      if (at === null || ah === null) return null;
+      return calcVPD(at, ah);
+    });
+    timeLabels  = sortedBuckets.map(b => b.time);
+    console.log('📊 バケット集計: ' + sortedBuckets.length + '点 (' + BUCKET_MIN + '分窓)');
+
+    // ===== メイン表示更新（2センサー対応） =====
+    const repValues = updateMainMetrics(t1, h1, t2, h2, u1Online, u2Online);
+    const temp = repValues.temp;  // 代表温度（平均 or 単独 or null）
+    const hum  = repValues.hum;   // 代表湿度
 
     // 土壌水分表示
     if (!isNaN(soil)) {
@@ -1378,31 +1779,38 @@ async function fetchData() {
       document.getElementById('soilStatus').className = 'metric-status ' + sClass;
     }
 
-    // VPD（飽差）表示
-    const vpd = calcVPD(temp, hum);
-    if (!isNaN(vpd)) {
-      document.getElementById('vpdVal').innerHTML = vpd.toFixed(2) + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">kPa</span>';
-      const [vLabel, vClass] = getVpdStatus(vpd);
-      document.getElementById('vpdStatus').textContent = vLabel;
-      document.getElementById('vpdStatus').className = 'metric-status ' + vClass;
+    // VPD（飽差）表示：代表温度・湿度から計算（両方オフラインの場合はnull）
+    let vpd = null;
+    if (temp !== null && hum !== null) {
+      vpd = calcVPD(temp, hum);
+      if (!isNaN(vpd)) {
+        document.getElementById('vpdVal').innerHTML = vpd.toFixed(2) + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">kPa</span>';
+        const [vLabel, vClass] = getVpdStatus(vpd);
+        document.getElementById('vpdStatus').textContent = vLabel;
+        document.getElementById('vpdStatus').className = 'metric-status ' + vClass;
+      }
+    } else {
+      // 両方オフラインの場合はVPDも--に
+      document.getElementById('vpdVal').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">kPa</span>';
+      document.getElementById('vpdStatus').textContent = '--';
+      document.getElementById('vpdStatus').className = 'metric-status status-normal';
     }
 
     // 最新状態を保存してアドバイス再生成
-    latestState.temp = isNaN(temp) ? null : temp;
-    latestState.hum  = isNaN(hum)  ? null : hum;
+    latestState.temp = temp;  // 既にnull or 数値
+    latestState.hum  = hum;
     latestState.soil = isNaN(soil) ? null : soil;
-    latestState.vpd  = isNaN(vpd)  ? null : vpd;
+    latestState.vpd  = (vpd === null || isNaN(vpd)) ? null : vpd;
     renderAdvice();
 
     fetchTodayData();
     updateChart();
 
-    // 最終受信時刻を取得してセンサー状態を更新（オンライン/警告/電池切れ判定も内包）
+    // updateAllSensorsは既に上で呼び出し済み（重複呼び出しを削除）
+
+    // 最終更新時刻を表示（チャンネル全体の最新レコード時刻）
     const timeKey2 = latest.created_at ? 'created_at' : latest.created ? 'created' : null;
     const lastTime = timeKey2 ? new Date(latest[timeKey2]) : null;
-    updateSensorStatus(lastTime);
-
-    // 最終更新時刻を表示
     if (lastTime && !isNaN(lastTime)) {
       document.getElementById('lastUpdate').textContent =
         '最終更新: ' + lastTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
@@ -1412,11 +1820,14 @@ async function fetchData() {
     }
 
   } catch(e) {
-    updateSensorStatus(null);
+    // データ取得自体が失敗 → 全センサーをidle/未受信扱い、メイン表示もクリア
+    updateAllSensors([]);
+    updateMainMetrics(NaN, NaN, NaN, NaN, false, false);
     document.getElementById('lastUpdate').textContent = '最終更新: 取得失敗';
     drawChart([], '#ff6b35', '℃');
-    document.getElementById('offlineTitle').textContent = 'センサー未接続';
-    document.getElementById('offlineMsg').textContent = 'データが取得できません。センサーの電源・接続を確認してください。';
+    document.getElementById('offlineTitle').textContent = 'データ取得失敗';
+    document.getElementById('offlineMsg').textContent = 'Ambientへの接続に失敗しました。ネットワーク状態を確認してください。';
+    document.getElementById('offlineBanner').classList.add('show');
   }
 
   btn.disabled = false; btn.textContent = 'データを更新';
