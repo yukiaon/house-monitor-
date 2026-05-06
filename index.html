@@ -40,6 +40,7 @@
   --accent-temp: #ff6b35;
   --accent-hum: #007aff;
   --accent-vpd: #af52de;
+  --accent-co2: #5ac8fa;
   --shadow: 0 2px 20px rgba(0,0,0,0.08);
   --radius: 18px;
   --radius-sm: 12px;
@@ -231,6 +232,7 @@ body {
 .chart-tab.active.hum  { background: rgba(0,122,255,0.12);  color: var(--accent-hum); }
 .chart-tab.active.soil { background: rgba(52,199,89,0.12);  color: var(--accent-green); }
 .chart-tab.active.vpd  { background: rgba(175,82,222,0.12); color: var(--accent-vpd); }
+.chart-tab.active.co2  { background: rgba(90,200,250,0.15); color: #0a84d6; }
 .chart-wrap {
   padding: 0 18px;
   position: relative;
@@ -498,6 +500,30 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       </div>
       <div class="metric-status status-normal" id="todayMaxVpdStatus">--</div>
     </div>
+    <!-- CO2カード（現在値） -->
+    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;position:relative;overflow:hidden;">
+      <div style="content:'';position:absolute;top:0;right:0;width:80px;height:80px;border-radius:50%;opacity:0.07;transform:translate(20px,-20px);background:var(--accent-co2);"></div>
+      <span class="metric-icon">💨</span>
+      <div class="metric-label">CO2濃度</div>
+      <div class="metric-value" id="co2Val" style="color:#0a84d6;font-family:'DM Mono',monospace;font-size:2.2rem;font-weight:500;letter-spacing:-0.03em;line-height:1;margin-bottom:6px;">--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">ppm</span></div>
+      <div class="metric-status status-normal" id="co2Status">--</div>
+    </div>
+    <!-- 本日CO2カード -->
+    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
+      <span class="metric-icon">💨</span>
+      <div class="metric-label">本日CO2</div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最高</div>
+          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#0a84d6;line-height:1;" id="todayMaxCo2">--<span style="font-size:0.85rem;opacity:0.7;">ppm</span></div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最低</div>
+          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#8e8e93;line-height:1;" id="todayMinCo2">--<span style="font-size:0.85rem;opacity:0.7;">ppm</span></div>
+        </div>
+      </div>
+      <div class="metric-status status-normal" id="todayMaxCo2Status">--</div>
+    </div>
   </div>
 
   <!-- 💡 ハウス管理アドバイス -->
@@ -522,6 +548,7 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       <button class="chart-tab hum" onclick="switchChart('hum')">湿度</button>
       <button class="chart-tab soil" onclick="switchChart('soil')">土壌水分</button>
       <button class="chart-tab vpd" onclick="switchChart('vpd')">飽差</button>
+      <button class="chart-tab co2" onclick="switchChart('co2')">CO2</button>
     </div>
     <div class="chart-wrap">
       <!-- Y軸（固定表示） -->
@@ -586,13 +613,13 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       <div style="font-size:0.7rem;color:var(--text-secondary);">📊 チャンネル</div>
       <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">99929</div>
       <div style="font-size:0.7rem;color:var(--text-secondary);">⏱️ 送信間隔</div>
-      <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">10分</div>
+      <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">10分／土壌15分</div>
     </div>
   </div>
   <!-- 更新ボタン -->
   <button class="refresh-btn" id="refreshBtn" onclick="fetchData()">データを更新</button>
 
-  <div class="footer">Ambient ch.99929 · 2センサー対応 · 自動更新 5分 · 送信間隔 10分</div>
+  <div class="footer">Ambient ch.99929 · 3センサー対応 · 自動更新 5分 · 送信間隔 気温湿度10分／土壌15分</div>
 
 </div>
 
@@ -613,6 +640,7 @@ let tempHistory = [];
 let humHistory = [];
 let soilHistory = [];
 let vpdHistory = [];
+let co2History = [];
 let timeLabels = [];
 
 // 3センサー独立の通知状態（0=正常 1=オレンジ 2=赤）
@@ -624,13 +652,21 @@ const SENSOR_NAMES = {
   soil:  '土壌'
 };
 
-// センサーピル判定の閾値（分）
+// センサーピル判定の閾値（分）— センサーごとに個別設定
 // DeepSleep間隔が変わったらここを調整する
-//   5分間隔運用なら  OK=10分,  WARN=30分
-//   10分間隔運用なら OK=15分,  WARN=45分（現在の設定）
-//   15分間隔運用なら OK=20分,  WARN=60分
-const SENSOR_OK_MIN   = 15;  // ≦この値なら 🟢 正常
-const SENSOR_WARN_MIN = 45;  // ≦この値なら 🟡 警告、超えたら 🔴 停止
+//   送信間隔10分なら OK=15分, WARN=45分
+//   送信間隔15分なら OK=20分, WARN=60分
+//   送信間隔20分なら OK=25分, WARN=75分
+const SENSOR_OK_MIN = {
+  unit1: 15,   // センサー1: 10分間隔
+  unit2: 15,   // センサー2: 10分間隔
+  soil:  20,   // 土壌水分計: 15分間隔（変化が遅いので長め）
+};
+const SENSOR_WARN_MIN = {
+  unit1: 45,
+  unit2: 45,
+  soil:  60,
+};
 
 // グラフのバケット幅（ミリ秒）
 // 各ESP32は独立に送信するので、レコードはセンサー1とセンサー2が交互に来る。
@@ -651,6 +687,7 @@ let latestState = {
   hum: null,
   soil: null,
   vpd: null,
+  co2: null,
   todayWeather: null,   // {code, max, min}
   tomorrowWeather: null
 };
@@ -750,8 +787,8 @@ function drawChart(data, color, unit, retry = 0) {
     return;
   }
 
-  // VPDは範囲が小さいので余白も小さく
-  const pad_range = (chartMode === 'vpd') ? 0.1 : 1;
+  // VPD・CO2は範囲が違うので余白も調整
+  const pad_range = (chartMode === 'vpd') ? 0.1 : (chartMode === 'co2') ? 50 : 1;
   let min = Math.min(...validData) - pad_range;
   let max = Math.max(...validData) + pad_range;
   // 各モードで最適域が必ず可視範囲に含まれるよう補正
@@ -764,6 +801,10 @@ function drawChart(data, color, unit, retry = 0) {
   } else if (chartMode === 'hum') {
     min = Math.min(min, 55);  // 60%の少し下
     max = Math.max(max, 85);  // 80%の少し上
+  } else if (chartMode === 'co2') {
+    min = Math.min(min, 700);   // 800ppmの少し下
+    max = Math.max(max, 1600);  // 1500ppmの少し上
+    if (min < 0) min = 0;
   }
   const range = max - min || 1;
   const xStep = cw / (data.length - 1);
@@ -779,9 +820,10 @@ function drawChart(data, color, unit, retry = 0) {
   // ===== 最適域帯の描画（モードごとに範囲を切替） =====
   // ピーマン栽培の最適環境
   const OPT_ZONES = {
-    temp: { min: 22, max: 28, color: '255, 149, 0',  label: '最適域 22-28℃' },     // オレンジ
-    hum:  { min: 60, max: 80, color: '0, 122, 255',  label: '最適域 60-80%' },      // ブルー
-    vpd:  { min: 0.5, max: 1.2, color: '52, 199, 89', label: '最適域 0.5-1.2 kPa' } // グリーン
+    temp: { min: 22, max: 28, color: '255, 149, 0',  label: '最適域 22-28℃' },        // オレンジ
+    hum:  { min: 60, max: 80, color: '0, 122, 255',  label: '最適域 60-80%' },         // ブルー
+    vpd:  { min: 0.5, max: 1.2, color: '52, 199, 89', label: '最適域 0.5-1.2 kPa' },   // グリーン
+    co2:  { min: 800, max: 1500, color: '52, 199, 89', label: '最適域 800-1500 ppm' }  // グリーン
   };
   const zone = OPT_ZONES[chartMode];
   if (zone) {
@@ -899,6 +941,7 @@ function updateChart() {
   else if (chartMode === 'hum')  { data = humHistory;  color = '#007aff'; unit = '%'; }
   else if (chartMode === 'soil') { data = soilHistory; color = '#34c759'; unit = '%'; }
   else if (chartMode === 'vpd')  { data = vpdHistory;  color = '#af52de'; unit = 'kPa'; }
+  else if (chartMode === 'co2')  { data = co2History;  color = '#0a84d6'; unit = 'ppm'; }
 
   drawChart(data, color, unit);
 
@@ -912,7 +955,7 @@ function updateChart() {
 
   const validArr = data.filter(v => v !== null && !isNaN(v));
   if (validArr.length > 0) {
-    const digits = (chartMode === 'vpd') ? 2 : 1;
+    const digits = (chartMode === 'vpd') ? 2 : (chartMode === 'co2') ? 0 : 1;
     const max = Math.max(...validArr).toFixed(digits);
     const min = Math.min(...validArr).toFixed(digits);
     const avg = (validArr.reduce((a, b) => a + b, 0) / validArr.length).toFixed(digits);
@@ -950,6 +993,17 @@ function getVpdStatus(v) {
   if (v <= 1.2) return ['✅ 最適', 'status-normal'];
   if (v <= 1.5) return ['⚠️ やや高', 'status-warn'];
   return ['🔥 高すぎ(気孔閉鎖)', 'status-danger'];
+}
+
+// CO2濃度判定（ピーマンの光合成最適は800〜1500ppm、特に1000〜1500で最大化）
+function getCo2Status(c) {
+  if (isNaN(c)) return ['--', 'status-normal'];
+  if (c < 300)  return ['❓ 異常低値', 'status-danger'];
+  if (c < 400)  return ['🌫️ 大気レベル', 'status-warn'];
+  if (c < 800)  return ['📉 やや低い', 'status-warn'];
+  if (c <= 1500) return ['✅ 光合成最適', 'status-normal'];
+  if (c <= 2000) return ['⚠️ やや高い', 'status-warn'];
+  return ['🚨 過剰(換気を)', 'status-danger'];
 }
 
 // 温度差／湿度差の判定（ピーマンハウス基準）
@@ -1134,6 +1188,26 @@ function generateAdvice() {
     });
   }
 
+  // CO2過剰（健康リスクもあるため緊急レベル）
+  if (s.co2 !== null && s.co2 > 2000) {
+    advices.push({
+      level: 'danger',
+      icon: '🚨',
+      title: 'CO2濃度過剰',
+      body: `CO2 ${Math.round(s.co2)}ppm。換気を開始してください。作業者の健康にも影響する濃度です。`
+    });
+  }
+
+  // CO2施用機の異常（極端な低値）
+  if (s.co2 !== null && s.co2 < 300) {
+    advices.push({
+      level: 'danger',
+      icon: '❓',
+      title: 'CO2センサー異常値',
+      body: `CO2 ${Math.round(s.co2)}ppm。大気濃度(約420ppm)を大きく下回っています。センサー故障やキャリブレーション必要の可能性。`
+    });
+  }
+
   // ========== 🟡 注意レベル (warn) ==========
   if (s.vpd !== null && s.vpd > 1.2 && s.vpd < 1.8 && isDaytime) {
     advices.push({
@@ -1180,6 +1254,36 @@ function generateAdvice() {
     });
   }
 
+  // CO2やや高め（光合成に使えるが、調整推奨）
+  if (s.co2 !== null && s.co2 > 1500 && s.co2 <= 2000) {
+    advices.push({
+      level: 'warn',
+      icon: '💨',
+      title: 'CO2やや高め',
+      body: `CO2 ${Math.round(s.co2)}ppm。光合成にはまだ使えますが、換気で1000-1500ppmに調整すると最適です。`
+    });
+  }
+
+  // 日中CO2不足（増収のチャンス）
+  if (s.co2 !== null && s.co2 >= 300 && s.co2 < 400 && isDaytime) {
+    advices.push({
+      level: 'warn',
+      icon: '📉',
+      title: 'CO2が大気以下',
+      body: `CO2 ${Math.round(s.co2)}ppm。日中の光合成でCO2が消費されています。CO2施用で大きく増収できる時間帯です。`
+    });
+  }
+
+  // 朝の閉鎖環境でCO2が上がりすぎる前の注意
+  if (s.co2 !== null && s.co2 > 1500 && s.co2 <= 2000 && isMorning) {
+    advices.push({
+      level: 'warn',
+      icon: '🌅',
+      title: '夜間蓄積CO2が高め',
+      body: `CO2 ${Math.round(s.co2)}ppm。夜間呼吸で蓄積したCO2です。日射が入り始めたら早めに換気を始めましょう。`
+    });
+  }
+
   // 天気連動
   if (s.tomorrowWeather && (s.tomorrowWeather.code >= 51 && s.tomorrowWeather.code <= 82)) {
     if (isEvening || isNight) {
@@ -1195,12 +1299,29 @@ function generateAdvice() {
   // ========== 🔵 通常アドバイス (info) ==========
   if (s.vpd !== null && s.vpd >= 0.5 && s.vpd <= 1.2) {
     if (isDaytime) {
-      advices.push({
-        level: 'info',
-        icon: '☀️',
-        title: '光合成ゴールデンタイム',
-        body: `VPD ${s.vpd.toFixed(2)}kPa（最適域）。今の換気バランスを維持。CO2補給があればさらに効果的。`
-      });
+      // CO2との組み合わせで光合成効率の判定を細分化
+      if (s.co2 !== null && s.co2 >= 800 && s.co2 <= 1500) {
+        advices.push({
+          level: 'info',
+          icon: '🌟',
+          title: '光合成パーフェクトコンディション',
+          body: `VPD ${s.vpd.toFixed(2)}kPa + CO2 ${Math.round(s.co2)}ppm。理想的な光合成環境です。この時間帯の維持を最優先に。`
+        });
+      } else if (s.co2 !== null && s.co2 >= 400 && s.co2 < 800) {
+        advices.push({
+          level: 'info',
+          icon: '☀️',
+          title: 'VPD最適、CO2補給で増収可能',
+          body: `VPDは最適ですが、CO2が${Math.round(s.co2)}ppmと低め。CO2施用で光合成効率がさらに上がります。`
+        });
+      } else {
+        advices.push({
+          level: 'info',
+          icon: '☀️',
+          title: '光合成ゴールデンタイム',
+          body: `VPD ${s.vpd.toFixed(2)}kPa（最適域）。今の換気バランスを維持。`
+        });
+      }
     } else {
       advices.push({
         level: 'info',
@@ -1209,6 +1330,17 @@ function generateAdvice() {
         body: `VPD ${s.vpd.toFixed(2)}kPa。ピーマンに理想的な環境です。`
       });
     }
+  }
+
+  // CO2のみ最適（VPDが範囲外でも、CO2が良好なら光合成は進む）
+  if (s.co2 !== null && s.co2 >= 800 && s.co2 <= 1500 && isDaytime &&
+      (s.vpd === null || s.vpd < 0.5 || s.vpd > 1.2)) {
+    advices.push({
+      level: 'info',
+      icon: '💨',
+      title: 'CO2は最適',
+      body: `CO2 ${Math.round(s.co2)}ppm。VPDを最適域(0.5-1.2kPa)に近づけると光合成効率が最大化します。`
+    });
   }
 
   if (isMorning && s.vpd !== null && s.vpd >= 0.3 && s.vpd < 0.5) {
@@ -1346,9 +1478,12 @@ function updateOneSensor(key, lastTime) {
   elapsed.textContent = formatElapsed(diffMin) + '前';
 
   const label = SENSOR_LABELS[key];
+  // センサーごとの閾値を取得（未定義なら安全側のデフォルト）
+  const okMin   = SENSOR_OK_MIN[key]   ?? 15;
+  const warnMin = SENSOR_WARN_MIN[key] ?? 45;
   let state;
 
-  if (diffMin <= SENSOR_OK_MIN) {
+  if (diffMin <= okMin) {
     // 🟢 正常
     pill.className = 'sensor-pill ok';
     state = 'ok';
@@ -1356,7 +1491,7 @@ function updateOneSensor(key, lastTime) {
       sendNtfy('✅ ' + label + ' 復旧', label + 'のデータ受信が再開しました。');
     }
     notifiedLevels[key] = 0;
-  } else if (diffMin <= SENSOR_WARN_MIN) {
+  } else if (diffMin <= warnMin) {
     // 🟡 電波不良
     pill.className = 'sensor-pill warn';
     state = 'warn';
@@ -1448,6 +1583,7 @@ function clearSensorValues() {
     tempHistory.push(null);
     humHistory.push(null);
     vpdHistory.push(null);
+    co2History.push(null);
     timeLabels.push(new Date());
     updateChart();
   }
@@ -1649,6 +1785,18 @@ async function fetchTodayData() {
       document.getElementById('todayMaxVpdStatus').className = 'metric-status ' + vmaxClass;
     }
 
+    // 本日最高・最低 CO2
+    const co2s = filtered.map(d => parseFloat(d.d7)).filter(v => !isNaN(v));
+    if (co2s.length > 0) {
+      const todayMaxCo2 = Math.round(Math.max(...co2s));
+      const todayMinCo2 = Math.round(Math.min(...co2s));
+      document.getElementById('todayMaxCo2').innerHTML = todayMaxCo2 + '<span style="font-size:0.85rem;opacity:0.7;">ppm</span>';
+      document.getElementById('todayMinCo2').innerHTML = todayMinCo2 + '<span style="font-size:0.85rem;opacity:0.7;">ppm</span>';
+      const [cmaxLabel, cmaxClass] = getCo2Status(todayMaxCo2);
+      document.getElementById('todayMaxCo2Status').textContent = `最高 ${cmaxLabel}`;
+      document.getElementById('todayMaxCo2Status').className = 'metric-status ' + cmaxClass;
+    }
+
   } catch(e) {
     document.getElementById('todayMax').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
     document.getElementById('todayMin').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
@@ -1718,6 +1866,12 @@ async function fetchData() {
     const latestSoilRecord = data.find(d => d.d3 !== undefined && d.d3 !== null && d.d3 !== '' && !isNaN(parseFloat(d.d3)));
     const soil = latestSoilRecord ? parseFloat(latestSoilRecord.d3) : NaN;
     console.log('🌱 d3(soil):', latestSoilRecord?.d3, '→ parsed:', soil);
+
+    // CO2 (d7) も別ユニットから来るので直近の有効値を探す
+    const latestCo2Record = data.find(d => d.d7 !== undefined && d.d7 !== null && d.d7 !== '' && !isNaN(parseFloat(d.d7)));
+    const co2 = latestCo2Record ? parseFloat(latestCo2Record.d7) : NaN;
+    console.log('💨 d7(co2):', latestCo2Record?.d7, '→ parsed:', co2);
+
     console.log('🏠 sensor1:', t1, h1, 'online=', u1Online);
     console.log('🏠 sensor2:', t2, h2, 'online=', u2Online);
 
@@ -1737,17 +1891,19 @@ async function fetchData() {
       if (isNaN(t)) return;
       const bucketStart = Math.floor(t.getTime() / BUCKET_MS) * BUCKET_MS;
       if (!buckets.has(bucketStart)) {
-        buckets.set(bucketStart, { temps: [], hums: [], soils: [], time: new Date(bucketStart) });
+        buckets.set(bucketStart, { temps: [], hums: [], soils: [], co2s: [], time: new Date(bucketStart) });
       }
       const b = buckets.get(bucketStart);
       const t1r = parseFloat(d.d1), t2r = parseFloat(d.d4);
       const h1r = parseFloat(d.d2), h2r = parseFloat(d.d5);
       const sr  = parseFloat(d.d3);
+      const cr  = parseFloat(d.d7);
       if (!isNaN(t1r)) b.temps.push(t1r);
       if (!isNaN(t2r)) b.temps.push(t2r);
       if (!isNaN(h1r)) b.hums.push(h1r);
       if (!isNaN(h2r)) b.hums.push(h2r);
       if (!isNaN(sr))  b.soils.push(sr);
+      if (!isNaN(cr))  b.co2s.push(cr);
     });
 
     // バケットを時刻昇順で配列化
@@ -1757,6 +1913,7 @@ async function fetchData() {
     tempHistory = sortedBuckets.map(b => avg(b.temps));
     humHistory  = sortedBuckets.map(b => avg(b.hums));
     soilHistory = sortedBuckets.map(b => avg(b.soils));
+    co2History  = sortedBuckets.map(b => avg(b.co2s));
     // VPDはバケット平均の温度・湿度から計算
     vpdHistory  = sortedBuckets.map(b => {
       const at = avg(b.temps), ah = avg(b.hums);
@@ -1796,11 +1953,24 @@ async function fetchData() {
       document.getElementById('vpdStatus').className = 'metric-status status-normal';
     }
 
+    // CO2表示
+    if (!isNaN(co2)) {
+      document.getElementById('co2Val').innerHTML = Math.round(co2) + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">ppm</span>';
+      const [cLabel, cClass] = getCo2Status(co2);
+      document.getElementById('co2Status').textContent = cLabel;
+      document.getElementById('co2Status').className = 'metric-status ' + cClass;
+    } else {
+      document.getElementById('co2Val').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">ppm</span>';
+      document.getElementById('co2Status').textContent = '--';
+      document.getElementById('co2Status').className = 'metric-status status-normal';
+    }
+
     // 最新状態を保存してアドバイス再生成
     latestState.temp = temp;  // 既にnull or 数値
     latestState.hum  = hum;
     latestState.soil = isNaN(soil) ? null : soil;
     latestState.vpd  = (vpd === null || isNaN(vpd)) ? null : vpd;
+    latestState.co2  = isNaN(co2) ? null : co2;
     renderAdvice();
 
     fetchTodayData();
