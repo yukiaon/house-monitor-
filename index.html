@@ -371,6 +371,11 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
           <span class="pill-name">土壌</span>
           <span class="pill-elapsed" id="pill-soil-elapsed">--</span>
         </div>
+        <div class="sensor-pill idle" id="pill-co2">
+          <div class="pill-dot"></div>
+          <span class="pill-name">CO2</span>
+          <span class="pill-elapsed" id="pill-co2-elapsed">--</span>
+        </div>
       </div>
       <div class="last-update" id="lastUpdate">最終更新: --</div>
     </div>
@@ -385,6 +390,59 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
     <div class="offline-text">
       <h3 id="offlineTitle">センサー未接続</h3>
       <p id="offlineMsg">データが取得できません。センサーの電源・接続を確認してください。</p>
+    </div>
+  </div>
+
+  <!-- 🌟 ハウス効率スコア（光合成総合評価） -->
+  <div class="card" id="scoreCard" style="padding:16px 20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:0.72rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌟 ハウス効率スコア</span>
+        <span style="font-size:0.6rem;color:var(--text-tertiary);">気温・VPD・CO2 の光合成3要素</span>
+      </div>
+      <span id="scoreTime" style="font-size:0.62rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;">--</span>
+    </div>
+    <!-- メインスコア表示 -->
+    <div style="display:flex;align-items:center;gap:18px;margin-bottom:14px;">
+      <!-- 円形スコア -->
+      <div style="position:relative;width:96px;height:96px;flex-shrink:0;">
+        <svg viewBox="0 0 100 100" style="width:100%;height:100%;transform:rotate(-90deg);">
+          <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="8"/>
+          <circle id="scoreRing" cx="50" cy="50" r="42" fill="none" stroke="#8e8e93" stroke-width="8" stroke-linecap="round"
+                  stroke-dasharray="263.9" stroke-dashoffset="263.9"
+                  style="transition:stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1), stroke 0.4s;"/>
+        </svg>
+        <div id="scoreNum" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'DM Mono',monospace;font-size:1.7rem;font-weight:600;color:#8e8e93;letter-spacing:-0.04em;">--</div>
+      </div>
+      <!-- ラベル -->
+      <div style="flex:1;min-width:0;">
+        <div id="scoreLabel" style="font-size:1.05rem;font-weight:600;color:var(--text-primary);margin-bottom:2px;">--</div>
+        <div id="scoreDesc" style="font-size:0.74rem;color:var(--text-secondary);line-height:1.4;">データ取得後に評価されます</div>
+      </div>
+    </div>
+    <!-- 内訳バー -->
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:0.7rem;">
+        <span style="width:46px;color:var(--text-secondary);">🌡️ 気温</span>
+        <div style="flex:1;height:6px;background:rgba(0,0,0,0.06);border-radius:3px;overflow:hidden;">
+          <div id="scoreBarTemp" style="height:100%;width:0%;background:#ff6b35;border-radius:3px;transition:width 0.6s;"></div>
+        </div>
+        <span id="scoreValTemp" style="width:32px;text-align:right;font-family:'DM Mono',monospace;color:var(--text-secondary);">--</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:0.7rem;">
+        <span style="width:46px;color:var(--text-secondary);">🍃 VPD</span>
+        <div style="flex:1;height:6px;background:rgba(0,0,0,0.06);border-radius:3px;overflow:hidden;">
+          <div id="scoreBarVpd" style="height:100%;width:0%;background:#af52de;border-radius:3px;transition:width 0.6s;"></div>
+        </div>
+        <span id="scoreValVpd" style="width:32px;text-align:right;font-family:'DM Mono',monospace;color:var(--text-secondary);">--</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:0.7rem;">
+        <span style="width:46px;color:var(--text-secondary);">💨 CO2</span>
+        <div style="flex:1;height:6px;background:rgba(0,0,0,0.06);border-radius:3px;overflow:hidden;">
+          <div id="scoreBarCo2" style="height:100%;width:0%;background:#0a84d6;border-radius:3px;transition:width 0.6s;"></div>
+        </div>
+        <span id="scoreValCo2" style="width:32px;text-align:right;font-family:'DM Mono',monospace;color:var(--text-secondary);">--</span>
+      </div>
     </div>
   </div>
 
@@ -644,28 +702,31 @@ let co2History = [];
 let timeLabels = [];
 
 // 3センサー独立の通知状態（0=正常 1=オレンジ 2=赤）
-const SENSOR_KEYS = ['unit1', 'unit2', 'soil'];
+const SENSOR_KEYS = ['unit1', 'unit2', 'soil', 'co2'];
 // センサーの表示名（設置場所が決まったらここを書き換えるだけでOK）
 const SENSOR_NAMES = {
   unit1: 'センサー1',
   unit2: 'センサー2',
-  soil:  '土壌'
+  soil:  '土壌',
+  co2:   'CO2'
 };
 
 // センサーピル判定の閾値（分）— センサーごとに個別設定
 // DeepSleep間隔が変わったらここを調整する
+//   送信間隔 5分なら OK=10分, WARN=20分
 //   送信間隔10分なら OK=15分, WARN=45分
 //   送信間隔15分なら OK=20分, WARN=60分
-//   送信間隔20分なら OK=25分, WARN=75分
 const SENSOR_OK_MIN = {
   unit1: 15,   // センサー1: 10分間隔
   unit2: 15,   // センサー2: 10分間隔
-  soil:  20,   // 土壌水分計: 15分間隔（変化が遅いので長め）
+  soil:  10,   // 土壌水分計: 5分間隔
+  co2:   10,   // CO2センサー: 5分間隔
 };
 const SENSOR_WARN_MIN = {
   unit1: 45,
   unit2: 45,
-  soil:  60,
+  soil:  20,
+  co2:   20,
 };
 
 // グラフのバケット幅（ミリ秒）
@@ -677,9 +738,10 @@ const BUCKET_MS  = BUCKET_MIN * 60 * 1000;
 const SENSOR_LABELS = {
   unit1: SENSOR_NAMES.unit1 + 'センサー',
   unit2: SENSOR_NAMES.unit2 + 'センサー',
-  soil:  '土壌水分計'
+  soil:  '土壌水分計',
+  co2:   'CO2センサー'
 };
-let notifiedLevels = { unit1: 0, unit2: 0, soil: 0 };
+let notifiedLevels = { unit1: 0, unit2: 0, soil: 0, co2: 0 };
 
 // 最新状態を保持（アドバイス生成で参照）
 let latestState = {
@@ -802,8 +864,8 @@ function drawChart(data, color, unit, retry = 0) {
     min = Math.min(min, 55);  // 60%の少し下
     max = Math.max(max, 85);  // 80%の少し上
   } else if (chartMode === 'co2') {
-    min = Math.min(min, 700);   // 800ppmの少し下
-    max = Math.max(max, 1600);  // 1500ppmの少し上
+    min = Math.min(min, 600);   // 700ppmの少し下
+    max = Math.max(max, 1100);  // 1000ppmの少し上
     if (min < 0) min = 0;
   }
   const range = max - min || 1;
@@ -823,7 +885,7 @@ function drawChart(data, color, unit, retry = 0) {
     temp: { min: 22, max: 28, color: '255, 149, 0',  label: '最適域 22-28℃' },        // オレンジ
     hum:  { min: 60, max: 80, color: '0, 122, 255',  label: '最適域 60-80%' },         // ブルー
     vpd:  { min: 0.5, max: 1.2, color: '52, 199, 89', label: '最適域 0.5-1.2 kPa' },   // グリーン
-    co2:  { min: 800, max: 1500, color: '52, 199, 89', label: '最適域 800-1500 ppm' }  // グリーン
+    co2:  { min: 700, max: 1000, color: '52, 199, 89', label: 'ベストゾーン 700-1000 ppm' }  // グリーン
   };
   const zone = OPT_ZONES[chartMode];
   if (zone) {
@@ -995,15 +1057,92 @@ function getVpdStatus(v) {
   return ['🔥 高すぎ(気孔閉鎖)', 'status-danger'];
 }
 
-// CO2濃度判定（ピーマンの光合成最適は800〜1500ppm、特に1000〜1500で最大化）
+// CO2濃度判定（ハウスピーマン実務基準）
+// ベストゾーン: 700〜1000ppm（施用機なし/自然換気主体での実運用最適）
+// 1200ppm前後は高効率だが費用との相談、1500ppm超は効果頭打ち
 function getCo2Status(c) {
   if (isNaN(c)) return ['--', 'status-normal'];
-  if (c < 300)  return ['❓ 異常低値', 'status-danger'];
-  if (c < 400)  return ['🌫️ 大気レベル', 'status-warn'];
-  if (c < 800)  return ['📉 やや低い', 'status-warn'];
-  if (c <= 1500) return ['✅ 光合成最適', 'status-normal'];
-  if (c <= 2000) return ['⚠️ やや高い', 'status-warn'];
-  return ['🚨 過剰(換気を)', 'status-danger'];
+  if (c < 200)   return ['❓ 異常低値', 'status-danger'];
+  if (c < 300)   return ['🚨 危険(光合成低下)', 'status-danger'];
+  if (c < 400)   return ['🌫️ 外気レベル', 'status-warn'];
+  if (c < 500)   return ['📊 最低限', 'status-warn'];
+  if (c < 700)   return ['📈 まずまず良好', 'status-normal'];
+  if (c <= 1000) return ['✅ ベストゾーン', 'status-normal'];
+  if (c <= 1200) return ['💰 高効率(費用相談)', 'status-normal'];
+  if (c <= 1500) return ['⚠️ 効果頭打ち', 'status-warn'];
+  if (c <= 2000) return ['⚠️ やや過剰', 'status-warn'];
+  return ['🚨 ストレスリスク', 'status-danger'];
+}
+
+// ===== ハウス効率スコア（光合成総合評価） =====
+// 気温・VPD・CO2 の3要素を加重平均で総合評価（100点満点）
+//   VPD 40点（最重要・光合成効率に直結）
+//   気温 30点（範囲外で大きく減点）
+//   CO2 30点（ベストゾーン基準）
+// 各要素は 0〜100 の小スコアを出してから加重合計
+function calcEnvScore(temp, vpd, co2) {
+  // 気温スコア (22-28℃が満点)
+  function tempScore(t) {
+    if (t === null || isNaN(t)) return null;
+    if (t >= 22 && t <= 28) return 100;
+    // 中間域: 18-32℃で50点
+    if (t >= 18 && t < 22) return 50 + (t - 18) / 4 * 50;       // 50→100
+    if (t > 28 && t <= 32) return 50 + (32 - t) / 4 * 50;       // 100→50
+    if (t >= 10 && t < 18) return Math.max(0, (t - 10) / 8 * 50);  // 0→50
+    if (t > 32 && t <= 40) return Math.max(0, (40 - t) / 8 * 50); // 50→0
+    return 0;
+  }
+  // VPDスコア (0.5-1.2 kPaが満点)
+  function vpdScore(v) {
+    if (v === null || isNaN(v)) return null;
+    if (v >= 0.5 && v <= 1.2) return 100;
+    if (v >= 0.3 && v < 0.5) return 60 + (v - 0.3) / 0.2 * 40;    // 60→100
+    if (v > 1.2 && v <= 1.5) return 60 + (1.5 - v) / 0.3 * 40;    // 100→60
+    if (v >= 0.1 && v < 0.3) return Math.max(0, (v - 0.1) / 0.2 * 60);  // 0→60
+    if (v > 1.5 && v <= 2.5) return Math.max(0, (2.5 - v) / 1.0 * 60); // 60→0
+    return 0;
+  }
+  // CO2スコア (700-1000 ppmがベストゾーン)
+  function co2Score(c) {
+    if (c === null || isNaN(c)) return null;
+    if (c >= 700 && c <= 1000) return 100;
+    if (c > 1000 && c <= 1200) return 90;   // 高効率(費用相談)
+    if (c > 1200 && c <= 1500) return 65;   // 効果頭打ち
+    if (c >= 500 && c < 700)   return 75 + (c - 500) / 200 * 25; // 75→100
+    if (c >= 400 && c < 500)   return 50 + (c - 400) / 100 * 25; // 50→75
+    if (c >= 300 && c < 400)   return 30 + (c - 300) / 100 * 20; // 30→50
+    if (c > 1500 && c <= 2000) return Math.max(0, 50 - (c - 1500) / 500 * 50); // 50→0
+    if (c > 2000) return 0;
+    if (c < 300)  return Math.max(0, c / 300 * 30);
+    return 0;
+  }
+
+  const ts = tempScore(temp);
+  const vs = vpdScore(vpd);
+  const cs = co2Score(co2);
+
+  // 利用可能な要素だけで加重平均（部分的なデータでも評価可能に）
+  const items = [];
+  if (ts !== null) items.push({ score: ts, weight: 30 });
+  if (vs !== null) items.push({ score: vs, weight: 40 });
+  if (cs !== null) items.push({ score: cs, weight: 30 });
+
+  if (items.length === 0) return { total: null, temp: ts, vpd: vs, co2: cs };
+
+  const wsum = items.reduce((s, i) => s + i.weight, 0);
+  const total = items.reduce((s, i) => s + i.score * i.weight, 0) / wsum;
+
+  return { total: Math.round(total), temp: ts, vpd: vs, co2: cs };
+}
+
+// スコアから評価ラベルと色を取得
+function getScoreGrade(score) {
+  if (score === null || isNaN(score)) return { label: '--',          icon: '📊', color: '#8e8e93' };
+  if (score >= 90) return { label: 'パーフェクト',  icon: '🌟', color: '#34c759' };
+  if (score >= 75) return { label: '良好',          icon: '✅', color: '#34c759' };
+  if (score >= 60) return { label: 'まずまず',      icon: '📊', color: '#ffcc00' };
+  if (score >= 40) return { label: '要改善',        icon: '⚠️', color: '#ff9500' };
+  return                  { label: '環境不良',      icon: '🚨', color: '#ff3b30' };
 }
 
 // 温度差／湿度差の判定（ピーマンハウス基準）
@@ -1188,23 +1327,33 @@ function generateAdvice() {
     });
   }
 
-  // CO2過剰（健康リスクもあるため緊急レベル）
+  // CO2過剰（ストレスリスク・健康影響もあるため緊急レベル）
   if (s.co2 !== null && s.co2 > 2000) {
     advices.push({
       level: 'danger',
       icon: '🚨',
-      title: 'CO2濃度過剰',
-      body: `CO2 ${Math.round(s.co2)}ppm。換気を開始してください。作業者の健康にも影響する濃度です。`
+      title: 'CO2過剰・ストレスリスク',
+      body: `CO2 ${Math.round(s.co2)}ppm。植物にストレス、作業者の健康にも影響する濃度です。直ちに換気を。`
     });
   }
 
-  // CO2施用機の異常（極端な低値）
-  if (s.co2 !== null && s.co2 < 300) {
+  // CO2が極端に低い（200ppm以下は光合成がほぼ止まる）
+  if (s.co2 !== null && s.co2 < 200) {
     advices.push({
       level: 'danger',
       icon: '❓',
       title: 'CO2センサー異常値',
-      body: `CO2 ${Math.round(s.co2)}ppm。大気濃度(約420ppm)を大きく下回っています。センサー故障やキャリブレーション必要の可能性。`
+      body: `CO2 ${Math.round(s.co2)}ppm。大気濃度(約420ppm)を大きく下回っています。センサー故障の可能性。`
+    });
+  }
+
+  // 日中の200-300ppm（危険・光合成大幅低下）
+  if (s.co2 !== null && s.co2 >= 200 && s.co2 < 300 && isDaytime) {
+    advices.push({
+      level: 'danger',
+      icon: '📉',
+      title: 'CO2不足・光合成低下中',
+      body: `CO2 ${Math.round(s.co2)}ppm。植物が消費しきって光合成が大幅に低下しています。換気で外気を入れるか、施用を検討してください。`
     });
   }
 
@@ -1254,33 +1403,43 @@ function generateAdvice() {
     });
   }
 
-  // CO2やや高め（光合成に使えるが、調整推奨）
+  // CO2 1500ppm超：効果頭打ち（施用してても増収につながらない＝無駄）
   if (s.co2 !== null && s.co2 > 1500 && s.co2 <= 2000) {
     advices.push({
       level: 'warn',
-      icon: '💨',
-      title: 'CO2やや高め',
-      body: `CO2 ${Math.round(s.co2)}ppm。光合成にはまだ使えますが、換気で1000-1500ppmに調整すると最適です。`
+      icon: '⚠️',
+      title: 'CO2効果頭打ち',
+      body: `CO2 ${Math.round(s.co2)}ppm。1500ppm超では増収効果が頭打ちです。換気でベストゾーン(700-1000ppm)に戻すと費用対効果が改善します。`
     });
   }
 
-  // 日中CO2不足（増収のチャンス）
-  if (s.co2 !== null && s.co2 >= 300 && s.co2 < 400 && isDaytime) {
+  // 日中CO2不足（500ppm未満は施用 or 換気のチャンス）
+  if (s.co2 !== null && s.co2 >= 300 && s.co2 < 500 && isDaytime) {
     advices.push({
       level: 'warn',
       icon: '📉',
-      title: 'CO2が大気以下',
-      body: `CO2 ${Math.round(s.co2)}ppm。日中の光合成でCO2が消費されています。CO2施用で大きく増収できる時間帯です。`
+      title: '日中CO2が不足気味',
+      body: `CO2 ${Math.round(s.co2)}ppm。光合成で消費中です。換気で外気を入れるか、CO2施用で増収のチャンスです。`
     });
   }
 
-  // 朝の閉鎖環境でCO2が上がりすぎる前の注意
-  if (s.co2 !== null && s.co2 > 1500 && s.co2 <= 2000 && isMorning) {
+  // 朝〜午前の許容範囲チェック (700-1000ppmが理想)
+  if (s.co2 !== null && isMorning && s.co2 >= 500 && s.co2 < 700) {
     advices.push({
       level: 'warn',
       icon: '🌅',
-      title: '夜間蓄積CO2が高め',
-      body: `CO2 ${Math.round(s.co2)}ppm。夜間呼吸で蓄積したCO2です。日射が入り始めたら早めに換気を始めましょう。`
+      title: '朝のCO2、もう一押し',
+      body: `朝〜午前のCO2 ${Math.round(s.co2)}ppm。理想は700-1000ppm。日射が強くなる前にベストゾーンへ。`
+    });
+  }
+
+  // 夜間にCO2が極端に高い（呼吸蓄積 → 朝の換気で活用可能）
+  if (s.co2 !== null && s.co2 > 1000 && isNight) {
+    advices.push({
+      level: 'warn',
+      icon: '🌙',
+      title: '夜間蓄積CO2が多め',
+      body: `夜間CO2 ${Math.round(s.co2)}ppm。理想は400-600ppm。植物の呼吸で蓄積中。朝の日射開始時にこのCO2を活用できます。`
     });
   }
 
@@ -1299,20 +1458,34 @@ function generateAdvice() {
   // ========== 🔵 通常アドバイス (info) ==========
   if (s.vpd !== null && s.vpd >= 0.5 && s.vpd <= 1.2) {
     if (isDaytime) {
-      // CO2との組み合わせで光合成効率の判定を細分化
-      if (s.co2 !== null && s.co2 >= 800 && s.co2 <= 1500) {
+      // CO2との組み合わせで光合成効率を判定（ハウスピーマン実務基準）
+      if (s.co2 !== null && s.co2 >= 700 && s.co2 <= 1000) {
         advices.push({
           level: 'info',
           icon: '🌟',
           title: '光合成パーフェクトコンディション',
-          body: `VPD ${s.vpd.toFixed(2)}kPa + CO2 ${Math.round(s.co2)}ppm。理想的な光合成環境です。この時間帯の維持を最優先に。`
+          body: `VPD ${s.vpd.toFixed(2)}kPa + CO2 ${Math.round(s.co2)}ppm。ハウスピーマンのベストゾーンです。この時間帯の維持を最優先に。`
         });
-      } else if (s.co2 !== null && s.co2 >= 400 && s.co2 < 800) {
+      } else if (s.co2 !== null && s.co2 > 1000 && s.co2 <= 1200) {
+        advices.push({
+          level: 'info',
+          icon: '💰',
+          title: '高効率ゾーン（費用相談）',
+          body: `VPD最適 + CO2 ${Math.round(s.co2)}ppm。光合成効率は高いですが、施用コストとの兼ね合いを確認してください。`
+        });
+      } else if (s.co2 !== null && s.co2 >= 500 && s.co2 < 700) {
+        advices.push({
+          level: 'info',
+          icon: '📈',
+          title: 'まずまず良好、もう少しでベスト',
+          body: `VPD最適 + CO2 ${Math.round(s.co2)}ppm。あと少しで700-1000ppmのベストゾーン。施用継続 or 換気抑制で到達可能です。`
+        });
+      } else if (s.co2 !== null && s.co2 >= 400 && s.co2 < 500) {
         advices.push({
           level: 'info',
           icon: '☀️',
           title: 'VPD最適、CO2補給で増収可能',
-          body: `VPDは最適ですが、CO2が${Math.round(s.co2)}ppmと低め。CO2施用で光合成効率がさらに上がります。`
+          body: `VPDは最適ですが、CO2が${Math.round(s.co2)}ppmと最低限。CO2施用で光合成効率が大きく上がります。`
         });
       } else {
         advices.push({
@@ -1332,15 +1505,21 @@ function generateAdvice() {
     }
   }
 
-  // CO2のみ最適（VPDが範囲外でも、CO2が良好なら光合成は進む）
-  if (s.co2 !== null && s.co2 >= 800 && s.co2 <= 1500 && isDaytime &&
+  // CO2のみベストゾーン（VPDが範囲外でも、CO2が良好なら光合成は進む）
+  if (s.co2 !== null && s.co2 >= 700 && s.co2 <= 1000 && isDaytime &&
       (s.vpd === null || s.vpd < 0.5 || s.vpd > 1.2)) {
     advices.push({
       level: 'info',
       icon: '💨',
-      title: 'CO2は最適',
-      body: `CO2 ${Math.round(s.co2)}ppm。VPDを最適域(0.5-1.2kPa)に近づけると光合成効率が最大化します。`
+      title: 'CO2ベストゾーン',
+      body: `CO2 ${Math.round(s.co2)}ppm（ベストゾーン）。VPDを0.5-1.2kPaに近づけると光合成効率が最大化します。`
     });
+  }
+
+  // 換気中の優秀判定（500ppm以上維持）
+  if (s.co2 !== null && s.co2 >= 500 && s.co2 < 700 && isDaytime &&
+      latestState.tomorrowWeather && false) { // 換気中の検出は別ロジックなので保留
+    // 将来: 換気中フラグが取れるなら追加
   }
 
   if (isMorning && s.vpd !== null && s.vpd >= 0.3 && s.vpd < 0.5) {
@@ -1372,6 +1551,75 @@ function generateAdvice() {
   }
 
   return advices;
+}
+
+// ハウス効率スコアの描画
+function renderScore() {
+  const s = latestState;
+  const result = calcEnvScore(s.temp, s.vpd, s.co2);
+  const grade = getScoreGrade(result.total);
+
+  const numEl   = document.getElementById('scoreNum');
+  const ringEl  = document.getElementById('scoreRing');
+  const labelEl = document.getElementById('scoreLabel');
+  const descEl  = document.getElementById('scoreDesc');
+  const timeEl  = document.getElementById('scoreTime');
+
+  // 時刻
+  timeEl.textContent = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}) + ' 時点';
+
+  if (result.total === null) {
+    numEl.textContent = '--';
+    numEl.style.color = '#8e8e93';
+    ringEl.setAttribute('stroke-dashoffset', '263.9');
+    ringEl.setAttribute('stroke', '#8e8e93');
+    labelEl.textContent = '--';
+    descEl.textContent = 'センサーデータの取得を待っています';
+  } else {
+    // 数字とリング
+    numEl.textContent = result.total;
+    numEl.style.color = grade.color;
+    const circumference = 2 * Math.PI * 42;  // ≒ 263.9
+    const offset = circumference * (1 - result.total / 100);
+    ringEl.setAttribute('stroke-dashoffset', offset);
+    ringEl.setAttribute('stroke', grade.color);
+    // ラベル＋説明
+    labelEl.innerHTML = grade.icon + ' ' + grade.label;
+    labelEl.style.color = grade.color;
+
+    // 説明文：弱点要素を指摘
+    const weakest = [];
+    if (result.temp !== null && result.temp < 60) weakest.push({ name: '気温', score: result.temp });
+    if (result.vpd  !== null && result.vpd  < 60) weakest.push({ name: 'VPD',  score: result.vpd });
+    if (result.co2  !== null && result.co2  < 60) weakest.push({ name: 'CO2',  score: result.co2 });
+    weakest.sort((a, b) => a.score - b.score);
+
+    if (result.total >= 90) {
+      descEl.textContent = '光合成3要素が揃った理想的な環境です';
+    } else if (result.total >= 75) {
+      descEl.textContent = '良好な環境。維持することで安定した生育が期待できます';
+    } else if (weakest.length > 0) {
+      descEl.textContent = `${weakest[0].name}が低めです。改善でスコアアップ可能です`;
+    } else {
+      descEl.textContent = '全体的に最適域に近づける余地があります';
+    }
+  }
+
+  // 内訳バー
+  function setBar(barId, valId, score) {
+    const bar = document.getElementById(barId);
+    const val = document.getElementById(valId);
+    if (score === null || isNaN(score)) {
+      bar.style.width = '0%';
+      val.textContent = '--';
+    } else {
+      bar.style.width = score + '%';
+      val.textContent = Math.round(score);
+    }
+  }
+  setBar('scoreBarTemp', 'scoreValTemp', result.temp);
+  setBar('scoreBarVpd',  'scoreValVpd',  result.vpd);
+  setBar('scoreBarCo2',  'scoreValCo2',  result.co2);
 }
 
 function renderAdvice() {
@@ -1528,17 +1776,19 @@ function updateAllSensors(data) {
   const unit1Last = findLastSeen(dataArr, ['d1', 'd2']);
   const unit2Last = findLastSeen(dataArr, ['d4', 'd5']);
   const soilLast  = findLastSeen(dataArr, ['d3']);
+  const co2Last   = findLastSeen(dataArr, ['d7']);
 
   const r1 = updateOneSensor('unit1', unit1Last);
   const r2 = updateOneSensor('unit2', unit2Last);
   const rs = updateOneSensor('soil',  soilLast);
+  const rc = updateOneSensor('co2',   co2Last);
 
   // 表示クリアは updateMainMetrics 側で扱うため、ここでは行わない
 
   // オフラインバナー：警告中のセンサーがあれば列挙
-  updateOfflineBanner({ unit1: r1, unit2: r2, soil: rs });
+  updateOfflineBanner({ unit1: r1, unit2: r2, soil: rs, co2: rc });
 
-  return { unit1: r1, unit2: r2, soil: rs };
+  return { unit1: r1, unit2: r2, soil: rs, co2: rc };
 }
 
 // バナーに「どのセンサーが落ちているか」をまとめて表示
@@ -1972,6 +2222,7 @@ async function fetchData() {
     latestState.vpd  = (vpd === null || isNaN(vpd)) ? null : vpd;
     latestState.co2  = isNaN(co2) ? null : co2;
     renderAdvice();
+    renderScore();
 
     fetchTodayData();
     updateChart();
