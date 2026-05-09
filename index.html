@@ -358,12 +358,12 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       <div class="sensor-pills" id="sensorPills">
         <div class="sensor-pill idle" id="pill-unit1">
           <div class="pill-dot"></div>
-          <span class="pill-name">センサー1</span>
+          <span class="pill-name">北側</span>
           <span class="pill-elapsed" id="pill-unit1-elapsed">--</span>
         </div>
         <div class="sensor-pill idle" id="pill-unit2">
           <div class="pill-dot"></div>
-          <span class="pill-name">センサー2</span>
+          <span class="pill-name">南側</span>
           <span class="pill-elapsed" id="pill-unit2-elapsed">--</span>
         </div>
         <div class="sensor-pill idle" id="pill-soil">
@@ -456,11 +456,11 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       <div class="diff-badge diff-ok" id="tempDiff" style="display:none;">差 --℃</div>
       <div class="sensor-mini-grid" id="tempMiniGrid">
         <div class="sensor-mini" id="temp1Mini">
-          <div class="sensor-mini-label">センサー1</div>
+          <div class="sensor-mini-label">北側</div>
           <div class="sensor-mini-val" id="temp1Val">-- ℃</div>
         </div>
         <div class="sensor-mini" id="temp2Mini">
-          <div class="sensor-mini-label">センサー2</div>
+          <div class="sensor-mini-label">南側</div>
           <div class="sensor-mini-val" id="temp2Val">-- ℃</div>
         </div>
       </div>
@@ -473,11 +473,11 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       <div class="diff-badge diff-ok" id="humDiff" style="display:none;">差 --%</div>
       <div class="sensor-mini-grid" id="humMiniGrid">
         <div class="sensor-mini" id="hum1Mini">
-          <div class="sensor-mini-label">センサー1</div>
+          <div class="sensor-mini-label">北側</div>
           <div class="sensor-mini-val" id="hum1Val">-- %</div>
         </div>
         <div class="sensor-mini" id="hum2Mini">
-          <div class="sensor-mini-label">センサー2</div>
+          <div class="sensor-mini-label">南側</div>
           <div class="sensor-mini-val" id="hum2Val">-- %</div>
         </div>
       </div>
@@ -608,6 +608,17 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       <button class="chart-tab vpd" onclick="switchChart('vpd')">飽差</button>
       <button class="chart-tab co2" onclick="switchChart('co2')">CO2</button>
     </div>
+    <!-- 凡例（気温・湿度タブの時のみ表示） -->
+    <div id="chartLegend" style="display:none;padding:0 18px;margin:0 0 8px;gap:16px;font-size:0.7rem;align-items:center;">
+      <span style="display:inline-flex;align-items:center;gap:5px;">
+        <span id="legendDot1" style="width:14px;height:3px;border-radius:2px;background:#007aff;display:inline-block;"></span>
+        <span style="color:var(--text-secondary);">北側</span>
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:5px;">
+        <span id="legendDot2" style="width:14px;height:3px;border-radius:2px;background:#ff6b35;display:inline-block;"></span>
+        <span style="color:var(--text-secondary);">南側</span>
+      </span>
+    </div>
     <div class="chart-wrap">
       <!-- Y軸（固定表示） -->
       <div class="chart-yaxis">
@@ -701,12 +712,18 @@ let vpdHistory = [];
 let co2History = [];
 let timeLabels = [];
 
+// センサー個別履歴（気温・湿度を2線で描画するため）
+let temp1History = [];
+let temp2History = [];
+let hum1History  = [];
+let hum2History  = [];
+
 // 3センサー独立の通知状態（0=正常 1=オレンジ 2=赤）
 const SENSOR_KEYS = ['unit1', 'unit2', 'soil', 'co2'];
 // センサーの表示名（設置場所が決まったらここを書き換えるだけでOK）
 const SENSOR_NAMES = {
-  unit1: 'センサー1',
-  unit2: 'センサー2',
+  unit1: '北側センサー',
+  unit2: '南側センサー',
   soil:  '土壌',
   co2:   'CO2'
 };
@@ -717,8 +734,8 @@ const SENSOR_NAMES = {
 //   送信間隔10分なら OK=15分, WARN=45分
 //   送信間隔15分なら OK=20分, WARN=60分
 const SENSOR_OK_MIN = {
-  unit1: 15,   // センサー1: 10分間隔
-  unit2: 15,   // センサー2: 10分間隔
+  unit1: 15,   // 北側センサー: 10分間隔
+  unit2: 15,   // 南側センサー: 10分間隔
   soil:  10,   // 土壌水分計: 5分間隔
   co2:   10,   // CO2センサー: 5分間隔
 };
@@ -730,14 +747,14 @@ const SENSOR_WARN_MIN = {
 };
 
 // グラフのバケット幅（ミリ秒）
-// 各ESP32は独立に送信するので、レコードはセンサー1とセンサー2が交互に来る。
+// 各ESP32は独立に送信するので、レコードは北側センサーと南側センサーが交互に来る。
 // この時間窓で平均することで「真の2センサー平均」グラフになる。
 // DeepSleep間隔と揃えるとちょうど良い（10分間隔ならBUCKET_MIN=10）。
 const BUCKET_MIN = 10;  // バケット幅 10分（送信間隔と一致）
 const BUCKET_MS  = BUCKET_MIN * 60 * 1000;
 const SENSOR_LABELS = {
-  unit1: SENSOR_NAMES.unit1 + 'センサー',
-  unit2: SENSOR_NAMES.unit2 + 'センサー',
+  unit1: SENSOR_NAMES.unit1,
+  unit2: SENSOR_NAMES.unit2,
   soil:  '土壌水分計',
   co2:   'CO2センサー'
 };
@@ -840,8 +857,15 @@ function drawChart(data, color, unit, retry = 0) {
 
   ctx.clearRect(0, 0, w, h);
 
-  const validData = (data || []).filter(v => v !== null);
-  if (!data || validData.length < 2) {
+  // min/max 計算: 気温・湿度の場合は両センサーの値も含める（描画範囲が線をはみ出さないように）
+  let mergedForRange = data;
+  if (chartMode === 'temp') {
+    mergedForRange = [...(temp1History || []), ...(temp2History || []), ...data];
+  } else if (chartMode === 'hum') {
+    mergedForRange = [...(hum1History || []), ...(hum2History || []), ...data];
+  }
+  const validData = mergedForRange.filter(v => v !== null && !isNaN(v));
+  if (validData.length < 2) {
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.font = '13px DM Sans, sans-serif';
     ctx.textAlign = 'center';
@@ -944,47 +968,69 @@ function drawChart(data, color, unit, retry = 0) {
     }
   }
 
-  // グラデーション
-  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
-  grad.addColorStop(0, color + '30');
-  grad.addColorStop(1, color + '00');
-  ctx.beginPath();
-  let gradStarted = false;
-  data.forEach((v, i) => {
-    if (v === null) return;
-    const x = pad.left + i * xStep;
-    const y = pad.top + ch - ((v - min) / range) * ch;
-    if (!gradStarted) { ctx.moveTo(x, y); gradStarted = true; }
-    else ctx.lineTo(x, y);
-  });
-  const lastIdx = data.reduce((acc, v, i) => v !== null ? i : acc, -1);
-  if (lastIdx >= 0) ctx.lineTo(pad.left + lastIdx * xStep, pad.top + ch);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
+  // ===== 線・グラデーション・最新点を描く共通関数 =====
+  // arr: 値配列 / lineColor: 線色 / fillColor: グラデ色（nullなら塗りなし）
+  function drawSingleSeries(arr, lineColor, fillColor) {
+    const valid = (arr || []).filter(v => v !== null && !isNaN(v));
+    if (valid.length < 2) return;
 
-  // ライン
-  ctx.beginPath();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2.5;
-  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  let started = false;
-  data.forEach((v, i) => {
-    if (v === null) return;
-    const x = pad.left + i * xStep;
-    const y = pad.top + ch - ((v - min) / range) * ch;
-    if (!started) { ctx.moveTo(x, y); started = true; }
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
+    // グラデーション（指定された場合のみ）
+    if (fillColor) {
+      const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+      grad.addColorStop(0, fillColor + '30');
+      grad.addColorStop(1, fillColor + '00');
+      ctx.beginPath();
+      let gStarted = false;
+      arr.forEach((v, i) => {
+        if (v === null || isNaN(v)) return;
+        const x = pad.left + i * xStep;
+        const y = pad.top + ch - ((v - min) / range) * ch;
+        if (!gStarted) { ctx.moveTo(x, y); gStarted = true; }
+        else ctx.lineTo(x, y);
+      });
+      const lastIdxG = arr.reduce((acc, v, i) => (v !== null && !isNaN(v)) ? i : acc, -1);
+      if (lastIdxG >= 0) ctx.lineTo(pad.left + lastIdxG * xStep, pad.top + ch);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
 
-  // 最新点
-  if (lastIdx >= 0) {
-    const lx = pad.left + lastIdx * xStep;
-    const ly = pad.top + ch - ((data[lastIdx] - min) / range) * ch;
-    ctx.beginPath(); ctx.arc(lx, ly, 5, 0, Math.PI * 2);
-    ctx.fillStyle = color; ctx.fill();
-    ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+    // ライン
+    ctx.beginPath();
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    let started = false;
+    arr.forEach((v, i) => {
+      if (v === null || isNaN(v)) return;
+      const x = pad.left + i * xStep;
+      const y = pad.top + ch - ((v - min) / range) * ch;
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // 最新点
+    const lastIdx = arr.reduce((acc, v, i) => (v !== null && !isNaN(v)) ? i : acc, -1);
+    if (lastIdx >= 0) {
+      const lx = pad.left + lastIdx * xStep;
+      const ly = pad.top + ch - ((arr[lastIdx] - min) / range) * ch;
+      ctx.beginPath(); ctx.arc(lx, ly, 5, 0, Math.PI * 2);
+      ctx.fillStyle = lineColor; ctx.fill();
+      ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
+
+  // 気温・湿度は2センサーを別線で描画、それ以外は単一線
+  // 色の意味づけ: 北側=寒色（青）、南側=暖色（オレンジ/緑）で直感的に区別
+  if (chartMode === 'temp') {
+    drawSingleSeries(temp1History, '#007aff', '#007aff');  // 北側: 青（塗りあり）
+    drawSingleSeries(temp2History, '#ff6b35', null);       // 南側: オレンジ（塗りなし）
+  } else if (chartMode === 'hum') {
+    drawSingleSeries(hum1History, '#007aff', '#007aff');   // 北側: 青（塗りあり）
+    drawSingleSeries(hum2History, '#34c759', null);        // 南側: 緑（塗りなし）
+  } else {
+    drawSingleSeries(data, color, color);
   }
 }
 
@@ -1005,6 +1051,26 @@ function updateChart() {
   else if (chartMode === 'vpd')  { data = vpdHistory;  color = '#af52de'; unit = 'kPa'; }
   else if (chartMode === 'co2')  { data = co2History;  color = '#0a84d6'; unit = 'ppm'; }
 
+  // 凡例の表示切替（気温・湿度のみ表示）
+  const legend = document.getElementById('chartLegend');
+  if (legend) {
+    if (chartMode === 'temp') {
+      legend.style.display = 'flex';
+      const d1 = document.getElementById('legendDot1');
+      const d2 = document.getElementById('legendDot2');
+      if (d1) d1.style.background = '#007aff';  // 北側: 青
+      if (d2) d2.style.background = '#ff6b35';  // 南側: オレンジ
+    } else if (chartMode === 'hum') {
+      legend.style.display = 'flex';
+      const d1 = document.getElementById('legendDot1');
+      const d2 = document.getElementById('legendDot2');
+      if (d1) d1.style.background = '#007aff';  // 北側: 青
+      if (d2) d2.style.background = '#34c759';  // 南側: 緑
+    } else {
+      legend.style.display = 'none';
+    }
+  }
+
   drawChart(data, color, unit);
 
   // タブ切替後は右端（最新）にスクロール
@@ -1015,15 +1081,14 @@ function updateChart() {
     });
   }
 
+  // 統計：平均値のみ表示（最高/最低はスペース確保のため非表示）
   const validArr = data.filter(v => v !== null && !isNaN(v));
   if (validArr.length > 0) {
     const digits = (chartMode === 'vpd') ? 2 : (chartMode === 'co2') ? 0 : 1;
-    const max = Math.max(...validArr).toFixed(digits);
-    const min = Math.min(...validArr).toFixed(digits);
     const avg = (validArr.reduce((a, b) => a + b, 0) / validArr.length).toFixed(digits);
-    document.getElementById('chartMax').textContent = max + unit;
-    document.getElementById('chartMin').textContent = min + unit;
     document.getElementById('chartAvg').textContent = avg + unit;
+    document.getElementById('chartMax').textContent = '--';
+    document.getElementById('chartMin').textContent = '--';
   }
 }
 
@@ -1162,7 +1227,7 @@ function getDiffStatus(diff, type) {
 }
 
 // 2センサーの状態に応じて気温・湿度の表示を更新
-// t1,h1: センサー1(d1,d2)  t2,h2: センサー2(d4,d5)
+// t1,h1: 北側センサー(d1,d2)  t2,h2: 南側センサー(d4,d5)
 // u1Online, u2Online: 各センサーがオンラインか
 // 戻り値: { temp: 代表温度 or null, hum: 代表湿度 or null }
 function updateMainMetrics(t1, h1, t2, h2, u1Online, u2Online) {
@@ -1230,14 +1295,14 @@ function updateMainMetrics(t1, h1, t2, h2, u1Online, u2Online) {
     humDiff.className    = 'diff-badge ' + dHs.className;
     humDiff.style.display = 'inline-flex';
   } else if (u1Has) {
-    // センサー1のみ
+    // 北側センサーのみ
     repTemp = t1; repHum = h1;
     tempLabel.textContent = '気温（' + SENSOR_NAMES.unit1 + 'のみ）';
     humLabel.textContent  = '湿度（' + SENSOR_NAMES.unit1 + 'のみ）';
     tempDiff.style.display = 'none';
     humDiff.style.display  = 'none';
   } else if (u2Has) {
-    // センサー2のみ
+    // 南側センサーのみ
     repTemp = t2; repHum = h2;
     tempLabel.textContent = '気温（' + SENSOR_NAMES.unit2 + 'のみ）';
     humLabel.textContent  = '湿度（' + SENSOR_NAMES.unit2 + 'のみ）';
@@ -1834,6 +1899,10 @@ function clearSensorValues() {
     humHistory.push(null);
     vpdHistory.push(null);
     co2History.push(null);
+    temp1History.push(null);
+    temp2History.push(null);
+    hum1History.push(null);
+    hum2History.push(null);
     timeLabels.push(new Date());
     updateChart();
   }
@@ -2107,10 +2176,10 @@ async function fetchData() {
     // 各センサーの最新有効値（d1+d2揃ったレコード / d4+d5揃ったレコード）
     const u1Latest = findLatestValues(data, ['d1', 'd2']);
     const u2Latest = findLatestValues(data, ['d4', 'd5']);
-    const t1 = u1Latest.values[0];  // センサー1温度
-    const h1 = u1Latest.values[1];  // センサー1湿度
-    const t2 = u2Latest.values[0];  // センサー2温度
-    const h2 = u2Latest.values[1];  // センサー2湿度
+    const t1 = u1Latest.values[0];  // 北側センサー温度
+    const h1 = u1Latest.values[1];  // 北側センサー湿度
+    const t2 = u2Latest.values[0];  // 南側センサー温度
+    const h2 = u2Latest.values[1];  // 南側センサー湿度
 
     // 土壌水分は最新レコードに無い場合があるので直近の有効値を探す
     const latestSoilRecord = data.find(d => d.d3 !== undefined && d.d3 !== null && d.d3 !== '' && !isNaN(parseFloat(d.d3)));
@@ -2130,7 +2199,7 @@ async function fetchData() {
     const timeKey = reversed[0].created_at ? 'created_at' : reversed[0].created ? 'created' : null;
 
     // ===== 履歴データ：BUCKET_MIN分バケットで2センサー値を集計して真の平均を出す =====
-    // 各ESP32は独立に送信するので、レコードはセンサー1とセンサー2が交互に来る。
+    // 各ESP32は独立に送信するので、レコードは北側センサーと南側センサーが交互に来る。
     // バケット内の両センサー値を平均することで真の「2センサー平均」グラフになる。
     const buckets = new Map(); // key: バケット開始時刻(ms), value: 集計データ
 
@@ -2141,17 +2210,22 @@ async function fetchData() {
       if (isNaN(t)) return;
       const bucketStart = Math.floor(t.getTime() / BUCKET_MS) * BUCKET_MS;
       if (!buckets.has(bucketStart)) {
-        buckets.set(bucketStart, { temps: [], hums: [], soils: [], co2s: [], time: new Date(bucketStart) });
+        buckets.set(bucketStart, {
+          u1Temps: [], u2Temps: [],
+          u1Hums:  [], u2Hums:  [],
+          soils: [], co2s: [],
+          time: new Date(bucketStart)
+        });
       }
       const b = buckets.get(bucketStart);
       const t1r = parseFloat(d.d1), t2r = parseFloat(d.d4);
       const h1r = parseFloat(d.d2), h2r = parseFloat(d.d5);
       const sr  = parseFloat(d.d3);
       const cr  = parseFloat(d.d7);
-      if (!isNaN(t1r)) b.temps.push(t1r);
-      if (!isNaN(t2r)) b.temps.push(t2r);
-      if (!isNaN(h1r)) b.hums.push(h1r);
-      if (!isNaN(h2r)) b.hums.push(h2r);
+      if (!isNaN(t1r)) b.u1Temps.push(t1r);
+      if (!isNaN(t2r)) b.u2Temps.push(t2r);
+      if (!isNaN(h1r)) b.u1Hums.push(h1r);
+      if (!isNaN(h2r)) b.u2Hums.push(h2r);
       if (!isNaN(sr))  b.soils.push(sr);
       if (!isNaN(cr))  b.co2s.push(cr);
     });
@@ -2160,13 +2234,26 @@ async function fetchData() {
     const sortedBuckets = Array.from(buckets.values()).sort((a, b) => a.time - b.time);
     const avg = (arr) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
 
-    tempHistory = sortedBuckets.map(b => avg(b.temps));
-    humHistory  = sortedBuckets.map(b => avg(b.hums));
+    // 個別センサー履歴（2線描画用）
+    temp1History = sortedBuckets.map(b => avg(b.u1Temps));
+    temp2History = sortedBuckets.map(b => avg(b.u2Temps));
+    hum1History  = sortedBuckets.map(b => avg(b.u1Hums));
+    hum2History  = sortedBuckets.map(b => avg(b.u2Hums));
+
+    // 平均履歴（VPD計算・統計用、両センサー混合）
+    tempHistory = sortedBuckets.map(b => {
+      const all = [...b.u1Temps, ...b.u2Temps];
+      return all.length > 0 ? all.reduce((s, v) => s + v, 0) / all.length : null;
+    });
+    humHistory  = sortedBuckets.map(b => {
+      const all = [...b.u1Hums, ...b.u2Hums];
+      return all.length > 0 ? all.reduce((s, v) => s + v, 0) / all.length : null;
+    });
     soilHistory = sortedBuckets.map(b => avg(b.soils));
     co2History  = sortedBuckets.map(b => avg(b.co2s));
     // VPDはバケット平均の温度・湿度から計算
-    vpdHistory  = sortedBuckets.map(b => {
-      const at = avg(b.temps), ah = avg(b.hums);
+    vpdHistory  = sortedBuckets.map((b, i) => {
+      const at = tempHistory[i], ah = humHistory[i];
       if (at === null || ah === null) return null;
       return calcVPD(at, ah);
     });
