@@ -760,6 +760,31 @@ const SENSOR_LABELS = {
 };
 let notifiedLevels = { unit1: 0, unit2: 0, soil: 0, co2: 0 };
 
+// ===== センサーキャリブレーション =====
+// 北側センサー(SHT31, ±0.2℃/±2%)を基準に、南側センサー(BME280, ±1.0℃/±3%)を補正。
+// BME280は気圧センサー内蔵で湿度が低めに出る傾向があるため、湿度のみ補正。
+// 温度は実際のハウス内ムラを見たいので無補正。
+// 観察データ:
+//   2026-05-09 14:47: 北27.4℃/61% vs 南28.8℃/48% → 湿度差 -13%
+//   2026-05-09 16:12: 北23.1℃/66% vs 南22.9℃/55% → 湿度差 -11%
+// 継続観察して必要に応じて値を調整してください。
+const SENSOR_CALIBRATION = {
+  unit2: {
+    temp: 0,      // 南側温度は無補正（実際のハウス内温度ムラとして見る）
+    hum:  +11.0   // 南側湿度: BME280の特性上低めに出るので+11%補正
+  }
+};
+
+// 補正値を適用するヘルパー（湿度は0-100%にclamp）
+function applyCalibration(value, sensor, type) {
+  if (value === null || isNaN(value)) return value;
+  const offset = SENSOR_CALIBRATION[sensor]?.[type];
+  if (offset === undefined) return value;
+  let corrected = value + offset;
+  if (type === 'hum') corrected = Math.max(0, Math.min(100, corrected));
+  return corrected;
+}
+
 // 最新状態を保持（アドバイス生成で参照）
 let latestState = {
   temp: null,
@@ -2058,9 +2083,9 @@ async function fetchTodayData() {
     const hums  = [];
     filtered.forEach(d => {
       const t1 = parseFloat(d.d1);
-      const t2 = parseFloat(d.d4);
+      const t2 = applyCalibration(parseFloat(d.d4), 'unit2', 'temp');
       const h1 = parseFloat(d.d2);
-      const h2 = parseFloat(d.d5);
+      const h2 = applyCalibration(parseFloat(d.d5), 'unit2', 'hum');
       if (!isNaN(t1)) temps.push(t1);
       if (!isNaN(t2)) temps.push(t2);
       if (!isNaN(h1)) hums.push(h1);
@@ -2105,7 +2130,8 @@ async function fetchTodayData() {
     const vpds = [];
     filtered.forEach(d => {
       const t1 = parseFloat(d.d1), h1 = parseFloat(d.d2);
-      const t2 = parseFloat(d.d4), h2 = parseFloat(d.d5);
+      const t2 = applyCalibration(parseFloat(d.d4), 'unit2', 'temp');
+      const h2 = applyCalibration(parseFloat(d.d5), 'unit2', 'hum');
       if (!isNaN(t1) && !isNaN(h1)) vpds.push(calcVPD(t1, h1));
       if (!isNaN(t2) && !isNaN(h2)) vpds.push(calcVPD(t2, h2));
     });
@@ -2193,8 +2219,9 @@ async function fetchData() {
     const u2Latest = findLatestValues(data, ['d4', 'd5']);
     const t1 = u1Latest.values[0];  // 北側センサー温度
     const h1 = u1Latest.values[1];  // 北側センサー湿度
-    const t2 = u2Latest.values[0];  // 南側センサー温度
-    const h2 = u2Latest.values[1];  // 南側センサー湿度
+    // 南側は補正適用（BME280のオフセット補正）
+    const t2 = applyCalibration(u2Latest.values[0], 'unit2', 'temp');
+    const h2 = applyCalibration(u2Latest.values[1], 'unit2', 'hum');
 
     // 土壌水分は最新レコードに無い場合があるので直近の有効値を探す
     const latestSoilRecord = data.find(d => d.d3 !== undefined && d.d3 !== null && d.d3 !== '' && !isNaN(parseFloat(d.d3)));
@@ -2233,8 +2260,10 @@ async function fetchData() {
         });
       }
       const b = buckets.get(bucketStart);
-      const t1r = parseFloat(d.d1), t2r = parseFloat(d.d4);
-      const h1r = parseFloat(d.d2), h2r = parseFloat(d.d5);
+      const t1r = parseFloat(d.d1);
+      const t2r = applyCalibration(parseFloat(d.d4), 'unit2', 'temp');
+      const h1r = parseFloat(d.d2);
+      const h2r = applyCalibration(parseFloat(d.d5), 'unit2', 'hum');
       const sr  = parseFloat(d.d3);
       const cr  = parseFloat(d.d7);
       if (!isNaN(t1r)) b.u1Temps.push(t1r);
