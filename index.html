@@ -1081,13 +1081,28 @@ function updateChart() {
     });
   }
 
-  // 統計：平均値のみ表示（最高/最低はスペース確保のため非表示）
-  const validArr = data.filter(v => v !== null && !isNaN(v));
-  if (validArr.length > 0) {
+  // 統計：最高/平均/最低を表示
+  // 気温・湿度は両センサーの値を混合して算出（混合での最大/最小）
+  let statsArr;
+  if (chartMode === 'temp') {
+    statsArr = [...(temp1History || []), ...(temp2History || [])].filter(v => v !== null && !isNaN(v));
+  } else if (chartMode === 'hum') {
+    statsArr = [...(hum1History  || []), ...(hum2History  || [])].filter(v => v !== null && !isNaN(v));
+  } else {
+    statsArr = data.filter(v => v !== null && !isNaN(v));
+  }
+
+  if (statsArr.length > 0) {
     const digits = (chartMode === 'vpd') ? 2 : (chartMode === 'co2') ? 0 : 1;
-    const avg = (validArr.reduce((a, b) => a + b, 0) / validArr.length).toFixed(digits);
+    const max = Math.max(...statsArr).toFixed(digits);
+    const min = Math.min(...statsArr).toFixed(digits);
+    const avg = (statsArr.reduce((a, b) => a + b, 0) / statsArr.length).toFixed(digits);
+    document.getElementById('chartMax').textContent = max + unit;
     document.getElementById('chartAvg').textContent = avg + unit;
+    document.getElementById('chartMin').textContent = min + unit;
+  } else {
     document.getElementById('chartMax').textContent = '--';
+    document.getElementById('chartAvg').textContent = '--';
     document.getElementById('chartMin').textContent = '--';
   }
 }
