@@ -219,6 +219,225 @@ body {
 }
 .sensor-mini.offline .sensor-mini-val { color: var(--text-tertiary); }
 
+/* 土壌モニター（SEN0604 4in1 統合カード） */
+.soil-card {
+  padding: 16px 18px;
+}
+.soil-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.soil-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.soil-item {
+  background: rgba(0,0,0,0.03);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.soil-item::before {
+  content: ''; position: absolute; top: 0; right: 0;
+  width: 50px; height: 50px; border-radius: 50%; opacity: 0.08;
+  transform: translate(12px,-12px);
+}
+.soil-item.temp::before { background: #d97706; }
+.soil-item.hum::before  { background: var(--accent-green); }
+.soil-item.ec::before   { background: #5856d6; }
+.soil-item.ph::before   { background: #ec4899; }
+.soil-item-head {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.62rem; font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.soil-item-icon { font-size: 0.85rem; }
+.soil-item-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 1.5rem; font-weight: 500;
+  letter-spacing: -0.02em; line-height: 1;
+}
+.soil-item.temp .soil-item-val { color: #d97706; }
+.soil-item.hum  .soil-item-val { color: var(--accent-green); }
+.soil-item.ec   .soil-item-val { color: #5856d6; }
+.soil-item.ph   .soil-item-val { color: #ec4899; }
+.soil-item-unit { font-size: 0.7rem; font-weight: 400; opacity: 0.7; }
+.soil-item-status {
+  font-size: 0.62rem; font-weight: 500;
+  padding: 2px 6px; border-radius: 5px;
+  display: inline-block; align-self: flex-start;
+}
+.soil-offline .soil-item-val { color: var(--text-tertiary); }
+.soil-offline .soil-item-val::before { content: '── '; }
+.soil-tabs-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.soil-tabs-scroll::-webkit-scrollbar { display: none; }
+.chart-tabs.scrollable {
+  flex-wrap: nowrap;
+  min-width: max-content;
+}
+
+/* 📚 ピーマン適正値ガイド */
+.ref-card { padding: 14px 18px; }
+.ref-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.ref-section { margin-bottom: 18px; }
+.ref-section:last-child { margin-bottom: 0; }
+.ref-section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.ref-title { font-size: 0.82rem; font-weight: 600; color: var(--text-primary); }
+.ref-current { font-family: 'DM Mono', monospace; font-size: 0.76rem; font-weight: 600; color: var(--text-primary); }
+.ref-bar-wrap { position: relative; height: 22px; margin: 4px 0 2px; }
+.ref-bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; }
+.ref-bar-seg {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.54rem; font-weight: 600; color: rgba(0,0,0,0.45);
+  white-space: nowrap;
+}
+.ref-bar-seg.danger { background: #ffd6d6; }
+.ref-bar-seg.warn   { background: #ffe6b8; }
+.ref-bar-seg.ok     { background: #c8e9c2; color: rgba(20,90,40,0.7); }
+.ref-marker {
+  position: absolute; top: -3px; transform: translateX(-50%);
+  font-size: 0.95rem; line-height: 1;
+  color: #1c1c1e;
+  transition: left 0.6s cubic-bezier(0.4,0,0.2,1);
+  pointer-events: none; z-index: 2;
+  text-shadow: 0 0 3px white, 0 0 6px white;
+}
+.ref-labels {
+  display: flex; justify-content: space-between;
+  font-size: 0.55rem; color: var(--text-tertiary);
+  font-family: 'DM Mono', monospace;
+  margin-top: 2px;
+}
+.ref-labels span { white-space: nowrap; }
+.ref-desc {
+  font-size: 0.7rem; color: var(--text-secondary);
+  line-height: 1.5; margin-top: 8px;
+}
+.ref-desc strong { color: var(--text-primary); font-weight: 600; }
+.ref-toggle-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 0.7rem; color: var(--accent-blue);
+  padding: 2px 8px; border-radius: 6px;
+  transition: background 0.15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.ref-toggle-btn:active { background: rgba(0,122,255,0.1); }
+#refContent.collapsed { display: none; }
+
+/* 🌟 ハウス効率スコア（二軸構造） */
+.score-card { padding: 16px 18px; }
+.score-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; flex-wrap: wrap; gap: 6px;
+}
+.score-main {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 16px;
+}
+.score-ring-wrap {
+  position: relative; width: 90px; height: 90px; flex-shrink: 0;
+}
+.score-num-big {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'DM Mono', monospace;
+  font-size: 1.7rem; font-weight: 600;
+  letter-spacing: -0.04em; color: #8e8e93;
+}
+.score-axes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.axis-card {
+  background: rgba(0,0,0,0.025);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  border-left: 3px solid var(--text-tertiary);
+}
+.axis-card.upper { border-left-color: #ff9500; }
+.axis-card.root  { border-left-color: #34c759; }
+.axis-card-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.axis-card-title {
+  font-size: 0.74rem; font-weight: 600;
+  color: var(--text-primary);
+}
+.axis-card-subtitle {
+  font-size: 0.58rem; color: var(--text-tertiary);
+  margin-left: 4px; font-weight: 400;
+}
+.axis-card-score {
+  font-family: 'DM Mono', monospace;
+  font-size: 1.05rem; font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.axis-card.upper .axis-card-score { color: #ff9500; }
+.axis-card.root  .axis-card-score { color: #34c759; }
+.axis-bars {
+  display: flex; flex-direction: column; gap: 5px;
+}
+.axis-bar-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.65rem;
+}
+.axis-bar-label {
+  width: 38px; color: var(--text-secondary);
+  white-space: nowrap;
+}
+.axis-bar-track {
+  flex: 1; height: 5px;
+  background: rgba(0,0,0,0.06);
+  border-radius: 3px; overflow: hidden;
+}
+.axis-bar-fill {
+  height: 100%; width: 0%;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+.axis-bar-val {
+  width: 22px; text-align: right;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem; color: var(--text-secondary);
+}
+.score-balance {
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.025);
+  border-radius: 8px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.score-balance strong { color: var(--text-primary); font-weight: 600; }
+
+@media (min-width: 768px) {
+  .score-axes { grid-template-columns: 1fr 1fr; gap: 14px; }
+  .axis-card { padding: 14px 16px; }
+  .score-ring-wrap { width: 110px; height: 110px; }
+  .score-num-big { font-size: 2.1rem; }
+}
+
+@media (min-width: 768px) {
+  .ref-section { margin-bottom: 22px; }
+  .ref-title { font-size: 0.92rem; }
+  .ref-bar { height: 18px; }
+  .ref-marker { font-size: 1.1rem; }
+}
+
 /* グラフ */
 .chart-card { padding: 0 0 16px; }
 .chart-header { padding: 16px 18px 0; display: flex; align-items: center; justify-content: space-between; }
@@ -231,6 +450,9 @@ body {
 .chart-tab.active.temp { background: rgba(255,107,53,0.12); color: var(--accent-temp); }
 .chart-tab.active.hum  { background: rgba(0,122,255,0.12);  color: var(--accent-hum); }
 .chart-tab.active.soil { background: rgba(52,199,89,0.12);  color: var(--accent-green); }
+.chart-tab.active.soiltemp { background: rgba(217,119,6,0.14);  color: #d97706; }
+.chart-tab.active.soilec   { background: rgba(88,86,214,0.14);  color: #5856d6; }
+.chart-tab.active.soilph   { background: rgba(236,72,153,0.14); color: #ec4899; }
 .chart-tab.active.vpd  { background: rgba(175,82,222,0.12); color: var(--accent-vpd); }
 .chart-tab.active.co2  { background: rgba(90,200,250,0.15); color: #0a84d6; }
 .chart-wrap {
@@ -328,6 +550,14 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
   canvas#chart { height: 240px !important; }
   canvas#chartYAxis { height: 240px !important; }
 
+  /* PC: 土壌グリッドを4列に */
+  .soil-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .soil-item { padding: 16px; }
+  .soil-item-val { font-size: 1.8rem; }
+
   .metric-card { padding: 24px; }
   .metric-value { font-size: 2.8rem; }
   .metric-icon { font-size: 1.5rem; }
@@ -393,57 +623,100 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
     </div>
   </div>
 
-  <!-- 🌟 ハウス効率スコア（光合成総合評価） -->
-  <div class="card" id="scoreCard" style="padding:16px 20px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <div style="display:flex;align-items:center;gap:8px;">
+  <!-- 🌟 ハウス効率スコア（地上部 × 根圏の二軸評価） -->
+  <div class="card score-card" id="scoreCard">
+    <div class="score-card-header">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <span style="font-size:0.72rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌟 ハウス効率スコア</span>
-        <span style="font-size:0.6rem;color:var(--text-tertiary);">気温・VPD・CO2 の光合成3要素</span>
+        <span style="font-size:0.6rem;color:var(--text-tertiary);">光合成 × 根圏 の総合評価</span>
       </div>
       <span id="scoreTime" style="font-size:0.62rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;">--</span>
     </div>
-    <!-- メインスコア表示 -->
-    <div style="display:flex;align-items:center;gap:18px;margin-bottom:14px;">
-      <!-- 円形スコア -->
-      <div style="position:relative;width:96px;height:96px;flex-shrink:0;">
+
+    <!-- メイン総合スコア -->
+    <div class="score-main">
+      <div class="score-ring-wrap">
         <svg viewBox="0 0 100 100" style="width:100%;height:100%;transform:rotate(-90deg);">
           <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="8"/>
           <circle id="scoreRing" cx="50" cy="50" r="42" fill="none" stroke="#8e8e93" stroke-width="8" stroke-linecap="round"
                   stroke-dasharray="263.9" stroke-dashoffset="263.9"
                   style="transition:stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1), stroke 0.4s;"/>
         </svg>
-        <div id="scoreNum" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'DM Mono',monospace;font-size:1.7rem;font-weight:600;color:#8e8e93;letter-spacing:-0.04em;">--</div>
+        <div class="score-num-big" id="scoreNum">--</div>
       </div>
-      <!-- ラベル -->
       <div style="flex:1;min-width:0;">
         <div id="scoreLabel" style="font-size:1.05rem;font-weight:600;color:var(--text-primary);margin-bottom:2px;">--</div>
-        <div id="scoreDesc" style="font-size:0.74rem;color:var(--text-secondary);line-height:1.4;">データ取得後に評価されます</div>
+        <div id="scoreDesc" style="font-size:0.74rem;color:var(--text-secondary);line-height:1.45;">データ取得後に評価されます</div>
       </div>
     </div>
-    <!-- 内訳バー -->
-    <div style="display:flex;flex-direction:column;gap:6px;">
-      <div style="display:flex;align-items:center;gap:8px;font-size:0.7rem;">
-        <span style="width:46px;color:var(--text-secondary);">🌡️ 気温</span>
-        <div style="flex:1;height:6px;background:rgba(0,0,0,0.06);border-radius:3px;overflow:hidden;">
-          <div id="scoreBarTemp" style="height:100%;width:0%;background:#ff6b35;border-radius:3px;transition:width 0.6s;"></div>
+
+    <!-- 二軸スコア -->
+    <div class="score-axes">
+
+      <!-- 🌿 地上部（光合成効率） -->
+      <div class="axis-card upper">
+        <div class="axis-card-head">
+          <div>
+            <span class="axis-card-title">🌿 地上部</span>
+            <span class="axis-card-subtitle">光合成効率</span>
+          </div>
+          <span class="axis-card-score" id="upperScore">--</span>
         </div>
-        <span id="scoreValTemp" style="width:32px;text-align:right;font-family:'DM Mono',monospace;color:var(--text-secondary);">--</span>
+        <div class="axis-bars">
+          <div class="axis-bar-row">
+            <span class="axis-bar-label">🌡️ 気温</span>
+            <div class="axis-bar-track"><div class="axis-bar-fill" id="scoreBarTemp" style="background:#ff6b35;"></div></div>
+            <span class="axis-bar-val" id="scoreValTemp">--</span>
+          </div>
+          <div class="axis-bar-row">
+            <span class="axis-bar-label">🍃 VPD</span>
+            <div class="axis-bar-track"><div class="axis-bar-fill" id="scoreBarVpd" style="background:#af52de;"></div></div>
+            <span class="axis-bar-val" id="scoreValVpd">--</span>
+          </div>
+          <div class="axis-bar-row">
+            <span class="axis-bar-label">💨 CO2</span>
+            <div class="axis-bar-track"><div class="axis-bar-fill" id="scoreBarCo2" style="background:#0a84d6;"></div></div>
+            <span class="axis-bar-val" id="scoreValCo2">--</span>
+          </div>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;font-size:0.7rem;">
-        <span style="width:46px;color:var(--text-secondary);">🍃 VPD</span>
-        <div style="flex:1;height:6px;background:rgba(0,0,0,0.06);border-radius:3px;overflow:hidden;">
-          <div id="scoreBarVpd" style="height:100%;width:0%;background:#af52de;border-radius:3px;transition:width 0.6s;"></div>
+
+      <!-- 🌱 根圏（草勢の土台） -->
+      <div class="axis-card root">
+        <div class="axis-card-head">
+          <div>
+            <span class="axis-card-title">🌱 根圏</span>
+            <span class="axis-card-subtitle">草勢の土台</span>
+          </div>
+          <span class="axis-card-score" id="rootScore">--</span>
         </div>
-        <span id="scoreValVpd" style="width:32px;text-align:right;font-family:'DM Mono',monospace;color:var(--text-secondary);">--</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;font-size:0.7rem;">
-        <span style="width:46px;color:var(--text-secondary);">💨 CO2</span>
-        <div style="flex:1;height:6px;background:rgba(0,0,0,0.06);border-radius:3px;overflow:hidden;">
-          <div id="scoreBarCo2" style="height:100%;width:0%;background:#0a84d6;border-radius:3px;transition:width 0.6s;"></div>
+        <div class="axis-bars">
+          <div class="axis-bar-row">
+            <span class="axis-bar-label">🌡️ 地温</span>
+            <div class="axis-bar-track"><div class="axis-bar-fill" id="scoreBarSoilTemp" style="background:#d97706;"></div></div>
+            <span class="axis-bar-val" id="scoreValSoilTemp">--</span>
+          </div>
+          <div class="axis-bar-row">
+            <span class="axis-bar-label">💧 水分</span>
+            <div class="axis-bar-track"><div class="axis-bar-fill" id="scoreBarSoilHum" style="background:#34c759;"></div></div>
+            <span class="axis-bar-val" id="scoreValSoilHum">--</span>
+          </div>
+          <div class="axis-bar-row">
+            <span class="axis-bar-label">⚡ EC</span>
+            <div class="axis-bar-track"><div class="axis-bar-fill" id="scoreBarSoilEc" style="background:#5856d6;"></div></div>
+            <span class="axis-bar-val" id="scoreValSoilEc">--</span>
+          </div>
+          <div class="axis-bar-row">
+            <span class="axis-bar-label">⚗️ pH</span>
+            <div class="axis-bar-track"><div class="axis-bar-fill" id="scoreBarSoilPh" style="background:#ec4899;"></div></div>
+            <span class="axis-bar-val" id="scoreValSoilPh">--</span>
+          </div>
         </div>
-        <span id="scoreValCo2" style="width:32px;text-align:right;font-family:'DM Mono',monospace;color:var(--text-secondary);">--</span>
       </div>
     </div>
+
+    <!-- 軸間バランス診断 -->
+    <div class="score-balance" id="scoreBalance" style="display:none;"></div>
   </div>
 
   <!-- 温度・湿度（PC時は4列に拡張） -->
@@ -513,27 +786,6 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       </div>
       <div class="metric-status status-normal" id="todayMaxHumStatus">--</div>
     </div>
-    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
-      <span class="metric-icon">🌱</span>
-      <div class="metric-label">土壌水分</div>
-      <div class="metric-value" id="soilVal" style="color:#34c759;font-family:'DM Mono',monospace;font-size:2.2rem;font-weight:500;letter-spacing:-0.03em;line-height:1;margin-bottom:6px;">--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">%</span></div>
-      <div class="metric-status status-normal" id="soilStatus">--</div>
-    </div>
-    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
-      <span class="metric-icon">🌱</span>
-      <div class="metric-label">本日土壌水分</div>
-      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最高</div>
-          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#34c759;line-height:1;" id="todayMaxSoil">--<span style="font-size:0.85rem;opacity:0.7;">%</span></div>
-        </div>
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最低</div>
-          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#f5a623;line-height:1;" id="todayMinSoil">--<span style="font-size:0.85rem;opacity:0.7;">%</span></div>
-        </div>
-      </div>
-      <div class="metric-status status-normal" id="todayMaxSoilStatus">--</div>
-    </div>
     <!-- VPDカード（現在値） -->
     <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;position:relative;overflow:hidden;">
       <div style="content:'';position:absolute;top:0;right:0;width:80px;height:80px;border-radius:50%;opacity:0.07;transform:translate(20px,-20px);background:var(--accent-vpd);"></div>
@@ -584,14 +836,36 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
     </div>
   </div>
 
-  <!-- 💡 ハウス管理アドバイス -->
-  <div class="card" id="adviceCard" style="padding:16px 18px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <span class="card-label">💡 ハウス管理アドバイス</span>
-      <span style="font-size:0.62rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="adviceTime">--</span>
+  <!-- 🌱 土壌モニター (SEN0604 4in1) -->
+  <div class="card soil-card" id="soilCard">
+    <div class="soil-card-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:0.72rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌱 土壌モニター</span>
+        <span style="font-size:0.6rem;color:var(--text-tertiary);">温度・水分・EC・pH</span>
+      </div>
+      <span id="soilTime" style="font-size:0.62rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;">--</span>
     </div>
-    <div id="adviceList" style="display:flex;flex-direction:column;gap:8px;">
-      <div style="font-size:0.8rem;color:var(--text-tertiary);padding:8px 0;">データ取得後に表示されます...</div>
+    <div class="soil-grid">
+      <div class="soil-item temp" id="soilTempItem">
+        <div class="soil-item-head"><span class="soil-item-icon">🌡️</span><span>地温</span></div>
+        <div class="soil-item-val" id="soilTempVal">--<span class="soil-item-unit">℃</span></div>
+        <div class="soil-item-status status-normal" id="soilTempStatus">--</div>
+      </div>
+      <div class="soil-item hum" id="soilHumItem">
+        <div class="soil-item-head"><span class="soil-item-icon">💧</span><span>水分</span></div>
+        <div class="soil-item-val" id="soilHumVal">--<span class="soil-item-unit">%</span></div>
+        <div class="soil-item-status status-normal" id="soilHumStatus">--</div>
+      </div>
+      <div class="soil-item ec" id="soilEcItem">
+        <div class="soil-item-head"><span class="soil-item-icon">⚡</span><span>EC</span></div>
+        <div class="soil-item-val" id="soilEcVal">--<span class="soil-item-unit">μS/cm</span></div>
+        <div class="soil-item-status status-normal" id="soilEcStatus">--</div>
+      </div>
+      <div class="soil-item ph" id="soilPhItem">
+        <div class="soil-item-head"><span class="soil-item-icon">⚗️</span><span>pH</span></div>
+        <div class="soil-item-val" id="soilPhVal">--</div>
+        <div class="soil-item-status status-normal" id="soilPhStatus">--</div>
+      </div>
     </div>
   </div>
 
@@ -601,10 +875,13 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       <span class="card-label">履歴グラフ</span>
       <span style="font-size:0.7rem;color:var(--text-secondary);font-family:'DM Mono',monospace;font-weight:600;" id="chartUnitLabel">--</span>
     </div>
-    <div class="chart-tabs">
+    <div class="chart-tabs scrollable soil-tabs-scroll">
       <button class="chart-tab active temp" onclick="switchChart('temp')">気温</button>
       <button class="chart-tab hum" onclick="switchChart('hum')">湿度</button>
-      <button class="chart-tab soil" onclick="switchChart('soil')">土壌水分</button>
+      <button class="chart-tab soiltemp" onclick="switchChart('soiltemp')">地温</button>
+      <button class="chart-tab soil" onclick="switchChart('soil')">水分</button>
+      <button class="chart-tab soilec" onclick="switchChart('soilec')">EC</button>
+      <button class="chart-tab soilph" onclick="switchChart('soilph')">pH</button>
       <button class="chart-tab vpd" onclick="switchChart('vpd')">飽差</button>
       <button class="chart-tab co2" onclick="switchChart('co2')">CO2</button>
     </div>
@@ -647,6 +924,119 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
     </div>
   </div>
 
+  <!-- 📚 ピーマン適正値ガイド -->
+  <div class="card ref-card" id="refCard">
+    <div class="ref-card-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:0.72rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">📚 ピーマン適正値ガイド</span>
+        <span style="font-size:0.6rem;color:var(--text-tertiary);">土壌4項目の判定基準</span>
+      </div>
+      <button class="ref-toggle-btn" id="refToggleBtn" onclick="toggleRefGuide()">▲ 閉じる</button>
+    </div>
+    <div id="refContent">
+
+      <!-- 🌡️ 地温 -->
+      <div class="ref-section">
+        <div class="ref-section-head">
+          <span class="ref-title">🌡️ 地温</span>
+          <span class="ref-current" id="refTempCur">--℃</span>
+        </div>
+        <div class="ref-bar-wrap">
+          <div class="ref-bar">
+            <div class="ref-bar-seg danger" style="flex:7">危険</div>
+            <div class="ref-bar-seg warn"   style="flex:6">注意</div>
+            <div class="ref-bar-seg ok"     style="flex:10">適正</div>
+            <div class="ref-bar-seg warn"   style="flex:4"></div>
+            <div class="ref-bar-seg danger" style="flex:8">危険</div>
+          </div>
+          <div class="ref-marker" id="refTempMarker" style="display:none;">▼</div>
+        </div>
+        <div class="ref-labels"><span>5℃</span><span>12</span><span>18</span><span>28</span><span>32</span><span>40℃</span></div>
+        <div class="ref-desc">
+          ピーマンは高温性ナス科。<strong>適正 18〜28℃</strong>（生育最適 22〜26℃）。32℃超で落花増、12℃以下で生育停止。定植時は地温15℃以上を確保。マルチで地温保持が効果的。
+        </div>
+      </div>
+
+      <!-- 💧 土壌水分 -->
+      <div class="ref-section">
+        <div class="ref-section-head">
+          <span class="ref-title">💧 土壌水分（体積含水率）</span>
+          <span class="ref-current" id="refHumCur">--%</span>
+        </div>
+        <div class="ref-bar-wrap">
+          <div class="ref-bar">
+            <div class="ref-bar-seg danger" style="flex:15">危険</div>
+            <div class="ref-bar-seg warn"   style="flex:10">注意</div>
+            <div class="ref-bar-seg ok"     style="flex:20">適正</div>
+            <div class="ref-bar-seg warn"   style="flex:15">注意</div>
+            <div class="ref-bar-seg danger" style="flex:40">危険</div>
+          </div>
+          <div class="ref-marker" id="refHumMarker" style="display:none;">▼</div>
+        </div>
+        <div class="ref-labels"><span>0%</span><span>15</span><span>25</span><span>45</span><span>60</span><span>100%</span></div>
+        <div class="ref-desc">
+          ピーマンは水分要求量が多いが過湿にも弱い。<strong>適正 25〜45%</strong>（圃場容水量レベル）。15%以下は水ストレス、60%超は根腐れ・疫病リスク。1日約2t/10a目安、点滴かん水推奨。
+        </div>
+      </div>
+
+      <!-- ⚡ EC -->
+      <div class="ref-section">
+        <div class="ref-section-head">
+          <span class="ref-title">⚡ EC（土壌肥料濃度）</span>
+          <span class="ref-current" id="refEcCur">-- μS/cm</span>
+        </div>
+        <div class="ref-bar-wrap">
+          <div class="ref-bar">
+            <div class="ref-bar-seg danger" style="flex:3">危険</div>
+            <div class="ref-bar-seg warn"   style="flex:5">注意</div>
+            <div class="ref-bar-seg ok"     style="flex:17">適正</div>
+            <div class="ref-bar-seg warn"   style="flex:10">注意</div>
+            <div class="ref-bar-seg danger" style="flex:15">危険</div>
+          </div>
+          <div class="ref-marker" id="refEcMarker" style="display:none;">▼</div>
+        </div>
+        <div class="ref-labels"><span>0</span><span>300</span><span>800</span><span>2500</span><span>3500</span><span>5000+</span></div>
+        <div class="ref-desc">
+          <strong>適正 800〜2500 μS/cm</strong>。300未満は肥料切れ、3500超は塩類集積・肥料焼けリスク。施設栽培は連作で蓄積しやすい。EC高い時は灌水で希釈、追肥控えめが基本。<small style="color:var(--text-tertiary);">※ 土壌挿入式SEN0604の直接測定値。土壌診断（懸濁液法）の値とは異なる。</small>
+        </div>
+      </div>
+
+      <!-- ⚗️ pH -->
+      <div class="ref-section">
+        <div class="ref-section-head">
+          <span class="ref-title">⚗️ pH（酸度）</span>
+          <span class="ref-current" id="refPhCur">--</span>
+        </div>
+        <div class="ref-bar-wrap">
+          <div class="ref-bar">
+            <div class="ref-bar-seg danger" style="flex:10">危険</div>
+            <div class="ref-bar-seg warn"   style="flex:8">注意</div>
+            <div class="ref-bar-seg ok"     style="flex:9">適正</div>
+            <div class="ref-bar-seg warn"   style="flex:6">注意</div>
+            <div class="ref-bar-seg danger" style="flex:17">危険</div>
+          </div>
+          <div class="ref-marker" id="refPhMarker" style="display:none;">▼</div>
+        </div>
+        <div class="ref-labels"><span>4.0</span><span>5.0</span><span>5.8</span><span>6.7</span><span>7.3</span><span>9.0</span></div>
+        <div class="ref-desc">
+          ピーマン適正 <strong>pH 5.8〜6.7</strong>（理想 6.0〜6.5）。5.0以下は強酸性で微量要素過剰、7.3超は鉄・マンガン欠乏。pH低い→苦土石灰投入、pH高い→硫安等の生理酸性肥料で調整。
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 💡 ハウス管理アドバイス -->
+  <div class="card" id="adviceCard" style="padding:16px 18px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <span class="card-label">💡 ハウス管理アドバイス</span>
+      <span style="font-size:0.62rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="adviceTime">--</span>
+    </div>
+    <div id="adviceList" style="display:flex;flex-direction:column;gap:8px;">
+      <div style="font-size:0.8rem;color:var(--text-tertiary);padding:8px 0;">データ取得後に表示されます...</div>
+    </div>
+  </div>
+
   <!-- 天気情報 -->
   <div class="card" id="weatherCard" style="padding:14px 18px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -679,16 +1069,18 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">RUT241</div>
       <div style="font-size:0.7rem;color:var(--text-secondary);">🌐 回線</div>
       <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">SORACOM</div>
-      <div style="font-size:0.7rem;color:var(--text-secondary);">📊 チャンネル</div>
+      <div style="font-size:0.7rem;color:var(--text-secondary);">📊 環境ch</div>
       <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">99929</div>
+      <div style="font-size:0.7rem;color:var(--text-secondary);">🌱 土壌ch</div>
+      <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;" id="soilChDisplay">未設定</div>
       <div style="font-size:0.7rem;color:var(--text-secondary);">⏱️ 送信間隔</div>
-      <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">10分／土壌15分</div>
+      <div style="font-size:0.7rem;font-weight:500;font-family:'DM Mono',monospace;">気温10分／土壌5分</div>
     </div>
   </div>
   <!-- 更新ボタン -->
   <button class="refresh-btn" id="refreshBtn" onclick="fetchData()">データを更新</button>
 
-  <div class="footer">Ambient ch.99929 · 3センサー対応 · 自動更新 5分 · 送信間隔 気温湿度10分／土壌15分</div>
+  <div class="footer">Ambient ch.99929 + 土壌ch · 自動更新 5分 · 送信間隔 気温湿度10分／土壌5分</div>
 
 </div>
 
@@ -696,6 +1088,12 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
 const CHANNEL_ID = 99929;
 const READ_KEY = 'd024ac32d02366de';
 const NTFY_TOPIC = 'yuuki-house-monitor-99929';
+
+// ===== 土壌専用Ambientチャンネル (SEN0604 4in1) =====
+//   ★ 新規Ambientチャンネルを作成して、ここに ID と ReadKey を貼り付ける
+//   未設定（0 のまま）でも他の機能は動作する。土壌部分のみ「--」表示。
+const SOIL_CHANNEL_ID = 100374;             // 土壌4in1専用チャンネル
+const SOIL_READ_KEY   = '6666ecc0f1ccd2f4'; // 土壌4in1ReadKey
 
 let chartMode = 'temp';
 
@@ -707,10 +1105,14 @@ const LABEL_INTERVAL_MIN = 180;
 const CHART_MIN_WIDTH_PX = 48 * 40;
 let tempHistory = [];
 let humHistory = [];
-let soilHistory = [];
+let soilHistory = [];       // 土壌水分(SEN0604 d2)
+let soilTempHistory = [];   // 地温(SEN0604 d1)
+let soilEcHistory = [];     // EC(SEN0604 d3)
+let soilPhHistory = [];     // pH(SEN0604 d4)
 let vpdHistory = [];
 let co2History = [];
 let timeLabels = [];
+let soilTimeLabels = [];    // 土壌は別チャンネルなので独立した時間軸
 
 // センサー個別履歴（気温・湿度を2線で描画するため）
 let temp1History = [];
@@ -724,7 +1126,7 @@ const SENSOR_KEYS = ['unit1', 'unit2', 'soil', 'co2'];
 const SENSOR_NAMES = {
   unit1: '北側センサー',
   unit2: '南側センサー',
-  soil:  '土壌',
+  soil:  '土壌4in1',
   co2:   'CO2'
 };
 
@@ -736,7 +1138,7 @@ const SENSOR_NAMES = {
 const SENSOR_OK_MIN = {
   unit1: 15,   // 北側センサー: 10分間隔
   unit2: 15,   // 南側センサー: 10分間隔
-  soil:  10,   // 土壌水分計: 5分間隔
+  soil:  10,   // 土壌SEN0604: 5分間隔
   co2:   10,   // CO2センサー: 5分間隔
 };
 const SENSOR_WARN_MIN = {
@@ -755,7 +1157,7 @@ const BUCKET_MS  = BUCKET_MIN * 60 * 1000;
 const SENSOR_LABELS = {
   unit1: SENSOR_NAMES.unit1,
   unit2: SENSOR_NAMES.unit2,
-  soil:  '土壌水分計',
+  soil:  '土壌SEN0604',
   co2:   'CO2センサー'
 };
 let notifiedLevels = { unit1: 0, unit2: 0, soil: 0, co2: 0 };
@@ -790,7 +1192,10 @@ function applyCalibration(value, sensor, type) {
 let latestState = {
   temp: null,
   hum: null,
-  soil: null,
+  soil: null,         // 土壌水分(SEN0604)
+  soilTemp: null,     // 地温(SEN0604)
+  soilEc: null,       // EC(SEN0604)
+  soilPh: null,       // pH(SEN0604)
   vpd: null,
   co2: null,
   todayWeather: null,   // {code, max, min}
@@ -899,8 +1304,13 @@ function drawChart(data, color, unit, retry = 0) {
     return;
   }
 
-  // VPD・CO2は範囲が違うので余白も調整
-  const pad_range = (chartMode === 'vpd') ? 0.1 : (chartMode === 'co2') ? 50 : 1;
+  // VPD・CO2・EC・pH は範囲が違うので余白も調整
+  let pad_range;
+  if (chartMode === 'vpd') pad_range = 0.1;
+  else if (chartMode === 'co2') pad_range = 50;
+  else if (chartMode === 'soilec') pad_range = 100;
+  else if (chartMode === 'soilph') pad_range = 0.3;
+  else pad_range = 1;
   let min = Math.min(...validData) - pad_range;
   let max = Math.max(...validData) + pad_range;
   // 各モードで最適域が必ず可視範囲に含まれるよう補正
@@ -913,6 +1323,23 @@ function drawChart(data, color, unit, retry = 0) {
   } else if (chartMode === 'hum') {
     min = Math.min(min, 55);  // 60%の少し下
     max = Math.max(max, 85);  // 80%の少し上
+  } else if (chartMode === 'soiltemp') {
+    min = Math.min(min, 18);
+    max = Math.max(max, 32);
+    if (min < 0) min = 0;
+  } else if (chartMode === 'soil') {
+    min = Math.min(min, 20);
+    max = Math.max(max, 50);
+    if (min < 0) min = 0;
+  } else if (chartMode === 'soilec') {
+    min = Math.min(min, 1000);
+    max = Math.max(max, 3000);
+    if (min < 0) min = 0;
+  } else if (chartMode === 'soilph') {
+    min = Math.min(min, 5.5);
+    max = Math.max(max, 7.5);
+    if (min < 3) min = 3;
+    if (max > 9) max = 9;
   } else if (chartMode === 'co2') {
     min = Math.min(min, 600);   // 700ppmの少し下
     max = Math.max(max, 1100);  // 1000ppmの少し上
@@ -934,6 +1361,10 @@ function drawChart(data, color, unit, retry = 0) {
   const OPT_ZONES = {
     temp: { min: 22, max: 28, color: '255, 149, 0',  label: '最適域 22-28℃' },        // オレンジ
     hum:  { min: 60, max: 80, color: '0, 122, 255',  label: '最適域 60-80%' },         // ブルー
+    soiltemp: { min: 18, max: 28, color: '217, 119, 6', label: '適正 18-28℃' },       // 地温
+    soil:     { min: 25, max: 45, color: '52, 199, 89', label: '適正 25-45%' },        // 土壌水分
+    soilec:   { min: 800, max: 2500, color: '88, 86, 214', label: '適正 800-2500 μS/cm' }, // EC
+    soilph:   { min: 5.8, max: 6.7, color: '236, 72, 153', label: '適正 pH 5.8-6.7' }, // pH
     vpd:  { min: 0.5, max: 1.2, color: '52, 199, 89', label: '最適域 0.5-1.2 kPa' },   // グリーン
     co2:  { min: 700, max: 1000, color: '52, 199, 89', label: 'ベストゾーン 700-1000 ppm' }  // グリーン
   };
@@ -962,16 +1393,19 @@ function drawChart(data, color, unit, retry = 0) {
   }
 
   // 固定Y軸を描画（外側パネルに、本体と同じmin/maxで）
-  const yDigits = (chartMode === 'vpd') ? 2 : 0;
+  const yDigits = (chartMode === 'vpd' || chartMode === 'soilph') ? (chartMode === 'soilph' ? 1 : 2) : 0;
   drawYAxis(min, max, h, dpr, yDigits, unit);
 
   // X軸時刻ラベル（24時間 = 3時間ごと）
-  if (timeLabels && timeLabels.length > 0) {
+  // 土壌系モードは別チャンネル取得なので別の時間軸を使う
+  const labelsForX = (chartMode === 'soiltemp' || chartMode === 'soil' || chartMode === 'soilec' || chartMode === 'soilph')
+    ? soilTimeLabels : timeLabels;
+  if (labelsForX && labelsForX.length > 0) {
     let lastLabel = null;
     let lastLabelX = -999;
-    const labLen = Math.min(timeLabels.length, data.length);
+    const labLen = Math.min(labelsForX.length, data.length);
     for (let i = 0; i < labLen; i++) {
-      const t = timeLabels[i];
+      const t = labelsForX[i];
       if (!t) continue;
       const totalMins = t.getHours() * 60 + t.getMinutes();
       const nearest = Math.round(totalMins / LABEL_INTERVAL_MIN) * LABEL_INTERVAL_MIN;
@@ -1060,6 +1494,49 @@ function drawChart(data, color, unit, retry = 0) {
   }
 }
 
+// ===== 📚 ピーマン適正値ガイド =====
+// 現在値からマーカー位置を計算してバー上に▼を表示
+function updateRefMarker(markerId, curId, value, minVal, maxVal, suffix, digits) {
+  const marker = document.getElementById(markerId);
+  const cur    = document.getElementById(curId);
+  if (value === null || isNaN(value)) {
+    if (marker) marker.style.display = 'none';
+    if (cur)    cur.textContent = '--' + (suffix ? ' ' + suffix : '');
+    return;
+  }
+  if (cur) {
+    cur.textContent = (digits === 0 ? Math.round(value) : value.toFixed(digits))
+                      + (suffix ? ' ' + suffix : '');
+  }
+  if (marker) {
+    marker.style.display = 'block';
+    const pct = Math.max(0, Math.min(100, ((value - minVal) / (maxVal - minVal)) * 100));
+    marker.style.left = pct + '%';
+  }
+}
+
+// 全4項目のリファレンスマーカーを更新
+function updateAllRefMarkers() {
+  updateRefMarker('refTempMarker', 'refTempCur', latestState.soilTemp,    5,   40, '℃',     1);
+  updateRefMarker('refHumMarker',  'refHumCur',  latestState.soil,        0,  100, '%',     1);
+  updateRefMarker('refEcMarker',   'refEcCur',   latestState.soilEc,      0, 5000, 'μS/cm', 0);
+  updateRefMarker('refPhMarker',   'refPhCur',   latestState.soilPh,      4,    9, '',      1);
+}
+
+// 適正値ガイドの折りたたみ切替
+function toggleRefGuide() {
+  const content = document.getElementById('refContent');
+  const btn     = document.getElementById('refToggleBtn');
+  if (!content || !btn) return;
+  if (content.classList.contains('collapsed')) {
+    content.classList.remove('collapsed');
+    btn.textContent = '▲ 閉じる';
+  } else {
+    content.classList.add('collapsed');
+    btn.textContent = '▼ 開く';
+  }
+}
+
 function switchChart(mode) {
   chartMode = mode;
   document.querySelectorAll('.chart-tab').forEach(t => {
@@ -1073,7 +1550,10 @@ function updateChart() {
   let data, color, unit;
   if (chartMode === 'temp') { data = tempHistory; color = '#ff6b35'; unit = '℃'; }
   else if (chartMode === 'hum')  { data = humHistory;  color = '#007aff'; unit = '%'; }
+  else if (chartMode === 'soiltemp') { data = soilTempHistory; color = '#d97706'; unit = '℃'; }
   else if (chartMode === 'soil') { data = soilHistory; color = '#34c759'; unit = '%'; }
+  else if (chartMode === 'soilec') { data = soilEcHistory; color = '#5856d6'; unit = 'μS/cm'; }
+  else if (chartMode === 'soilph') { data = soilPhHistory; color = '#ec4899'; unit = ''; }
   else if (chartMode === 'vpd')  { data = vpdHistory;  color = '#af52de'; unit = 'kPa'; }
   else if (chartMode === 'co2')  { data = co2History;  color = '#0a84d6'; unit = 'ppm'; }
 
@@ -1119,7 +1599,10 @@ function updateChart() {
   }
 
   if (statsArr.length > 0) {
-    const digits = (chartMode === 'vpd') ? 2 : (chartMode === 'co2') ? 0 : 1;
+    let digits;
+    if (chartMode === 'vpd' || chartMode === 'soilph') digits = (chartMode === 'soilph' ? 1 : 2);
+    else if (chartMode === 'co2' || chartMode === 'soilec') digits = 0;
+    else digits = 1;
     const max = Math.max(...statsArr).toFixed(digits);
     const min = Math.min(...statsArr).toFixed(digits);
     const avg = (statsArr.reduce((a, b) => a + b, 0) / statsArr.length).toFixed(digits);
@@ -1146,11 +1629,45 @@ function getHumStatus(h) {
   return ['✅ 正常', 'status-normal'];
 }
 
+// SEN0604 土壌水分（体積含水率）判定 ※ピーマン適正 25〜45%
 function getSoilStatus(s) {
-  if (s >= 80) return ['💧 過湿', 'status-warn'];
-  if (s >= 40) return ['✅ 適正', 'status-normal'];
-  if (s >= 20) return ['⚠️ やや乾燥', 'status-warn'];
-  return ['🏜️ 乾燥', 'status-danger'];
+  if (s === null || isNaN(s)) return ['--', 'status-normal'];
+  if (s >= 60) return ['🌊 過湿(根腐れ注意)', 'status-danger'];
+  if (s >= 45 && s < 60) return ['💧 やや多め', 'status-warn'];
+  if (s >= 25 && s < 45) return ['✅ 適正', 'status-normal'];
+  if (s >= 15 && s < 25) return ['⚠️ やや乾燥', 'status-warn'];
+  return ['🏜️ 乾燥(かん水必要)', 'status-danger'];
+}
+
+// 地温判定（ピーマン適正 18〜28℃）
+function getSoilTempStatus(t) {
+  if (t === null || isNaN(t)) return ['--', 'status-normal'];
+  if (t >= 32) return ['🔥 高温(落花リスク)', 'status-danger'];
+  if (t >= 18 && t <= 28) return ['✅ 適正', 'status-normal'];
+  if (t > 28 && t < 32) return ['⚠️ やや高め', 'status-warn'];
+  if (t >= 12 && t < 18) return ['⚠️ やや低め', 'status-warn'];
+  return ['🧊 低温(生育停止)', 'status-danger'];
+}
+
+// EC判定（SEN0604基準 適正 800〜2500 μS/cm）
+function getSoilEcStatus(ec) {
+  if (ec === null || isNaN(ec)) return ['--', 'status-normal'];
+  if (ec >= 3500) return ['🚨 塩類集積危険', 'status-danger'];
+  if (ec >= 2500 && ec < 3500) return ['⚠️ 肥料過多', 'status-warn'];
+  if (ec >= 800 && ec < 2500) return ['✅ 適正', 'status-normal'];
+  if (ec >= 300 && ec < 800) return ['⚠️ 肥料少なめ', 'status-warn'];
+  return ['📉 肥料切れ', 'status-danger'];
+}
+
+// pH判定（ピーマン適正 5.8〜6.7、理想 6.0〜6.5）
+function getSoilPhStatus(p) {
+  if (p === null || isNaN(p)) return ['--', 'status-normal'];
+  if (p < 5.0) return ['🚨 強酸性', 'status-danger'];
+  if (p >= 5.8 && p <= 6.7) return ['✅ 適正', 'status-normal'];
+  if (p > 6.7 && p <= 7.3) return ['⚠️ やや中性', 'status-warn'];
+  if (p >= 5.0 && p < 5.8) return ['⚠️ やや酸性', 'status-warn'];
+  if (p > 7.3) return ['🚨 アルカリ性', 'status-danger'];
+  return ['⚠️ 範囲外', 'status-warn'];
 }
 
 // ピーマンの適正VPD: 0.5〜1.2kPa
@@ -1180,75 +1697,174 @@ function getCo2Status(c) {
   return ['🚨 ストレスリスク', 'status-danger'];
 }
 
-// ===== ハウス効率スコア（光合成総合評価） =====
-// 気温・VPD・CO2 の3要素を加重平均で総合評価（100点満点）
-//   VPD 40点（最重要・光合成効率に直結）
-//   気温 30点（範囲外で大きく減点）
-//   CO2 30点（ベストゾーン基準）
+// ===== ハウス効率スコア（地上部 × 根圏の二軸構造評価） =====
+// プロのピーマン栽培者の視点で、葉の働き（光合成）と根の働き（草勢）を分けて評価
+//
+// 【地上部スコア】光合成効率 = 気温 30 + VPD 40 + CO2 30 = 100点
+//   VPDが最重要（気孔開閉・蒸散・光合成効率に直結）
+//
+// 【根圏スコア】草勢の土台 = 地温 30 + 水分 30 + EC 25 + pH 15 = 100点
+//   地温と水分が根活性の核、ECは肥料管理、pHは長期的影響
+//
+// 【総合】地上部と根圏の平均（両方ある場合）。片方のみは7割評価でペナルティ
 // 各要素は 0〜100 の小スコアを出してから加重合計
-function calcEnvScore(temp, vpd, co2) {
+function calcAdvancedScore(temp, vpd, co2, soilTemp, soil, soilEc, soilPh) {
+  // ----- 地上部要素 -----
   // 気温スコア (22-28℃が満点)
   function tempScore(t) {
     if (t === null || isNaN(t)) return null;
     if (t >= 22 && t <= 28) return 100;
-    // 中間域: 18-32℃で50点
-    if (t >= 18 && t < 22) return 50 + (t - 18) / 4 * 50;       // 50→100
-    if (t > 28 && t <= 32) return 50 + (32 - t) / 4 * 50;       // 100→50
-    if (t >= 10 && t < 18) return Math.max(0, (t - 10) / 8 * 50);  // 0→50
-    if (t > 32 && t <= 40) return Math.max(0, (40 - t) / 8 * 50); // 50→0
+    if (t >= 18 && t < 22) return 50 + (t - 18) / 4 * 50;
+    if (t > 28 && t <= 32) return 50 + (32 - t) / 4 * 50;
+    if (t >= 10 && t < 18) return Math.max(0, (t - 10) / 8 * 50);
+    if (t > 32 && t <= 40) return Math.max(0, (40 - t) / 8 * 50);
     return 0;
   }
   // VPDスコア (0.5-1.2 kPaが満点)
   function vpdScore(v) {
     if (v === null || isNaN(v)) return null;
     if (v >= 0.5 && v <= 1.2) return 100;
-    if (v >= 0.3 && v < 0.5) return 60 + (v - 0.3) / 0.2 * 40;    // 60→100
-    if (v > 1.2 && v <= 1.5) return 60 + (1.5 - v) / 0.3 * 40;    // 100→60
-    if (v >= 0.1 && v < 0.3) return Math.max(0, (v - 0.1) / 0.2 * 60);  // 0→60
-    if (v > 1.5 && v <= 2.5) return Math.max(0, (2.5 - v) / 1.0 * 60); // 60→0
+    if (v >= 0.3 && v < 0.5) return 60 + (v - 0.3) / 0.2 * 40;
+    if (v > 1.2 && v <= 1.5) return 60 + (1.5 - v) / 0.3 * 40;
+    if (v >= 0.1 && v < 0.3) return Math.max(0, (v - 0.1) / 0.2 * 60);
+    if (v > 1.5 && v <= 2.5) return Math.max(0, (2.5 - v) / 1.0 * 60);
     return 0;
   }
   // CO2スコア (700-1000 ppmがベストゾーン)
   function co2Score(c) {
     if (c === null || isNaN(c)) return null;
     if (c >= 700 && c <= 1000) return 100;
-    if (c > 1000 && c <= 1200) return 90;   // 高効率(費用相談)
-    if (c > 1200 && c <= 1500) return 65;   // 効果頭打ち
-    if (c >= 500 && c < 700)   return 75 + (c - 500) / 200 * 25; // 75→100
-    if (c >= 400 && c < 500)   return 50 + (c - 400) / 100 * 25; // 50→75
-    if (c >= 300 && c < 400)   return 30 + (c - 300) / 100 * 20; // 30→50
-    if (c > 1500 && c <= 2000) return Math.max(0, 50 - (c - 1500) / 500 * 50); // 50→0
+    if (c > 1000 && c <= 1200) return 90;
+    if (c > 1200 && c <= 1500) return 65;
+    if (c >= 500 && c < 700)   return 75 + (c - 500) / 200 * 25;
+    if (c >= 400 && c < 500)   return 50 + (c - 400) / 100 * 25;
+    if (c >= 300 && c < 400)   return 30 + (c - 300) / 100 * 20;
+    if (c > 1500 && c <= 2000) return Math.max(0, 50 - (c - 1500) / 500 * 50);
     if (c > 2000) return 0;
     if (c < 300)  return Math.max(0, c / 300 * 30);
     return 0;
   }
 
-  const ts = tempScore(temp);
-  const vs = vpdScore(vpd);
-  const cs = co2Score(co2);
+  // ----- 根圏要素 -----
+  // 地温スコア (18-28℃が満点)
+  function soilTempScore(t) {
+    if (t === null || isNaN(t)) return null;
+    if (t >= 18 && t <= 28) return 100;
+    if (t >= 15 && t < 18) return 60 + (t - 15) / 3 * 40;        // 60→100
+    if (t > 28 && t <= 32) return 60 + (32 - t) / 4 * 40;        // 100→60
+    if (t >= 12 && t < 15) return Math.max(0, (t - 12) / 3 * 60); // 0→60
+    if (t > 32 && t <= 38) return Math.max(0, (38 - t) / 6 * 60); // 60→0
+    return 0;
+  }
+  // 土壌水分スコア (25-45%が満点 / SEN0604基準)
+  function soilMoistureScore(h) {
+    if (h === null || isNaN(h)) return null;
+    if (h >= 25 && h <= 45) return 100;
+    if (h >= 15 && h < 25) return 50 + (h - 15) / 10 * 50;        // 50→100
+    if (h > 45 && h <= 60) return 60 + (60 - h) / 15 * 40;        // 100→60
+    if (h >= 5 && h < 15)  return Math.max(0, (h - 5) / 10 * 50); // 0→50
+    if (h > 60 && h <= 80) return Math.max(0, (80 - h) / 20 * 60); // 60→0
+    return 0;
+  }
+  // ECスコア (800-2500 μS/cmが満点)
+  function ecScore(ec) {
+    if (ec === null || isNaN(ec)) return null;
+    if (ec >= 800 && ec <= 2500) return 100;
+    if (ec >= 500 && ec < 800)   return 75 + (ec - 500) / 300 * 25;   // 75→100
+    if (ec > 2500 && ec <= 3000) return 75 + (3000 - ec) / 500 * 25;  // 100→75
+    if (ec >= 200 && ec < 500)   return 30 + (ec - 200) / 300 * 45;   // 30→75
+    if (ec > 3000 && ec <= 4000) return Math.max(0, (4000 - ec) / 1000 * 60); // 60→0
+    if (ec > 4000) return 0;
+    if (ec < 200)  return Math.max(0, ec / 200 * 30);
+    return 0;
+  }
+  // pHスコア (5.8-6.7が満点)
+  function phScore(p) {
+    if (p === null || isNaN(p)) return null;
+    if (p >= 5.8 && p <= 6.7) return 100;
+    if (p >= 5.5 && p < 5.8) return 70 + (p - 5.5) / 0.3 * 30;    // 70→100
+    if (p > 6.7 && p <= 7.0) return 70 + (7.0 - p) / 0.3 * 30;    // 100→70
+    if (p >= 5.0 && p < 5.5) return Math.max(0, (p - 5.0) / 0.5 * 70); // 0→70
+    if (p > 7.0 && p <= 7.5) return Math.max(0, (7.5 - p) / 0.5 * 70); // 70→0
+    return 0;
+  }
 
-  // 利用可能な要素だけで加重平均（部分的なデータでも評価可能に）
-  const items = [];
-  if (ts !== null) items.push({ score: ts, weight: 30 });
-  if (vs !== null) items.push({ score: vs, weight: 40 });
-  if (cs !== null) items.push({ score: cs, weight: 30 });
+  // ----- 各要素計算 -----
+  const ts  = tempScore(temp);
+  const vs  = vpdScore(vpd);
+  const cs  = co2Score(co2);
+  const sts = soilTempScore(soilTemp);
+  const sws = soilMoistureScore(soil);
+  const es  = ecScore(soilEc);
+  const ps  = phScore(soilPh);
 
-  if (items.length === 0) return { total: null, temp: ts, vpd: vs, co2: cs };
+  // 加重平均ヘルパー
+  function weightedAvg(items) {
+    if (items.length === 0) return null;
+    const wsum = items.reduce((s, i) => s + i.weight, 0);
+    return items.reduce((s, i) => s + i.score * i.weight, 0) / wsum;
+  }
 
-  const wsum = items.reduce((s, i) => s + i.weight, 0);
-  const total = items.reduce((s, i) => s + i.score * i.weight, 0) / wsum;
+  // ----- 地上部スコア集計 -----
+  const upperItems = [];
+  if (ts !== null) upperItems.push({ score: ts, weight: 30 });
+  if (vs !== null) upperItems.push({ score: vs, weight: 40 });
+  if (cs !== null) upperItems.push({ score: cs, weight: 30 });
+  const upperScore = weightedAvg(upperItems);
 
-  return { total: Math.round(total), temp: ts, vpd: vs, co2: cs };
+  // ----- 根圏スコア集計 -----
+  const rootItems = [];
+  if (sts !== null) rootItems.push({ score: sts, weight: 30 });
+  if (sws !== null) rootItems.push({ score: sws, weight: 30 });
+  if (es  !== null) rootItems.push({ score: es,  weight: 25 });
+  if (ps  !== null) rootItems.push({ score: ps,  weight: 15 });
+  const rootScore = weightedAvg(rootItems);
+
+  // ----- 総合スコア -----
+  // 両方そろっている時は平均
+  // 片方のみの時は70%評価（不完全評価のペナルティ）
+  let total = null;
+  if (upperScore !== null && rootScore !== null) {
+    total = (upperScore + rootScore) / 2;
+  } else if (upperScore !== null) {
+    total = upperScore * 0.7;
+  } else if (rootScore !== null) {
+    total = rootScore * 0.6;  // 地上部不明はもっと不利
+  }
+
+  return {
+    total: total === null ? null : Math.round(total),
+    upper: upperScore === null ? null : Math.round(upperScore),
+    root:  rootScore  === null ? null : Math.round(rootScore),
+    temp: ts, vpd: vs, co2: cs,
+    soilTemp: sts, soilMoisture: sws, ec: es, ph: ps
+  };
 }
 
-// スコアから評価ラベルと色を取得
+// 互換のため calcEnvScore も残す（古い呼び出しがあった場合用）
+function calcEnvScore(temp, vpd, co2) {
+  return calcAdvancedScore(temp, vpd, co2, null, null, null, null);
+}
+
+// スコアから評価ラベルと色を取得（プロ視点のラベル）
 function getScoreGrade(score) {
-  if (score === null || isNaN(score)) return { label: '--',          icon: '📊', color: '#8e8e93' };
-  if (score >= 90) return { label: 'パーフェクト',  icon: '🌟', color: '#34c759' };
-  if (score >= 75) return { label: '良好',          icon: '✅', color: '#34c759' };
-  if (score >= 60) return { label: 'まずまず',      icon: '📊', color: '#ffcc00' };
-  if (score >= 40) return { label: '要改善',        icon: '⚠️', color: '#ff9500' };
-  return                  { label: '環境不良',      icon: '🚨', color: '#ff3b30' };
+  if (score === null || isNaN(score)) return { label: '--', icon: '📊', color: '#8e8e93' };
+  if (score >= 90) return { label: '絶好調',   icon: '🌟', color: '#34c759' };
+  if (score >= 80) return { label: '良好',     icon: '✅', color: '#34c759' };
+  if (score >= 70) return { label: '安定',     icon: '👍', color: '#5ac8fa' };
+  if (score >= 60) return { label: 'まずまず', icon: '📊', color: '#ffcc00' };
+  if (score >= 45) return { label: '要改善',   icon: '⚠️', color: '#ff9500' };
+  if (score >= 25) return { label: '不調',     icon: '🚨', color: '#ff6b35' };
+  return                  { label: '環境不良', icon: '🚨', color: '#ff3b30' };
+}
+
+// 軸スコアからラベル色を取得（小さい色付け用）
+function getAxisColor(score) {
+  if (score === null || isNaN(score)) return '#8e8e93';
+  if (score >= 80) return '#34c759';
+  if (score >= 60) return '#ffcc00';
+  if (score >= 40) return '#ff9500';
+  return '#ff3b30';
 }
 
 // 温度差／湿度差の判定（ピーマンハウス基準）
@@ -1424,12 +2040,50 @@ function generateAdvice() {
     });
   }
 
-  if (s.soil !== null && s.soil < 15) {
+  if (s.soil !== null && s.soil < 20) {
     advices.push({
       level: 'danger',
       icon: '🏜️',
       title: '土壌水分不足',
-      body: `土壌水分${s.soil.toFixed(0)}%。水ストレスで草勢低下の恐れ。早急にかん水を。`
+      body: `土壌水分${s.soil.toFixed(0)}%（SEN0604）。水ストレスで草勢低下の恐れ。早急にかん水を。`
+    });
+  }
+
+  // EC高すぎ（肥料焼け危険）
+  if (s.soilEc !== null && s.soilEc >= 3500) {
+    advices.push({
+      level: 'danger',
+      icon: '🚨',
+      title: 'EC高すぎ（塩類集積危険）',
+      body: `EC ${Math.round(s.soilEc)}μS/cm。塩類集積で根が水を吸えなくなります。灌水で薄める＋追肥を即停止。`
+    });
+  }
+
+  // 地温が高すぎ
+  if (s.soilTemp !== null && s.soilTemp >= 32) {
+    advices.push({
+      level: 'danger',
+      icon: '🔥',
+      title: '地温高温警告',
+      body: `地温${s.soilTemp.toFixed(1)}℃。落花増加・根の活性低下の恐れ。マルチ点検と灌水で冷却を。`
+    });
+  }
+
+  // pH極端
+  if (s.soilPh !== null && s.soilPh < 5.0) {
+    advices.push({
+      level: 'danger',
+      icon: '🚨',
+      title: '土壌酸性化（強酸性）',
+      body: `pH ${s.soilPh.toFixed(1)}。微量要素過剰吸収の恐れ。苦土石灰の投入を検討してください。`
+    });
+  }
+  if (s.soilPh !== null && s.soilPh > 7.5) {
+    advices.push({
+      level: 'danger',
+      icon: '🚨',
+      title: 'アルカリ性化',
+      body: `pH ${s.soilPh.toFixed(1)}。鉄・マンガン欠乏の恐れ。硫安等の生理酸性肥料で調整を。`
     });
   }
 
@@ -1491,7 +2145,7 @@ function generateAdvice() {
     });
   }
 
-  if (s.soil !== null && s.soil >= 20 && s.soil < 35 && s.vpd !== null && s.vpd > 1.0) {
+  if (s.soil !== null && s.soil >= 20 && s.soil < 30 && s.vpd !== null && s.vpd > 1.0) {
     advices.push({
       level: 'warn',
       icon: '💧',
@@ -1500,12 +2154,32 @@ function generateAdvice() {
     });
   }
 
-  if (s.soil !== null && s.soil >= 85) {
+  if (s.soil !== null && s.soil >= 60) {
     advices.push({
       level: 'warn',
       icon: '🌊',
       title: '土壌過湿',
       body: `土壌水分${s.soil.toFixed(0)}%。根腐れ・疫病リスク。かん水を控えめに、排水確認を。`
+    });
+  }
+
+  // EC やや高め
+  if (s.soilEc !== null && s.soilEc >= 2500 && s.soilEc < 3500) {
+    advices.push({
+      level: 'warn',
+      icon: '⚠️',
+      title: 'EC高め（追肥控えめに）',
+      body: `EC ${Math.round(s.soilEc)}μS/cm。塩類が溜まり気味。灌水多めで希釈、追肥は控えめが安心です。`
+    });
+  }
+
+  // EC低すぎ（肥料切れ気味）
+  if (s.soilEc !== null && s.soilEc < 800 && s.soilEc >= 300 && !isNight) {
+    advices.push({
+      level: 'warn',
+      icon: '📉',
+      title: '肥料切れ気味',
+      body: `EC ${Math.round(s.soilEc)}μS/cm。養分不足の可能性。葉色観察＋追肥の検討を。`
     });
   }
 
@@ -1662,59 +2336,65 @@ function generateAdvice() {
 // ハウス効率スコアの描画
 function renderScore() {
   const s = latestState;
-  const result = calcEnvScore(s.temp, s.vpd, s.co2);
-  const grade = getScoreGrade(result.total);
+  const result = calcAdvancedScore(s.temp, s.vpd, s.co2, s.soilTemp, s.soil, s.soilEc, s.soilPh);
+  const grade  = getScoreGrade(result.total);
 
-  const numEl   = document.getElementById('scoreNum');
-  const ringEl  = document.getElementById('scoreRing');
-  const labelEl = document.getElementById('scoreLabel');
-  const descEl  = document.getElementById('scoreDesc');
-  const timeEl  = document.getElementById('scoreTime');
+  const numEl     = document.getElementById('scoreNum');
+  const ringEl    = document.getElementById('scoreRing');
+  const labelEl   = document.getElementById('scoreLabel');
+  const descEl    = document.getElementById('scoreDesc');
+  const timeEl    = document.getElementById('scoreTime');
+  const upperEl   = document.getElementById('upperScore');
+  const rootEl    = document.getElementById('rootScore');
+  const balanceEl = document.getElementById('scoreBalance');
 
   // 時刻
   timeEl.textContent = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}) + ' 時点';
 
+  // ----- メイン総合スコア -----
   if (result.total === null) {
     numEl.textContent = '--';
     numEl.style.color = '#8e8e93';
     ringEl.setAttribute('stroke-dashoffset', '263.9');
     ringEl.setAttribute('stroke', '#8e8e93');
     labelEl.textContent = '--';
+    labelEl.style.color = 'var(--text-primary)';
     descEl.textContent = 'センサーデータの取得を待っています';
   } else {
-    // 数字とリング
     numEl.textContent = result.total;
     numEl.style.color = grade.color;
-    const circumference = 2 * Math.PI * 42;  // ≒ 263.9
+    const circumference = 2 * Math.PI * 42;
     const offset = circumference * (1 - result.total / 100);
     ringEl.setAttribute('stroke-dashoffset', offset);
     ringEl.setAttribute('stroke', grade.color);
-    // ラベル＋説明
     labelEl.innerHTML = grade.icon + ' ' + grade.label;
     labelEl.style.color = grade.color;
 
-    // 説明文：弱点要素を指摘
-    const weakest = [];
-    if (result.temp !== null && result.temp < 60) weakest.push({ name: '気温', score: result.temp });
-    if (result.vpd  !== null && result.vpd  < 60) weakest.push({ name: 'VPD',  score: result.vpd });
-    if (result.co2  !== null && result.co2  < 60) weakest.push({ name: 'CO2',  score: result.co2 });
-    weakest.sort((a, b) => a.score - b.score);
-
-    if (result.total >= 90) {
-      descEl.textContent = '光合成3要素が揃った理想的な環境です';
-    } else if (result.total >= 75) {
-      descEl.textContent = '良好な環境。維持することで安定した生育が期待できます';
-    } else if (weakest.length > 0) {
-      descEl.textContent = `${weakest[0].name}が低めです。改善でスコアアップ可能です`;
-    } else {
-      descEl.textContent = '全体的に最適域に近づける余地があります';
-    }
+    // 説明文：軸ごとの状態を踏まえたプロ視点コメント
+    descEl.textContent = buildScoreDescription(result);
   }
 
-  // 内訳バー
+  // ----- 軸スコア表示 -----
+  if (result.upper === null) {
+    upperEl.textContent = '--';
+    upperEl.style.color = '#8e8e93';
+  } else {
+    upperEl.textContent = result.upper;
+    upperEl.style.color = getAxisColor(result.upper);
+  }
+  if (result.root === null) {
+    rootEl.textContent = '--';
+    rootEl.style.color = '#8e8e93';
+  } else {
+    rootEl.textContent = result.root;
+    rootEl.style.color = getAxisColor(result.root);
+  }
+
+  // ----- 7要素の個別バー -----
   function setBar(barId, valId, score) {
     const bar = document.getElementById(barId);
     const val = document.getElementById(valId);
+    if (!bar || !val) return;
     if (score === null || isNaN(score)) {
       bar.style.width = '0%';
       val.textContent = '--';
@@ -1723,9 +2403,96 @@ function renderScore() {
       val.textContent = Math.round(score);
     }
   }
-  setBar('scoreBarTemp', 'scoreValTemp', result.temp);
-  setBar('scoreBarVpd',  'scoreValVpd',  result.vpd);
-  setBar('scoreBarCo2',  'scoreValCo2',  result.co2);
+  setBar('scoreBarTemp',     'scoreValTemp',     result.temp);
+  setBar('scoreBarVpd',      'scoreValVpd',      result.vpd);
+  setBar('scoreBarCo2',      'scoreValCo2',      result.co2);
+  setBar('scoreBarSoilTemp', 'scoreValSoilTemp', result.soilTemp);
+  setBar('scoreBarSoilHum',  'scoreValSoilHum',  result.soilMoisture);
+  setBar('scoreBarSoilEc',   'scoreValSoilEc',   result.ec);
+  setBar('scoreBarSoilPh',   'scoreValSoilPh',   result.ph);
+
+  // ----- 軸間バランス診断 -----
+  const balanceMsg = buildBalanceDiagnosis(result);
+  if (balanceMsg) {
+    balanceEl.innerHTML = balanceMsg;
+    balanceEl.style.display = 'block';
+  } else {
+    balanceEl.style.display = 'none';
+  }
+}
+
+// ===== スコア説明文（メイン） =====
+function buildScoreDescription(result) {
+  if (result.upper === null && result.root === null) return 'データ取得中です';
+
+  // 単独軸のみ
+  if (result.upper !== null && result.root === null) {
+    return '土壌データ未取得。地上部のみの評価です。';
+  }
+  if (result.root !== null && result.upper === null) {
+    return '地上部データ未取得。根圏のみの評価です。';
+  }
+
+  // 両軸あり：弱点を指摘
+  const u = result.upper, r = result.root;
+  const diff = Math.abs(u - r);
+
+  if (result.total >= 85) {
+    return '地上部・根圏ともに最適範囲。光合成効率と草勢のバランス良好です。';
+  } else if (result.total >= 70) {
+    if (diff < 10) return '両軸とも良好。安定した生育が期待できます。';
+    return (u < r) ? '光合成の効率がやや低下中。気温・VPD・CO2を確認。'
+                   : '根圏の状態がやや低下中。地温・水分・EC・pHを確認。';
+  } else if (result.total >= 50) {
+    if (diff < 10) return '両軸とも改善余地あり。優先順位を決めて手を打ちましょう。';
+    return (u < r) ? '光合成側に課題。葉の活動が低下しています。'
+                   : '根圏側に課題。草勢の土台を立て直す時です。';
+  } else {
+    return '複数の項目で適正域を外れています。緊急度の高い要素から対応を。';
+  }
+}
+
+// ===== 軸間バランス診断（コーチング風コメント） =====
+function buildBalanceDiagnosis(result) {
+  const u = result.upper, r = result.root;
+  if (u === null || r === null) return null;
+  const diff = u - r;
+
+  // 弱点要素を特定
+  const items = [
+    { name: '気温',     score: result.temp,         axis: '地上部' },
+    { name: 'VPD',     score: result.vpd,          axis: '地上部' },
+    { name: 'CO2',     score: result.co2,          axis: '地上部' },
+    { name: '地温',    score: result.soilTemp,     axis: '根圏'   },
+    { name: '水分',    score: result.soilMoisture, axis: '根圏'   },
+    { name: 'EC',      score: result.ec,           axis: '根圏'   },
+    { name: 'pH',      score: result.ph,           axis: '根圏'   }
+  ].filter(x => x.score !== null);
+  const weakest = items.slice().sort((a, b) => a.score - b.score)[0];
+  const strongest = items.slice().sort((a, b) => b.score - a.score)[0];
+
+  if (!weakest) return null;
+
+  // 全体が良好
+  if (result.total >= 85) {
+    return `💎 <strong>${strongest.name}</strong> が満点級。この状態を維持できれば収量・品質ともにトップクラスです。`;
+  }
+
+  // 軸間に大きな差
+  if (diff >= 20) {
+    return `🌿 地上部 <strong>${u}点</strong> ／ 🌱 根圏 <strong>${r}点</strong>。地上部が好調でも根圏が追いつかないと草勢低下→着果負担。優先課題：<strong>${weakest.axis}の${weakest.name}（${Math.round(weakest.score)}点）</strong>`;
+  }
+  if (diff <= -20) {
+    return `🌱 根圏 <strong>${r}点</strong> ／ 🌿 地上部 <strong>${u}点</strong>。根は元気でも葉の活動が低調だと光合成効率が落ちます。優先課題：<strong>${weakest.axis}の${weakest.name}（${Math.round(weakest.score)}点）</strong>`;
+  }
+
+  // 軸はバランス取れているが弱点あり
+  if (weakest.score < 60) {
+    return `🎯 優先課題は <strong>${weakest.axis}の${weakest.name}（${Math.round(weakest.score)}点）</strong>。ここを改善すれば総合スコアが大きく上がります。`;
+  }
+
+  // 全体的に60-85のグレー帯
+  return `📈 大きな弱点はなし。総合 <strong>${result.total}点</strong>。あと一歩で良好域です。`;
 }
 
 function renderAdvice() {
@@ -1874,14 +2641,17 @@ function updateOneSensor(key, lastTime) {
 }
 
 // 全センサーをまとめて更新
-// data: 降順のAmbientデータ配列
-function updateAllSensors(data) {
+// data: 降順のAmbientデータ配列 (ch.99929)
+// soilData: 降順の土壌Ambientデータ配列 (ch.SOIL_CHANNEL_ID) - オプション
+function updateAllSensors(data, soilData) {
   const dataArr = data || [];
+  const soilArr = soilData || [];
 
   // 各センサーの最終受信時刻を抽出
   const unit1Last = findLastSeen(dataArr, ['d1', 'd2']);
   const unit2Last = findLastSeen(dataArr, ['d4', 'd5']);
-  const soilLast  = findLastSeen(dataArr, ['d3']);
+  // 土壌は別チャンネルから（d1,d2,d3,d4のどれかが揃っていればOK）
+  const soilLast  = findLastSeen(soilArr, ['d1', 'd2', 'd3', 'd4']);
   const co2Last   = findLastSeen(dataArr, ['d7']);
 
   const r1 = updateOneSensor('unit1', unit1Last);
@@ -2115,18 +2885,6 @@ async function fetchTodayData() {
       document.getElementById('todayMaxHumStatus').className = 'metric-status ' + hmaxClass;
     }
 
-    // 本日最高・最低土壌水分
-    const soils = filtered.map(d => parseFloat(d.d3)).filter(v => !isNaN(v));
-    if (soils.length > 0) {
-      const todayMaxSoil = Math.max(...soils).toFixed(0);
-      const todayMinSoil = Math.min(...soils).toFixed(0);
-      document.getElementById('todayMaxSoil').innerHTML = todayMaxSoil + '<span style="font-size:0.85rem;opacity:0.7;">%</span>';
-      document.getElementById('todayMinSoil').innerHTML = todayMinSoil + '<span style="font-size:0.85rem;opacity:0.7;">%</span>';
-      const [smaxLabel, smaxClass] = getSoilStatus(parseFloat(todayMaxSoil));
-      document.getElementById('todayMaxSoilStatus').textContent = `最高 ${smaxLabel}`;
-      document.getElementById('todayMaxSoilStatus').className = 'metric-status ' + smaxClass;
-    }
-
     // 本日最高・最低 VPD（各センサーごとに温湿度が揃ったレコードから算出）
     const vpds = [];
     filtered.forEach(d => {
@@ -2209,9 +2967,38 @@ async function fetchData() {
 
     const latest = data[0];
 
+    // ===== 土壌専用チャンネル(SEN0604)を並行fetch =====
+    let soilData = [];
+    if (SOIL_CHANNEL_ID > 0 && SOIL_READ_KEY) {
+      try {
+        const soilUrl = `https://ambidata.io/api/v2/channels/${SOIL_CHANNEL_ID}/data`
+          + `?readKey=${SOIL_READ_KEY}`
+          + `&start=${encodeURIComponent(startStr)}`
+          + `&end=${encodeURIComponent(endStr)}`
+          + `&n=${fetchN}`;
+        console.log('🌱 fetchSoilData 24h start='+startStr+' / end='+endStr);
+        const soilRes = await fetch(soilUrl);
+        if (soilRes.ok) {
+          let sd = await soilRes.json();
+          soilData = (sd || []).filter(d => {
+            const raw = d.created_at || d.created;
+            if (!raw) return false;
+            return new Date(raw).getTime() >= fromTimeUTC;
+          });
+          console.log('🌱 土壌取得件数: '+soilData.length);
+        } else {
+          console.warn('🌱 土壌チャンネル取得失敗: ' + soilRes.status);
+        }
+      } catch (e) {
+        console.warn('🌱 土壌チャンネル取得エラー:', e);
+      }
+    } else {
+      console.log('🌱 土壌チャンネル未設定（SOIL_CHANNEL_ID/SOIL_READ_KEYを設定してください）');
+    }
+
     // ===== 2センサー対応：各センサーの状態を判定 =====
     // updateAllSensorsを先に呼び、各センサーのオンライン状態を取得
-    const sensorResults = updateAllSensors(data);
+    const sensorResults = updateAllSensors(data, soilData);
     const u1Online = sensorResults.unit1.state === 'ok';
     const u2Online = sensorResults.unit2.state === 'ok';
 
@@ -2224,12 +3011,18 @@ async function fetchData() {
     const t2 = applyCalibration(u2Latest.values[0], 'unit2', 'temp');
     const h2 = applyCalibration(u2Latest.values[1], 'unit2', 'hum');
 
-    // 土壌水分は最新レコードに無い場合があるので直近の有効値を探す
-    const latestSoilRecord = data.find(d => d.d3 !== undefined && d.d3 !== null && d.d3 !== '' && !isNaN(parseFloat(d.d3)));
-    const soil = latestSoilRecord ? parseFloat(latestSoilRecord.d3) : NaN;
-    console.log('🌱 d3(soil):', latestSoilRecord?.d3, '→ parsed:', soil);
+    // ===== SEN0604 土壌4項目（別チャンネル）=====
+    // d1=地温, d2=水分, d3=EC, d4=pH
+    const soilLatestRec = soilData.find(d =>
+      ['d1','d2','d3','d4'].some(k => d[k] !== undefined && d[k] !== null && d[k] !== '' && !isNaN(parseFloat(d[k])))
+    );
+    const soilTemp = soilLatestRec ? parseFloat(soilLatestRec.d1) : NaN;
+    const soil     = soilLatestRec ? parseFloat(soilLatestRec.d2) : NaN;
+    const soilEc   = soilLatestRec ? parseFloat(soilLatestRec.d3) : NaN;
+    const soilPh   = soilLatestRec ? parseFloat(soilLatestRec.d4) : NaN;
+    console.log('🌱 SEN0604:', { soilTemp, soil, soilEc, soilPh });
 
-    // CO2 (d7) も別ユニットから来るので直近の有効値を探す
+    // CO2 (d7) は環境チャンネルから直近の有効値を探す
     const latestCo2Record = data.find(d => d.d7 !== undefined && d.d7 !== null && d.d7 !== '' && !isNaN(parseFloat(d.d7)));
     const co2 = latestCo2Record ? parseFloat(latestCo2Record.d7) : NaN;
     console.log('💨 d7(co2):', latestCo2Record?.d7, '→ parsed:', co2);
@@ -2256,7 +3049,7 @@ async function fetchData() {
         buckets.set(bucketStart, {
           u1Temps: [], u2Temps: [],
           u1Hums:  [], u2Hums:  [],
-          soils: [], co2s: [],
+          co2s: [],
           time: new Date(bucketStart)
         });
       }
@@ -2265,13 +3058,11 @@ async function fetchData() {
       const t2r = applyCalibration(parseFloat(d.d4), 'unit2', 'temp');
       const h1r = parseFloat(d.d2);
       const h2r = applyCalibration(parseFloat(d.d5), 'unit2', 'hum');
-      const sr  = parseFloat(d.d3);
       const cr  = parseFloat(d.d7);
       if (!isNaN(t1r)) b.u1Temps.push(t1r);
       if (!isNaN(t2r)) b.u2Temps.push(t2r);
       if (!isNaN(h1r)) b.u1Hums.push(h1r);
       if (!isNaN(h2r)) b.u2Hums.push(h2r);
-      if (!isNaN(sr))  b.soils.push(sr);
       if (!isNaN(cr))  b.co2s.push(cr);
     });
 
@@ -2294,7 +3085,6 @@ async function fetchData() {
       const all = [...b.u1Hums, ...b.u2Hums];
       return all.length > 0 ? all.reduce((s, v) => s + v, 0) / all.length : null;
     });
-    soilHistory = sortedBuckets.map(b => avg(b.soils));
     co2History  = sortedBuckets.map(b => avg(b.co2s));
     // VPDはバケット平均の温度・湿度から計算
     vpdHistory  = sortedBuckets.map((b, i) => {
@@ -2305,18 +3095,120 @@ async function fetchData() {
     timeLabels  = sortedBuckets.map(b => b.time);
     console.log('📊 バケット集計: ' + sortedBuckets.length + '点 (' + BUCKET_MIN + '分窓)');
 
+    // ===== SEN0604 土壌履歴：別バケット集計 =====
+    const soilBuckets = new Map();
+    [...soilData].reverse().forEach(d => {
+      const raw = d.created_at || d.created;
+      if (!raw) return;
+      const t = new Date(raw);
+      if (isNaN(t)) return;
+      const bucketStart = Math.floor(t.getTime() / BUCKET_MS) * BUCKET_MS;
+      if (!soilBuckets.has(bucketStart)) {
+        soilBuckets.set(bucketStart, {
+          temps: [], hums: [], ecs: [], phs: [],
+          time: new Date(bucketStart)
+        });
+      }
+      const b = soilBuckets.get(bucketStart);
+      const tt = parseFloat(d.d1);
+      const hh = parseFloat(d.d2);
+      const ee = parseFloat(d.d3);
+      const pp = parseFloat(d.d4);
+      if (!isNaN(tt)) b.temps.push(tt);
+      if (!isNaN(hh)) b.hums.push(hh);
+      if (!isNaN(ee)) b.ecs.push(ee);
+      if (!isNaN(pp)) b.phs.push(pp);
+    });
+    const sortedSoilBuckets = Array.from(soilBuckets.values()).sort((a, b) => a.time - b.time);
+    soilTempHistory = sortedSoilBuckets.map(b => avg(b.temps));
+    soilHistory     = sortedSoilBuckets.map(b => avg(b.hums));
+    soilEcHistory   = sortedSoilBuckets.map(b => avg(b.ecs));
+    soilPhHistory   = sortedSoilBuckets.map(b => avg(b.phs));
+    soilTimeLabels  = sortedSoilBuckets.map(b => b.time);
+    console.log('🌱 土壌バケット集計: ' + sortedSoilBuckets.length + '点');
+
     // ===== メイン表示更新（2センサー対応） =====
     const repValues = updateMainMetrics(t1, h1, t2, h2, u1Online, u2Online);
     const temp = repValues.temp;  // 代表温度（平均 or 単独 or null）
     const hum  = repValues.hum;   // 代表湿度
 
-    // 土壌水分表示
-    if (!isNaN(soil)) {
-      document.getElementById('soilVal').innerHTML = soil.toFixed(0) + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">%</span>';
-      const [sLabel, sClass] = getSoilStatus(soil);
-      document.getElementById('soilStatus').textContent = sLabel;
-      document.getElementById('soilStatus').className = 'metric-status ' + sClass;
+    // ===== 土壌4項目表示 (SEN0604) =====
+    const soilCard = document.getElementById('soilCard');
+    const soilOnline = sensorResults.soil.state === 'ok' || sensorResults.soil.state === 'warn';
+
+    // 地温
+    if (!isNaN(soilTemp)) {
+      document.getElementById('soilTempVal').innerHTML = soilTemp.toFixed(1) + '<span class="soil-item-unit">℃</span>';
+      const [stLabel, stClass] = getSoilTempStatus(soilTemp);
+      const el = document.getElementById('soilTempStatus');
+      el.textContent = stLabel; el.className = 'soil-item-status ' + stClass;
+      document.getElementById('soilTempItem').classList.remove('soil-offline');
+    } else {
+      document.getElementById('soilTempVal').innerHTML = '──<span class="soil-item-unit">℃</span>';
+      document.getElementById('soilTempStatus').textContent = '--';
+      document.getElementById('soilTempStatus').className = 'soil-item-status status-normal';
+      document.getElementById('soilTempItem').classList.add('soil-offline');
     }
+
+    // 水分
+    if (!isNaN(soil)) {
+      document.getElementById('soilHumVal').innerHTML = soil.toFixed(1) + '<span class="soil-item-unit">%</span>';
+      const [shLabel, shClass] = getSoilStatus(soil);
+      const el = document.getElementById('soilHumStatus');
+      el.textContent = shLabel; el.className = 'soil-item-status ' + shClass;
+      document.getElementById('soilHumItem').classList.remove('soil-offline');
+    } else {
+      document.getElementById('soilHumVal').innerHTML = '──<span class="soil-item-unit">%</span>';
+      document.getElementById('soilHumStatus').textContent = '--';
+      document.getElementById('soilHumStatus').className = 'soil-item-status status-normal';
+      document.getElementById('soilHumItem').classList.add('soil-offline');
+    }
+
+    // EC
+    if (!isNaN(soilEc)) {
+      document.getElementById('soilEcVal').innerHTML = Math.round(soilEc) + '<span class="soil-item-unit">μS/cm</span>';
+      const [seLabel, seClass] = getSoilEcStatus(soilEc);
+      const el = document.getElementById('soilEcStatus');
+      el.textContent = seLabel; el.className = 'soil-item-status ' + seClass;
+      document.getElementById('soilEcItem').classList.remove('soil-offline');
+    } else {
+      document.getElementById('soilEcVal').innerHTML = '──<span class="soil-item-unit">μS/cm</span>';
+      document.getElementById('soilEcStatus').textContent = '--';
+      document.getElementById('soilEcStatus').className = 'soil-item-status status-normal';
+      document.getElementById('soilEcItem').classList.add('soil-offline');
+    }
+
+    // pH
+    if (!isNaN(soilPh)) {
+      document.getElementById('soilPhVal').innerHTML = soilPh.toFixed(1);
+      const [spLabel, spClass] = getSoilPhStatus(soilPh);
+      const el = document.getElementById('soilPhStatus');
+      el.textContent = spLabel; el.className = 'soil-item-status ' + spClass;
+      document.getElementById('soilPhItem').classList.remove('soil-offline');
+    } else {
+      document.getElementById('soilPhVal').innerHTML = '──';
+      document.getElementById('soilPhStatus').textContent = '--';
+      document.getElementById('soilPhStatus').className = 'soil-item-status status-normal';
+      document.getElementById('soilPhItem').classList.add('soil-offline');
+    }
+
+    // 土壌カードの更新時刻
+    if (soilLatestRec) {
+      const stRaw = soilLatestRec.created_at || soilLatestRec.created;
+      if (stRaw) {
+        const stTime = new Date(stRaw);
+        if (!isNaN(stTime)) {
+          document.getElementById('soilTime').textContent =
+            stTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        }
+      }
+    } else {
+      document.getElementById('soilTime').textContent = '未受信';
+    }
+
+    // 接続情報の土壌ch表示更新
+    const soilChEl = document.getElementById('soilChDisplay');
+    if (soilChEl) soilChEl.textContent = (SOIL_CHANNEL_ID > 0) ? String(SOIL_CHANNEL_ID) : '未設定';
 
     // VPD（飽差）表示：代表温度・湿度から計算（両方オフラインの場合はnull）
     let vpd = null;
@@ -2350,11 +3242,15 @@ async function fetchData() {
     // 最新状態を保存してアドバイス再生成
     latestState.temp = temp;  // 既にnull or 数値
     latestState.hum  = hum;
-    latestState.soil = isNaN(soil) ? null : soil;
+    latestState.soil     = isNaN(soil)     ? null : soil;
+    latestState.soilTemp = isNaN(soilTemp) ? null : soilTemp;
+    latestState.soilEc   = isNaN(soilEc)   ? null : soilEc;
+    latestState.soilPh   = isNaN(soilPh)   ? null : soilPh;
     latestState.vpd  = (vpd === null || isNaN(vpd)) ? null : vpd;
     latestState.co2  = isNaN(co2) ? null : co2;
     renderAdvice();
     renderScore();
+    updateAllRefMarkers();   // 📚 適正値ガイドの現在値マーカー更新
 
     fetchTodayData();
     updateChart();
@@ -2374,7 +3270,7 @@ async function fetchData() {
 
   } catch(e) {
     // データ取得自体が失敗 → 全センサーをidle/未受信扱い、メイン表示もクリア
-    updateAllSensors([]);
+    updateAllSensors([], []);
     updateMainMetrics(NaN, NaN, NaN, NaN, false, false);
     document.getElementById('lastUpdate').textContent = '最終更新: 取得失敗';
     drawChart([], '#ff6b35', '℃');
