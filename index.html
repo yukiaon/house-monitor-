@@ -479,6 +479,36 @@ body {
 .chart-card { padding: 0 0 16px; }
 .chart-header { padding: 16px 18px 0; display: flex; align-items: center; justify-content: space-between; }
 .chart-tabs { display: flex; gap: 6px; padding: 0 18px; margin: 12px 0 14px; }
+
+/* 📊 グラフタブの2行表示（地上部・根圏） */
+.chart-tabs-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 18px;
+  margin: 12px 0 14px;
+}
+.chart-tabs-stack .chart-tabs {
+  padding: 0;
+  margin: 0;
+  gap: 6px;
+}
+.chart-tabs-stack .chart-tab {
+  flex: 1;        /* 各行内で均等幅 */
+  text-align: center;
+  min-width: 0;   /* テキスト省略のためのトリック */
+}
+@media (max-width: 600px) {
+  .chart-tabs-stack {
+    padding: 0 14px;
+    gap: 5px;
+  }
+  .chart-tabs-stack .chart-tabs { gap: 5px; }
+  .chart-tabs-stack .chart-tab {
+    font-size: 0.72rem;
+    padding: 6px 4px;
+  }
+}
 .chart-tab {
   font-size: 0.72rem; font-weight: 500; padding: 5px 12px;
   border-radius: 8px; border: none; cursor: pointer;
@@ -912,15 +942,19 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       <span class="card-label">履歴グラフ</span>
       <span style="font-size:0.7rem;color:var(--text-secondary);font-family:'DM Mono',monospace;font-weight:600;" id="chartUnitLabel">--</span>
     </div>
-    <div class="chart-tabs scrollable soil-tabs-scroll">
-      <button class="chart-tab active temp" onclick="switchChart('temp')">気温</button>
-      <button class="chart-tab hum" onclick="switchChart('hum')">湿度</button>
-      <button class="chart-tab soiltemp" onclick="switchChart('soiltemp')">地温</button>
-      <button class="chart-tab soil" onclick="switchChart('soil')">水分</button>
-      <button class="chart-tab soilec" onclick="switchChart('soilec')">EC</button>
-      <button class="chart-tab soilph" onclick="switchChart('soilph')">pH</button>
-      <button class="chart-tab vpd" onclick="switchChart('vpd')">飽差</button>
-      <button class="chart-tab co2" onclick="switchChart('co2')">CO2</button>
+    <div class="chart-tabs-stack">
+      <div class="chart-tabs">
+        <button class="chart-tab active temp" onclick="switchChart('temp')">気温</button>
+        <button class="chart-tab hum" onclick="switchChart('hum')">湿度</button>
+        <button class="chart-tab vpd" onclick="switchChart('vpd')">飽差</button>
+        <button class="chart-tab co2" onclick="switchChart('co2')">CO2</button>
+      </div>
+      <div class="chart-tabs">
+        <button class="chart-tab soiltemp" onclick="switchChart('soiltemp')">地温</button>
+        <button class="chart-tab soil" onclick="switchChart('soil')">水分</button>
+        <button class="chart-tab soilec" onclick="switchChart('soilec')">EC</button>
+        <button class="chart-tab soilph" onclick="switchChart('soilph')">pH</button>
+      </div>
     </div>
     <!-- 凡例（気温・湿度タブの時のみ表示） -->
     <div id="chartLegend" style="display:none;padding:0 18px;margin:0 0 8px;gap:16px;font-size:0.7rem;align-items:center;">
