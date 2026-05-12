@@ -285,6 +285,35 @@ body {
   flex-wrap: nowrap;
   min-width: max-content;
 }
+/* スクロール可能なタブ群：右端フェードで「奥にまだある」を視覚化 */
+.soil-tabs-scroll {
+  position: relative;
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+          mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+  scroll-snap-type: x proximity;
+  scroll-padding-right: 18px;
+}
+.soil-tabs-scroll .chart-tab {
+  scroll-snap-align: end;
+  flex-shrink: 0;
+}
+/* スクロール最右端（CO2タブが完全に見えてる時）はフェードを消す */
+.soil-tabs-scroll.scrolled-end {
+  -webkit-mask-image: none;
+          mask-image: none;
+}
+
+/* スマホ専用: タブを少しコンパクトに */
+@media (max-width: 600px) {
+  .chart-tabs {
+    padding: 0 14px;
+    gap: 5px;
+  }
+  .chart-tab {
+    font-size: 0.7rem;
+    padding: 5px 10px;
+  }
+}
 
 /* 📚 ピーマン適正値ガイド */
 .ref-card { padding: 14px 18px; }
@@ -1573,12 +1602,42 @@ function toggleRefGuide() {
   }
 }
 
+// ===== タブのスクロール末端検知（右端フェードのON/OFF） =====
+function initTabScrollIndicator() {
+  const el = document.querySelector('.soil-tabs-scroll');
+  if (!el) return;
+  function update() {
+    // 右端まで残り12px以内ならフェード消す
+    const remain = el.scrollWidth - el.clientWidth - el.scrollLeft;
+    el.classList.toggle('scrolled-end', remain < 12);
+  }
+  el.addEventListener('scroll', update, { passive: true });
+  // 初期チェック（横スクロール不要なら即フェード消し）
+  setTimeout(update, 100);
+  // 画面サイズ変更時も再判定
+  window.addEventListener('resize', () => setTimeout(update, 100));
+}
+// 起動時に初期化
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initTabScrollIndicator);
+} else {
+  initTabScrollIndicator();
+}
+
 function switchChart(mode) {
   chartMode = mode;
+  let activeTab = null;
   document.querySelectorAll('.chart-tab').forEach(t => {
     t.classList.remove('active');
-    if (t.classList.contains(mode)) t.classList.add('active');
+    if (t.classList.contains(mode)) {
+      t.classList.add('active');
+      activeTab = t;
+    }
   });
+  // 選択したタブが見える位置までスクロール（横スクロール時のみ）
+  if (activeTab && activeTab.scrollIntoView) {
+    activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
   updateChart();
 }
 
