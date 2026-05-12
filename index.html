@@ -314,12 +314,20 @@ body {
   text-shadow: 0 0 3px white, 0 0 6px white;
 }
 .ref-labels {
-  display: flex; justify-content: space-between;
+  position: relative;
+  height: 14px;
   font-size: 0.55rem; color: var(--text-tertiary);
   font-family: 'DM Mono', monospace;
   margin-top: 2px;
 }
-.ref-labels span { white-space: nowrap; }
+.ref-labels span {
+  position: absolute;
+  transform: translateX(-50%);
+  top: 0;
+  white-space: nowrap;
+}
+.ref-labels span.left  { transform: translateX(0); }
+.ref-labels span.right { transform: translateX(-100%); }
 .ref-desc {
   font-size: 0.7rem; color: var(--text-secondary);
   line-height: 1.5; margin-top: 8px;
@@ -951,7 +959,14 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
           </div>
           <div class="ref-marker" id="refTempMarker" style="display:none;">▼</div>
         </div>
-        <div class="ref-labels"><span>5℃</span><span>12</span><span>18</span><span>28</span><span>32</span><span>40℃</span></div>
+        <div class="ref-labels">
+          <span class="left"  style="left:0%">5℃</span>
+          <span               style="left:20%">12</span>
+          <span               style="left:37%">18</span>
+          <span               style="left:66%">28</span>
+          <span               style="left:77%">32</span>
+          <span class="right" style="left:100%">40℃</span>
+        </div>
         <div class="ref-desc">
           ピーマンは高温性ナス科。<strong>適正 18〜28℃</strong>（生育最適 22〜26℃）。32℃超で落花増、12℃以下で生育停止。定植時は地温15℃以上を確保。マルチで地温保持が効果的。
         </div>
@@ -960,22 +975,28 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       <!-- 💧 土壌水分 -->
       <div class="ref-section">
         <div class="ref-section-head">
-          <span class="ref-title">💧 土壌水分（体積含水率）</span>
+          <span class="ref-title">💧 土壌水分（SEN0604実機スケール）</span>
           <span class="ref-current" id="refHumCur">--%</span>
         </div>
         <div class="ref-bar-wrap">
           <div class="ref-bar">
-            <div class="ref-bar-seg danger" style="flex:15">危険</div>
-            <div class="ref-bar-seg warn"   style="flex:10">注意</div>
-            <div class="ref-bar-seg ok"     style="flex:20">適正</div>
-            <div class="ref-bar-seg warn"   style="flex:15">注意</div>
-            <div class="ref-bar-seg danger" style="flex:40">危険</div>
+            <div class="ref-bar-seg danger" style="flex:45">危険</div>
+            <div class="ref-bar-seg warn"   style="flex:20">注意</div>
+            <div class="ref-bar-seg ok"     style="flex:25">適正</div>
+            <div class="ref-bar-seg warn"   style="flex:5"></div>
+            <div class="ref-bar-seg danger" style="flex:5"></div>
           </div>
           <div class="ref-marker" id="refHumMarker" style="display:none;">▼</div>
         </div>
-        <div class="ref-labels"><span>0%</span><span>15</span><span>25</span><span>45</span><span>60</span><span>100%</span></div>
+        <div class="ref-labels">
+          <span class="left"  style="left:0%">0%</span>
+          <span               style="left:45%">45</span>
+          <span               style="left:65%">65</span>
+          <span               style="left:90%">90</span>
+          <span class="right" style="left:100%">100%</span>
+        </div>
         <div class="ref-desc">
-          ピーマンは水分要求量が多いが過湿にも弱い。<strong>適正 25〜45%</strong>（圃場容水量レベル）。15%以下は水ストレス、60%超は根腐れ・疫病リスク。1日約2t/10a目安、点滴かん水推奨。
+          <strong>SEN0604実機での適正 65〜90%</strong>（pF 1.6〜2.0相当）。45%以下は水ストレス、95%超は根腐れリスク。ピーマンは水分要求量が多いので、やや多湿(85〜90%)寄りに管理。<small style="color:var(--text-tertiary);">※ SEN0604の出力は相対水分（飽和度ベース）。本来のVWCとは異なるスケール。</small>
         </div>
       </div>
 
@@ -995,7 +1016,14 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
           </div>
           <div class="ref-marker" id="refEcMarker" style="display:none;">▼</div>
         </div>
-        <div class="ref-labels"><span>0</span><span>300</span><span>800</span><span>2500</span><span>3500</span><span>5000+</span></div>
+        <div class="ref-labels">
+          <span class="left"  style="left:0%">0</span>
+          <span               style="left:6%">300</span>
+          <span               style="left:16%">800</span>
+          <span               style="left:50%">2500</span>
+          <span               style="left:70%">3500</span>
+          <span class="right" style="left:100%">5000+</span>
+        </div>
         <div class="ref-desc">
           <strong>適正 800〜2500 μS/cm</strong>。300未満は肥料切れ、3500超は塩類集積・肥料焼けリスク。施設栽培は連作で蓄積しやすい。EC高い時は灌水で希釈、追肥控えめが基本。<small style="color:var(--text-tertiary);">※ 土壌挿入式SEN0604の直接測定値。土壌診断（懸濁液法）の値とは異なる。</small>
         </div>
@@ -1017,7 +1045,14 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
           </div>
           <div class="ref-marker" id="refPhMarker" style="display:none;">▼</div>
         </div>
-        <div class="ref-labels"><span>4.0</span><span>5.0</span><span>5.8</span><span>6.7</span><span>7.3</span><span>9.0</span></div>
+        <div class="ref-labels">
+          <span class="left"  style="left:0%">4.0</span>
+          <span               style="left:20%">5.0</span>
+          <span               style="left:36%">5.8</span>
+          <span               style="left:54%">6.7</span>
+          <span               style="left:66%">7.3</span>
+          <span class="right" style="left:100%">9.0</span>
+        </div>
         <div class="ref-desc">
           ピーマン適正 <strong>pH 5.8〜6.7</strong>（理想 6.0〜6.5）。5.0以下は強酸性で微量要素過剰、7.3超は鉄・マンガン欠乏。pH低い→苦土石灰投入、pH高い→硫安等の生理酸性肥料で調整。
         </div>
@@ -1328,9 +1363,10 @@ function drawChart(data, color, unit, retry = 0) {
     max = Math.max(max, 32);
     if (min < 0) min = 0;
   } else if (chartMode === 'soil') {
-    min = Math.min(min, 20);
-    max = Math.max(max, 50);
+    min = Math.min(min, 40);
+    max = Math.max(max, 100);
     if (min < 0) min = 0;
+    if (max > 100) max = 100;
   } else if (chartMode === 'soilec') {
     min = Math.min(min, 1000);
     max = Math.max(max, 3000);
@@ -1362,7 +1398,7 @@ function drawChart(data, color, unit, retry = 0) {
     temp: { min: 22, max: 28, color: '255, 149, 0',  label: '最適域 22-28℃' },        // オレンジ
     hum:  { min: 60, max: 80, color: '0, 122, 255',  label: '最適域 60-80%' },         // ブルー
     soiltemp: { min: 18, max: 28, color: '217, 119, 6', label: '適正 18-28℃' },       // 地温
-    soil:     { min: 25, max: 45, color: '52, 199, 89', label: '適正 25-45%' },        // 土壌水分
+    soil:     { min: 65, max: 90, color: '52, 199, 89', label: '適正 65-90%(SEN0604)' },        // 土壌水分
     soilec:   { min: 800, max: 2500, color: '88, 86, 214', label: '適正 800-2500 μS/cm' }, // EC
     soilph:   { min: 5.8, max: 6.7, color: '236, 72, 153', label: '適正 pH 5.8-6.7' }, // pH
     vpd:  { min: 0.5, max: 1.2, color: '52, 199, 89', label: '最適域 0.5-1.2 kPa' },   // グリーン
@@ -1629,13 +1665,16 @@ function getHumStatus(h) {
   return ['✅ 正常', 'status-normal'];
 }
 
-// SEN0604 土壌水分（体積含水率）判定 ※ピーマン適正 25〜45%
+// SEN0604 土壌水分（相対水分／飽和度ベース）判定
+// ※SEN0604の出力は中国製RS485センサー特有の相対スケール
+//   完全乾燥: 5〜15% / 適正: 65〜90% / 飽和: 95〜100%
+//   現場での体感校正：65%=乾き気味から逆算
 function getSoilStatus(s) {
   if (s === null || isNaN(s)) return ['--', 'status-normal'];
-  if (s >= 60) return ['🌊 過湿(根腐れ注意)', 'status-danger'];
-  if (s >= 45 && s < 60) return ['💧 やや多め', 'status-warn'];
-  if (s >= 25 && s < 45) return ['✅ 適正', 'status-normal'];
-  if (s >= 15 && s < 25) return ['⚠️ やや乾燥', 'status-warn'];
+  if (s >= 95) return ['🌊 過湿(根腐れ注意)', 'status-danger'];
+  if (s >= 90 && s < 95) return ['💧 やや多め', 'status-warn'];
+  if (s >= 65 && s < 90) return ['✅ 適正', 'status-normal'];
+  if (s >= 45 && s < 65) return ['⚠️ やや乾燥', 'status-warn'];
   return ['🏜️ 乾燥(かん水必要)', 'status-danger'];
 }
 
@@ -1756,14 +1795,14 @@ function calcAdvancedScore(temp, vpd, co2, soilTemp, soil, soilEc, soilPh) {
     if (t > 32 && t <= 38) return Math.max(0, (38 - t) / 6 * 60); // 60→0
     return 0;
   }
-  // 土壌水分スコア (25-45%が満点 / SEN0604基準)
+  // 土壌水分スコア (65-90%が満点 / SEN0604実機スケール)
   function soilMoistureScore(h) {
     if (h === null || isNaN(h)) return null;
-    if (h >= 25 && h <= 45) return 100;
-    if (h >= 15 && h < 25) return 50 + (h - 15) / 10 * 50;        // 50→100
-    if (h > 45 && h <= 60) return 60 + (60 - h) / 15 * 40;        // 100→60
-    if (h >= 5 && h < 15)  return Math.max(0, (h - 5) / 10 * 50); // 0→50
-    if (h > 60 && h <= 80) return Math.max(0, (80 - h) / 20 * 60); // 60→0
+    if (h >= 65 && h <= 90) return 100;
+    if (h >= 50 && h < 65) return 50 + (h - 50) / 15 * 50;         // 50→100
+    if (h > 90 && h <= 95) return 60 + (95 - h) / 5 * 40;          // 100→60
+    if (h >= 25 && h < 50) return Math.max(0, (h - 25) / 25 * 50); // 0→50
+    if (h > 95 && h <= 100) return Math.max(0, (100 - h) / 5 * 60); // 60→0
     return 0;
   }
   // ECスコア (800-2500 μS/cmが満点)
@@ -2040,7 +2079,7 @@ function generateAdvice() {
     });
   }
 
-  if (s.soil !== null && s.soil < 20) {
+  if (s.soil !== null && s.soil < 45) {
     advices.push({
       level: 'danger',
       icon: '🏜️',
@@ -2145,7 +2184,7 @@ function generateAdvice() {
     });
   }
 
-  if (s.soil !== null && s.soil >= 20 && s.soil < 30 && s.vpd !== null && s.vpd > 1.0) {
+  if (s.soil !== null && s.soil >= 45 && s.soil < 65 && s.vpd !== null && s.vpd > 1.0) {
     advices.push({
       level: 'warn',
       icon: '💧',
@@ -2154,7 +2193,7 @@ function generateAdvice() {
     });
   }
 
-  if (s.soil !== null && s.soil >= 60) {
+  if (s.soil !== null && s.soil >= 95) {
     advices.push({
       level: 'warn',
       icon: '🌊',
