@@ -175,7 +175,7 @@ body {
 .metric-card.hum::before  { background: var(--accent-hum); }
 .metric-icon { font-size: 1.3rem; margin-bottom: 10px; display: block; }
 .metric-label { font-size: 0.68rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
-.metric-value { font-family: 'DM Mono', monospace; font-size: 3.1rem; font-weight: 500; letter-spacing: -0.04em; line-height: 1; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.metric-value { font-family: 'DM Mono', monospace; font-size: 2.6rem; font-weight: 500; letter-spacing: -0.035em; line-height: 1; margin-bottom: 7px; font-variant-numeric: tabular-nums; }
 .metric-trend { display: inline-flex; align-items: baseline; gap: 5px; font-size: 0.72rem; font-weight: 500; color: var(--text-tertiary); font-family: 'DM Mono', monospace; line-height: 1.1; margin-top: 4px; letter-spacing: -0.005em; }
 .metric-trend.up    { color: var(--text-secondary); }
 .metric-trend.down  { color: var(--text-secondary); }
@@ -266,8 +266,8 @@ body {
 .soil-item-icon { font-size: 0.85rem; }
 .soil-item-val {
   font-family: 'DM Mono', monospace;
-  font-size: 1.9rem; font-weight: 500;
-  letter-spacing: -0.03em; line-height: 1;
+  font-size: 1.7rem; font-weight: 500;
+  letter-spacing: -0.025em; line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .soil-item-trend {
@@ -643,14 +643,14 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
     gap: 14px;
   }
   .soil-item { padding: 16px; }
-  .soil-item-val { font-size: 2.3rem; }
-  .soil-item-trend { font-size: 0.74rem; }
+  .soil-item-val { font-size: 2rem; }
+  .soil-item-trend { font-size: 0.72rem; }
 
   .metric-card { padding: 24px; }
-  .metric-value { font-size: 4rem; }
+  .metric-value { font-size: 3.3rem; }
   .metric-icon { font-size: 1.5rem; }
-  .metric-trend { font-size: 0.84rem; }
-  .metric-trend-label { font-size: 0.7rem; }
+  .metric-trend { font-size: 0.8rem; }
+  .metric-trend-label { font-size: 0.68rem; }
 
   .battery-card { padding: 20px 24px 22px; }
   .conn-card { padding: 18px 24px; }
@@ -829,6 +829,22 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
         </div>
       </div>
     </div>
+    <!-- 本日気温 (PC時のみ表示) -->
+    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
+      <span class="metric-icon">🌡️</span>
+      <div class="metric-label">本日気温</div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最高</div>
+          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#ff6b35;line-height:1;" id="todayMax">--<span style="font-size:0.85rem;opacity:0.7;">℃</span></div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最低</div>
+          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#007aff;line-height:1;" id="todayMin">--<span style="font-size:0.85rem;opacity:0.7;">℃</span></div>
+        </div>
+      </div>
+      <div class="metric-status status-normal" id="todayMaxStatus">--</div>
+    </div>
     <div class="metric-card hum">
       <span class="metric-icon">💧</span>
       <div class="metric-label" id="humLabel">湿度（平均）</div>
@@ -846,22 +862,6 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
           <div class="sensor-mini-val" id="hum2Val">-- %</div>
         </div>
       </div>
-    </div>
-    <!-- PC時のみ表示される追加カード -->
-    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
-      <span class="metric-icon">🌡️</span>
-      <div class="metric-label">本日気温</div>
-      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最高</div>
-          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#ff6b35;line-height:1;" id="todayMax">--<span style="font-size:0.85rem;opacity:0.7;">℃</span></div>
-        </div>
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div style="font-size:0.6rem;color:var(--text-tertiary);width:24px;">最低</div>
-          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#007aff;line-height:1;" id="todayMin">--<span style="font-size:0.85rem;opacity:0.7;">℃</span></div>
-        </div>
-      </div>
-      <div class="metric-status status-normal" id="todayMaxStatus">--</div>
     </div>
     <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
       <span class="metric-icon">💦</span>
