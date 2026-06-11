@@ -1224,6 +1224,13 @@ const NTFY_TOPIC = 'house-mon-3c71991b6ec8eb3fa5abe3f5c42ff3d9'; // ランダム
 const SOIL_CHANNEL_ID = 100374;             // 土壌4in1専用チャンネル
 const SOIL_READ_KEY   = '6666ecc0f1ccd2f4'; // 土壌4in1ReadKey
 
+// ===== Supabase (プライマリデータソース / 脱 Ambient) =====
+//   ESP32 各ユニットが pepper-advisor の Supabase (environment_log) へ直接送信し、
+//   このページは get_environment_recent RPC で読む。
+//   Supabase が空 or エラーの場合のみ従来の Ambient へフォールバック。
+const SUPABASE_URL      = 'https://gjagzyexefnxnkbgueza.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_xYtXkjyYBkBkIIdSc0WJEw_MwzCF7bK';
+
 let chartMode = 'temp';
 
 // グラフ表示期間（48時間・横スクロール）
@@ -3087,77 +3094,146 @@ async function fetchTodayData() {
   }
 }
 
+// ===== Supabase から直近データ取得 → Ambient 互換形式へ変換 =====
+//   environment_log の行 (device_id 毎) を、既存コードが期待する
+//   Ambient レコード形式に写像する:
+//     esp32_01 → env  {created, d1:気温, d2:湿度}   (北側)
+//     esp32_02 → env  {created, d4:気温, d5:湿度}   (南側)
+//     esp32_04 → env  {created, d7:CO2}
+//     esp32_03 → soil {created, d1:地温, d2:水分, d3:EC, d4:pH}
+//   RPC は recorded_at desc で返すので、Ambient 同様「新しい順」のまま。
+async function fetchSupabaseRecent(hours) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_environment_recent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ p_hours: hours }),
+  });
+  if (!res.ok) throw new Error('Supabase RPC error: ' + res.status);
+  const rows = await res.json();
+
+  const num = (v) => (v == null ? null : Number(v));
+  const env = [];
+  const soil = [];
+  for (const r of rows) {
+    const created = r.recorded_at;
+    if (r.device_id === 'esp32_01') {
+      const o = { created };
+      if (r.temperature_c != null) o.d1 = num(r.temperature_c);
+      if (r.humidity_pct  != null) o.d2 = num(r.humidity_pct);
+      if (o.d1 !== undefined || o.d2 !== undefined) env.push(o);
+    } else if (r.device_id === 'esp32_02') {
+      const o = { created };
+      if (r.temperature_c != null) o.d4 = num(r.temperature_c);
+      if (r.humidity_pct  != null) o.d5 = num(r.humidity_pct);
+      if (o.d4 !== undefined || o.d5 !== undefined) env.push(o);
+    } else if (r.device_id === 'esp32_04') {
+      if (r.co2_ppm != null) env.push({ created, d7: num(r.co2_ppm) });
+    } else if (r.device_id === 'esp32_03') {
+      const o = { created };
+      if (r.soil_temp_c       != null) o.d1 = num(r.soil_temp_c);
+      if (r.soil_moisture_pct != null) o.d2 = num(r.soil_moisture_pct);
+      if (r.soil_ec_us        != null) o.d3 = num(r.soil_ec_us);
+      if (r.soil_ph           != null) o.d4 = num(r.soil_ph);
+      if (o.d1 !== undefined || o.d2 !== undefined || o.d3 !== undefined || o.d4 !== undefined) soil.push(o);
+    }
+  }
+  return { env, soil };
+}
+
 async function fetchData() {
   const btn = document.getElementById('refreshBtn');
   btn.disabled = true; btn.textContent = '取得中...';
 
   try {
-    // 24時間分のデータを取得
-    // Ambient API は start/end を「日本時間」で受け取る（YYYY-mm-dd HH:MM:SS形式）
-    // 公式仕様: https://ambidata.io/refs/node-js/
-    const now = new Date();
-    const jstNow = new Date(now.getTime() + 9 * 60 * 60000);
-    const jstFrom = new Date(jstNow.getTime() - CHART_HOURS * 60 * 60000);
-    const fmtJST = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
-    const startStr = fmtJST(jstFrom);
-    const endStr   = fmtJST(jstNow);
+    // ===== ① Supabase (プライマリ) =====
+    let data = [];
+    let soilData = [];
+    let fromSupabase = false;
+    try {
+      const sb = await fetchSupabaseRecent(CHART_HOURS);
+      if (sb.env.length > 0 || sb.soil.length > 0) {
+        data = sb.env;
+        soilData = sb.soil;
+        fromSupabase = true;
+        console.log(`📦 Supabase取得: env=${data.length} / soil=${soilData.length}`);
+      } else {
+        console.warn('📦 Supabase にデータなし → Ambient フォールバック');
+      }
+    } catch (e) {
+      console.warn('📦 Supabase取得失敗 → Ambient フォールバック:', e);
+    }
 
-    // 5分間隔で24時間 = 288点。余裕を見て 500件取得
-    const fetchN = 500;
+    // ===== ② Ambient (フォールバック) =====
+    if (!fromSupabase) {
+      // Ambient API は start/end を「日本時間」で受け取る（YYYY-mm-dd HH:MM:SS形式）
+      // 公式仕様: https://ambidata.io/refs/node-js/
+      const now = new Date();
+      const jstNow = new Date(now.getTime() + 9 * 60 * 60000);
+      const jstFrom = new Date(jstNow.getTime() - CHART_HOURS * 60 * 60000);
+      const fmtJST = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
+      const startStr = fmtJST(jstFrom);
+      const endStr   = fmtJST(jstNow);
 
-    // ★Ambient正しいパラメータ名: start / end （from/to ではない！）
-    const url = `https://ambidata.io/api/v2/channels/${CHANNEL_ID}/data`
-      + `?readKey=${READ_KEY}`
-      + `&start=${encodeURIComponent(startStr)}`
-      + `&end=${encodeURIComponent(endStr)}`
-      + `&n=${fetchN}`;
-    console.log('🔄 fetchData 24h start='+startStr+' / end='+endStr);
+      // 5分間隔で24時間 = 288点。余裕を見て 500件取得
+      const fetchN = 500;
 
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('API error: ' + res.status);
-    let data = await res.json();
-    if (!data || data.length === 0) throw new Error('no data');
+      // ★Ambient正しいパラメータ名: start / end （from/to ではない！）
+      const url = `https://ambidata.io/api/v2/channels/${CHANNEL_ID}/data`
+        + `?readKey=${READ_KEY}`
+        + `&start=${encodeURIComponent(startStr)}`
+        + `&end=${encodeURIComponent(endStr)}`
+        + `&n=${fetchN}`;
+      console.log('🔄 fetchData(Ambient) 24h start='+startStr+' / end='+endStr);
 
-    // 念のためクライアント側でも期間フィルタ
-    const fromTimeUTC = jstFrom.getTime() - 9 * 60 * 60000;
-    data = data.filter(d => {
-      const raw = d.created_at || d.created;
-      if (!raw) return false;
-      return new Date(raw).getTime() >= fromTimeUTC;
-    });
-    console.log('📊 取得件数: '+data.length);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('API error: ' + res.status);
+      let adata = await res.json();
+      if (!adata || adata.length === 0) throw new Error('no data');
+
+      // 念のためクライアント側でも期間フィルタ
+      const fromTimeUTC = jstFrom.getTime() - 9 * 60 * 60000;
+      data = adata.filter(d => {
+        const raw = d.created_at || d.created;
+        if (!raw) return false;
+        return new Date(raw).getTime() >= fromTimeUTC;
+      });
+
+      // ===== 土壌専用チャンネル(SEN0604)を並行fetch =====
+      if (SOIL_CHANNEL_ID > 0 && SOIL_READ_KEY) {
+        try {
+          const soilUrl = `https://ambidata.io/api/v2/channels/${SOIL_CHANNEL_ID}/data`
+            + `?readKey=${SOIL_READ_KEY}`
+            + `&start=${encodeURIComponent(startStr)}`
+            + `&end=${encodeURIComponent(endStr)}`
+            + `&n=${fetchN}`;
+          console.log('🌱 fetchSoilData(Ambient) 24h start='+startStr+' / end='+endStr);
+          const soilRes = await fetch(soilUrl);
+          if (soilRes.ok) {
+            let sd = await soilRes.json();
+            soilData = (sd || []).filter(d => {
+              const raw = d.created_at || d.created;
+              if (!raw) return false;
+              return new Date(raw).getTime() >= fromTimeUTC;
+            });
+            console.log('🌱 土壌取得件数: '+soilData.length);
+          } else {
+            console.warn('🌱 土壌チャンネル取得失敗: ' + soilRes.status);
+          }
+        } catch (e) {
+          console.warn('🌱 土壌チャンネル取得エラー:', e);
+        }
+      } else {
+        console.log('🌱 土壌チャンネル未設定（SOIL_CHANNEL_ID/SOIL_READ_KEYを設定してください）');
+      }
+    }
+
+    console.log('📊 取得件数: env='+data.length+' / soil='+soilData.length);
     if (data.length === 0) throw new Error('no data in range');
 
     const latest = data[0];
-
-    // ===== 土壌専用チャンネル(SEN0604)を並行fetch =====
-    let soilData = [];
-    if (SOIL_CHANNEL_ID > 0 && SOIL_READ_KEY) {
-      try {
-        const soilUrl = `https://ambidata.io/api/v2/channels/${SOIL_CHANNEL_ID}/data`
-          + `?readKey=${SOIL_READ_KEY}`
-          + `&start=${encodeURIComponent(startStr)}`
-          + `&end=${encodeURIComponent(endStr)}`
-          + `&n=${fetchN}`;
-        console.log('🌱 fetchSoilData 24h start='+startStr+' / end='+endStr);
-        const soilRes = await fetch(soilUrl);
-        if (soilRes.ok) {
-          let sd = await soilRes.json();
-          soilData = (sd || []).filter(d => {
-            const raw = d.created_at || d.created;
-            if (!raw) return false;
-            return new Date(raw).getTime() >= fromTimeUTC;
-          });
-          console.log('🌱 土壌取得件数: '+soilData.length);
-        } else {
-          console.warn('🌱 土壌チャンネル取得失敗: ' + soilRes.status);
-        }
-      } catch (e) {
-        console.warn('🌱 土壌チャンネル取得エラー:', e);
-      }
-    } else {
-      console.log('🌱 土壌チャンネル未設定（SOIL_CHANNEL_ID/SOIL_READ_KEYを設定してください）');
-    }
 
     // ===== 2センサー対応：各センサーの状態を判定 =====
     // updateAllSensorsを先に呼び、各センサーのオンライン状態を取得
