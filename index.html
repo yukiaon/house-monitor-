@@ -156,6 +156,13 @@ body {
 .offline-icon { font-size: 1.6rem; }
 .offline-text h3 { font-size: 0.9rem; font-weight: 600; color: var(--accent-red); margin-bottom: 2px; }
 .offline-text p { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4; }
+/* 停止センサーの診断表示（原因のあたりをつけるためのもの） */
+.offline-banner { align-items: flex-start; }
+.diag-item { margin-top: 8px; }
+.diag-item:first-child { margin-top: 2px; }
+.diag-head   { font-size: 0.78rem; font-weight: 600; color: var(--text-primary); }
+.diag-cause  { font-size: 0.74rem; color: var(--text-secondary); line-height: 1.45; margin-top: 2px; }
+.diag-action { font-size: 0.74rem; color: var(--accent-red); line-height: 1.45; margin-top: 1px; }
 
 /* メトリクス */
 .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -2800,8 +2807,9 @@ function updateOneSensor(key, lastTime) {
       const elapsedStr = diffMin >= 60
         ? Math.floor(diffMin / 60) + '時間以上'
         : Math.round(diffMin) + '分';
+      const d = diagnoseSensor(key);
       sendNtfy('📵 ' + label + ' 停止',
-        label + 'の最終受信から' + elapsedStr + '経過。電池切れの可能性があります。',
+        label + 'の最終受信から' + elapsedStr + '経過。' + d.cause + '。→ ' + d.action,
         'urgent');
       notifiedLevels[key] = 2;
     }
@@ -2837,32 +2845,59 @@ function updateAllSensors(data, soilData) {
   return { unit1: r1, unit2: r2, soil: rs, co2: rc };
 }
 
-// バナーに「どのセンサーが落ちているか」をまとめて表示
+// 「〜前」を読みやすく (48時間以上は日数で言う)
+function formatSince(diffMin) {
+  if (!isFinite(diffMin)) return '';
+  if (diffMin < 60)   return Math.round(diffMin) + '分';
+  if (diffMin < 1440) return Math.round(diffMin / 60) + '時間';
+  return Math.floor(diffMin / 1440) + '日';
+}
+
+// バナーに「どのセンサーが、なぜ落ちていそうか」をまとめて表示
 function updateOfflineBanner(results) {
   const banner = document.getElementById('offlineBanner');
   const title  = document.getElementById('offlineTitle');
   const msg    = document.getElementById('offlineMsg');
 
-  const offlineList = [];
+  const items = [];
+  let hasError = false;
+
   for (const key of SENSOR_KEYS) {
     const r = results[key];
-    if (r.state === 'warn' || r.state === 'error') {
-      const elapsedStr = formatElapsed(r.diffMin);
-      const stateMark = r.state === 'error' ? '📵' : '⚠️';
-      offlineList.push(`${stateMark} ${SENSOR_LABELS[key]}（${elapsedStr}前）`);
+    if (!r || r.state === 'ok') continue;
+
+    // スマホで折り返さないよう、見出しは短くする
+    const name = SENSOR_NAMES[key];
+    let head;
+    if (r.state === 'idle') {
+      // 48時間以上さかのぼっても1件も無い = いちばん重症。今まで埋もれていた状態
+      hasError = true;
+      head = `📵 ${name} — 2日以上データなし`;
+    } else if (r.state === 'error') {
+      hasError = true;
+      head = `📵 ${name} — ${formatSince(r.diffMin)}前から停止`;
+    } else {
+      head = `⚠️ ${name} — ${formatSince(r.diffMin)}未受信`;
     }
+
+    const d = diagnoseSensor(key);
+    items.push(
+      '<div class="diag-item">' +
+        `<div class="diag-head">${head}</div>` +
+        `<div class="diag-cause">${d.cause}</div>` +
+        `<div class="diag-action">→ ${d.action}</div>` +
+      '</div>'
+    );
   }
 
-  if (offlineList.length === 0) {
+  if (items.length === 0) {
     banner.classList.remove('show');
     return;
   }
 
   banner.classList.add('show');
-  // タイトル：最重度に合わせる
-  const hasError = Object.values(results).some(r => r.state === 'error');
-  title.textContent = hasError ? '📵 センサーが停止しています' : '⚠️ データが途切れています';
-  msg.innerHTML = offlineList.join('<br>');
+  title.textContent = hasError ? '📵 センサーが止まっています' : '⚠️ データが途切れています';
+  msg.innerHTML = items.join('');
 }
 
 function clearSensorValues() {
@@ -3094,6 +3129,91 @@ async function fetchTodayData() {
   }
 }
 
+// ===== センサーが止まった原因を診断ログから読み解く =====
+// ESP32 は起動のたびに「なぜ再起動したか」「前回どこで止まったか」「センサーは
+// 読めたか」を送っている (device_health_log)。その最後の1件を見れば、
+// ハウスまで見に行く前に当たりをつけられる。
+const DEVICE_BY_KEY = { unit1: 'esp32_01', unit2: 'esp32_02', soil: 'esp32_03', co2: 'esp32_04' };
+let deviceHealth = {};   // key → 最新の診断レコード
+
+async function fetchDeviceHealth() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_device_health_recent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      // 14日ぶん取る。止まってから日が経っていても最後の1件を拾うため
+      body: JSON.stringify({ p_hours: 336 }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();          // recorded_at の新しい順
+    const byDevice = {};
+    for (const r of rows) if (!byDevice[r.device_id]) byDevice[r.device_id] = r;
+    const out = {};
+    for (const key of SENSOR_KEYS) {
+      const h = byDevice[DEVICE_BY_KEY[key]];
+      if (h) out[key] = h;
+    }
+    deviceHealth = out;
+    console.log('🩺 診断ログ:', Object.keys(out).join(',') || 'なし');
+  } catch (e) {
+    deviceHealth = {};
+    console.log('診断ログの取得に失敗:', e.message);
+  }
+}
+
+// 診断レコードから「おおよその原因」と「まず何を見るか」を返す
+function diagnoseSensor(key) {
+  const h = deviceHealth[key];
+  if (!h) return { cause: '原因は分かりません', action: '本体を確認してください' };
+
+  const reset = h.reset_reason || '';
+  const stage = h.last_stage || '';
+  const err   = h.sensor_err || '';
+
+  if (reset === 'BROWNOUT') return {
+    cause: '電源が弱っているようです',
+    action: 'アダプタとケーブルを確認',
+  };
+  if (['TASK_WDT', 'INT_WDT', 'WDT', 'PANIC', 'CPU_LOCKUP'].includes(reset)) {
+    const where = { sensor: 'センサーを読む途中', wifi: 'Wi-Fiにつなぐ途中', send: 'データを送る途中' }[stage];
+    return {
+      cause: (where ? where + 'で' : '') + '本体が固まっていたようです',
+      action: stage === 'sensor' ? 'センサーの配線を確認' : '一度電源を入れ直す',
+    };
+  }
+  if (h.sensor_ok === false) {
+    if (err === 'not_found') return {
+      cause: '本体は動いていますが、センサーが見つかりません',
+      action: '配線が抜けていないか確認',
+    };
+    if (err === 'read_fail') return {
+      cause: 'センサーの接触が悪いようです',
+      action: '配線を締め直す',
+    };
+    if (err.endsWith('_init_fail')) return {
+      cause: 'センサーが反応していません',
+      action: '配線と電源を確認',
+    };
+    return { cause: 'センサーを読めていません', action: '配線と電源を確認' };
+  }
+  if (stage === 'wifi' || (h.wifi_fail || 0) > 0) return {
+    cause: 'Wi-Fiにつながっていないようです',
+    action: 'ルーターの電源を確認',
+  };
+  if (stage === 'send' || (h.send_fail || 0) > 0) return {
+    cause: 'データを送れていないようです',
+    action: '回線の一時的な不調かもしれません',
+  };
+  if (h.rssi != null && h.rssi <= -80) return {
+    cause: '電波が弱く、届かなくなったようです',
+    action: '設置場所を見直す',
+  };
+  return {
+    cause: '最後までは正常でした。たぶん電源が切れています',
+    action: 'コンセントと配線を確認',
+  };
+}
+
 // ===== Supabase から直近データ取得 → Ambient 互換形式へ変換 =====
 //   environment_log の行 (device_id 毎) を、既存コードが期待する
 //   Ambient レコード形式に写像する:
@@ -3237,6 +3357,7 @@ async function fetchData() {
 
     // ===== 2センサー対応：各センサーの状態を判定 =====
     // updateAllSensorsを先に呼び、各センサーのオンライン状態を取得
+    await fetchDeviceHealth();   // 停止の原因を言えるように、診断ログも取っておく
     const sensorResults = updateAllSensors(data, soilData);
     const u1Online = sensorResults.unit1.state === 'ok';
     const u2Online = sensorResults.unit2.state === 'ok';
@@ -3516,7 +3637,7 @@ async function fetchData() {
     document.getElementById('lastUpdate').textContent = '最終更新: 取得失敗';
     drawChart([], '#ff6b35', '℃');
     document.getElementById('offlineTitle').textContent = 'データ取得失敗';
-    document.getElementById('offlineMsg').textContent = 'Ambientへの接続に失敗しました。ネットワーク状態を確認してください。';
+    document.getElementById('offlineMsg').textContent = 'データの取得に失敗しました。ネットワーク状態を確認してください。';
     document.getElementById('offlineBanner').classList.add('show');
   }
 
