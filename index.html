@@ -2953,9 +2953,10 @@ function getWeatherInfo(code) {
 }
 
 async function fetchWeather() {
-  // 国富町の緯度経度
-  const lat = 31.9167;
-  const lon = 131.2167;
+  // 農園（国富町向高175）の緯度経度。参謀 farm-profile.ts と同じ値
+  // ※ 以前は町の代表点 (31.9167, 131.2167) で、農園から約10km ずれていた
+  const lat = 31.9876;
+  const lon = 131.2916;
   try {
     // ★JMA Seamless モデル使用（日本特化・5km解像度MSM + 11日先GSM）
     // ★降水量・降水時間も追加して「晴れ予報なのに雨」のチェックができるように
