@@ -144,6 +144,13 @@ body {
 }
 
 /* オフラインバナー */
+.weather-week { display: flex; gap: 6px; overflow-x: auto; margin-top: 12px; padding-bottom: 2px; }
+.weather-week .wd { flex: 0 0 auto; min-width: 54px; text-align: center; padding: 6px 4px; border-radius: 10px; background: rgba(120,120,128,0.06); }
+.weather-week .wd-day { font-size: 0.6rem; font-weight: 600; color: var(--text-secondary); }
+.weather-week .wd-icon { font-size: 1.25rem; line-height: 1.3; }
+.weather-week .wd-temp { font-size: 0.66rem; font-weight: 600; font-family: 'DM Mono', monospace; }
+.weather-week .wd-temp span { color: var(--text-tertiary); font-weight: 400; }
+.weather-week .wd-rain { font-size: 0.58rem; color: #4a7ab5; min-height: 12px; }
 .offline-banner {
   display: none;
   background: rgba(255,59,48,0.08);
@@ -1176,8 +1183,8 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
   <!-- 天気情報 -->
   <div class="card" id="weatherCard" style="padding:14px 18px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <span style="font-size:0.68rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌤️ 天気予報（国富町）</span>
-      <span style="font-size:0.6rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;">JMA</span>
+      <span style="font-size:0.68rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌤️ 天気予報（農園）</span>
+      <span style="font-size:0.6rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="weatherSource">JMA</span>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="weatherGrid">
       <div style="text-align:center;padding:10px;background:rgba(0,122,255,0.05);border-radius:12px;border:1px solid rgba(0,122,255,0.1);">
@@ -1195,6 +1202,8 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
         <div style="font-size:0.66rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="tomorrowWeatherPrecip">--</div>
       </div>
     </div>
+    <!-- 週間（参謀のホームと同じデータ） -->
+    <div class="weather-week" id="weatherWeek" hidden></div>
   </div>
 
   <!-- 接続情報のみ（コンパクト） -->
@@ -2952,58 +2961,103 @@ function getWeatherInfo(code) {
   return { icon: '🌡️', desc: '不明' };
 }
 
-async function fetchWeather() {
-  // 農園（国富町向高175）の緯度経度。参謀 farm-profile.ts と同じ値
-  // ※ 以前は町の代表点 (31.9167, 131.2167) で、農園から約10km ずれていた
+// 天気予報。参謀アプリと同じ Supabase の weather_daily (migration 0016) を読む。
+// 予報は朝5時・夕方5時に Supabase 側で更新されている。
+// Supabase が読めないときだけ、以前どおり Open-Meteo を直接呼ぶ (表示が消えないように)。
+async function fetchWeatherFromSupabase() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_weather_recent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+    body: JSON.stringify({ p_days: 1 }),
+  });
+  if (!res.ok) throw new Error('get_weather_recent: HTTP ' + res.status);
+  const rows = await res.json();
+  const jst = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+  const days = rows.filter((r) => r.date >= jst).sort((a, b) => a.date.localeCompare(b.date));
+  if (days.length < 2) throw new Error('予報が足りない');
+  return days.map((r) => ({
+    date: r.date,
+    code: r.weather_code == null ? null : Number(r.weather_code),
+    max: r.temp_max_c == null ? null : Number(r.temp_max_c),
+    min: r.temp_min_c == null ? null : Number(r.temp_min_c),
+    precip: r.precipitation_mm == null ? null : Number(r.precipitation_mm),
+    precipHours: r.precipitation_hours == null ? null : Number(r.precipitation_hours),
+  }));
+}
+
+async function fetchWeatherFromOpenMeteo() {
+  // 農園（国富町向高175）の緯度経度。参謀 farm-profile.ts・Supabase 0016 と同じ値
   const lat = 31.9876;
   const lon = 131.2916;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+    + `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_hours`
+    + `&models=jma_seamless`
+    + `&timezone=Asia%2FTokyo&forecast_days=7`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('weather API error');
+  const d = (await res.json()).daily;
+  return d.time.map((date, i) => ({
+    date,
+    code: d.weathercode[i],
+    max: d.temperature_2m_max[i],
+    min: d.temperature_2m_min[i],
+    precip: d.precipitation_sum?.[i] ?? null,
+    precipHours: d.precipitation_hours?.[i] ?? null,
+  }));
+}
+
+function renderWeatherDay(prefix, w) {
+  const info = getWeatherInfo(w.code);
+  document.getElementById(prefix + 'WeatherIcon').textContent = info.icon;
+  document.getElementById(prefix + 'WeatherDesc').textContent = info.desc;
+  document.getElementById(prefix + 'WeatherTemp').textContent =
+    `${w.max == null ? '--' : Math.round(w.max)}℃ / ${w.min == null ? '--' : Math.round(w.min)}℃`;
+  document.getElementById(prefix + 'WeatherPrecip').textContent = formatPrecip(w.precip, w.precipHours);
+}
+
+function renderWeatherWeek(days) {
+  const el = document.getElementById('weatherWeek');
+  if (!el) return;
+  const week = ['日', '月', '火', '水', '木', '金', '土'];
+  el.innerHTML = days.slice(0, 7).map((w, i) => {
+    const dt = new Date(w.date + 'T00:00:00');
+    const label = i === 0 ? '今日' : i === 1 ? '明日' : `${dt.getMonth() + 1}/${dt.getDate()}(${week[dt.getDay()]})`;
+    const info = getWeatherInfo(w.code);
+    const rain = w.precip != null && w.precip >= 1 ? `💧${Math.round(w.precip)}mm` : '';
+    return `<div class="wd"><div class="wd-day">${label}</div><div class="wd-icon" title="${info.desc}">${info.icon}</div>`
+      + `<div class="wd-temp">${w.max == null ? '--' : Math.round(w.max)}<span>/${w.min == null ? '--' : Math.round(w.min)}</span></div>`
+      + `<div class="wd-rain">${rain}</div></div>`;
+  }).join('');
+  el.hidden = days.length === 0;
+}
+
+async function fetchWeather() {
+  let days;
   try {
-    // ★JMA Seamless モデル使用（日本特化・5km解像度MSM + 11日先GSM）
-    // ★降水量・降水時間も追加して「晴れ予報なのに雨」のチェックができるように
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
-      + `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_hours`
-      + `&models=jma_seamless`
-      + `&timezone=Asia%2FTokyo&forecast_days=2`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('weather API error');
-    const data = await res.json();
-
-    const days = data.daily;
-
-    // 今日
-    const todayCode = days.weathercode[0];
-    const todayMax  = Math.round(days.temperature_2m_max[0]);
-    const todayMin  = Math.round(days.temperature_2m_min[0]);
-    const todayPrecip = days.precipitation_sum?.[0] ?? null;
-    const todayPrecipHours = days.precipitation_hours?.[0] ?? null;
-    const todayInfo = getWeatherInfo(todayCode);
-    document.getElementById('todayWeatherIcon').textContent = todayInfo.icon;
-    document.getElementById('todayWeatherDesc').textContent = todayInfo.desc;
-    document.getElementById('todayWeatherTemp').textContent = `${todayMax}℃ / ${todayMin}℃`;
-    document.getElementById('todayWeatherPrecip').textContent = formatPrecip(todayPrecip, todayPrecipHours);
-
-    // 明日
-    const tmrCode = days.weathercode[1];
-    const tmrMax  = Math.round(days.temperature_2m_max[1]);
-    const tmrMin  = Math.round(days.temperature_2m_min[1]);
-    const tmrPrecip = days.precipitation_sum?.[1] ?? null;
-    const tmrPrecipHours = days.precipitation_hours?.[1] ?? null;
-    const tmrInfo = getWeatherInfo(tmrCode);
-    document.getElementById('tomorrowWeatherIcon').textContent = tmrInfo.icon;
-    document.getElementById('tomorrowWeatherDesc').textContent = tmrInfo.desc;
-    document.getElementById('tomorrowWeatherTemp').textContent = `${tmrMax}℃ / ${tmrMin}℃`;
-    document.getElementById('tomorrowWeatherPrecip').textContent = formatPrecip(tmrPrecip, tmrPrecipHours);
-
-    // 天気情報をlatestStateに保存してアドバイス再生成
-    latestState.todayWeather    = { code: todayCode, max: todayMax, min: todayMin, precip: todayPrecip };
-    latestState.tomorrowWeather = { code: tmrCode,   max: tmrMax,   min: tmrMin,   precip: tmrPrecip   };
-    // センサーデータがあればアドバイス再描画
-    if (latestState.vpd !== null) renderAdvice();
-
-  } catch(e) {
-    document.getElementById('todayWeatherDesc').textContent = '取得失敗';
-    document.getElementById('tomorrowWeatherDesc').textContent = '取得失敗';
+    days = await fetchWeatherFromSupabase();
+    document.getElementById('weatherSource').textContent = 'JMA · 参謀と共通';
+  } catch (e) {
+    console.log('天気: Supabase から取れず Open-Meteo に切り替え:', e.message);
+    try {
+      days = await fetchWeatherFromOpenMeteo();
+      document.getElementById('weatherSource').textContent = 'JMA · 直接取得';
+    } catch (e2) {
+      document.getElementById('todayWeatherDesc').textContent = '取得失敗';
+      document.getElementById('tomorrowWeatherDesc').textContent = '取得失敗';
+      return;
+    }
   }
+
+  const [today, tomorrow] = days;
+  renderWeatherDay('today', today);
+  renderWeatherDay('tomorrow', tomorrow);
+  renderWeatherWeek(days);
+
+  // 天気情報をlatestStateに保存してアドバイス再生成
+  latestState.todayWeather    = { code: today.code,    max: Math.round(today.max),    min: Math.round(today.min),    precip: today.precip };
+  latestState.tomorrowWeather = { code: tomorrow.code, max: Math.round(tomorrow.max), min: Math.round(tomorrow.min), precip: tomorrow.precip };
+  // センサーデータがあればアドバイス再描画
+  if (latestState.vpd !== null) renderAdvice();
 }
 
 // 降水量フォーマット（0なら表示なし、>0なら「☔ 1.2mm/3h」など）
@@ -3268,6 +3322,7 @@ async function fetchData() {
   const btn = document.getElementById('refreshBtn');
   btn.disabled = true; btn.textContent = '取得中...';
 
+  let supabaseEmpty = false;   // Supabase は読めたが直近にデータが無い (= 全センサー停止) を区別する
   try {
     // ===== ① Supabase (プライマリ) =====
     let data = [];
@@ -3281,7 +3336,8 @@ async function fetchData() {
         fromSupabase = true;
         console.log(`📦 Supabase取得: env=${data.length} / soil=${soilData.length}`);
       } else {
-        console.warn('📦 Supabase にデータなし → Ambient フォールバック');
+        supabaseEmpty = true;
+        console.warn('📦 Supabase に直近データなし (全センサー停止?) → Ambient フォールバック');
       }
     } catch (e) {
       console.warn('📦 Supabase取得失敗 → Ambient フォールバック:', e);
@@ -3632,14 +3688,20 @@ async function fetchData() {
 
   } catch(e) {
     // データ取得自体が失敗 → 全センサーをidle/未受信扱い、メイン表示もクリア
-    updateAllSensors([], []);
+    await fetchDeviceHealth();   // 止まった原因を言えるように診断ログを先に取る
+    updateAllSensors([], []);    // → 4台とも「2日以上データなし + 原因」のバナーになる
     updateMainMetrics(NaN, NaN, NaN, NaN, false, false);
     updateAllTrends([], []);
-    document.getElementById('lastUpdate').textContent = '最終更新: 取得失敗';
     drawChart([], '#ff6b35', '℃');
-    document.getElementById('offlineTitle').textContent = 'データ取得失敗';
-    document.getElementById('offlineMsg').textContent = 'データの取得に失敗しました。ネットワーク状態を確認してください。';
-    document.getElementById('offlineBanner').classList.add('show');
+    if (supabaseEmpty) {
+      // 通信は生きていて、単に全センサーが止まっている。バナーは updateAllSensors の診断表示をそのまま使う
+      document.getElementById('lastUpdate').textContent = '最終更新: 直近3日にデータなし';
+    } else {
+      document.getElementById('lastUpdate').textContent = '最終更新: 取得失敗';
+      document.getElementById('offlineTitle').textContent = 'データ取得失敗';
+      document.getElementById('offlineMsg').textContent = 'データの取得に失敗しました。ネットワーク状態を確認してください。';
+      document.getElementById('offlineBanner').classList.add('show');
+    }
   }
 
   btn.disabled = false; btn.textContent = 'データを更新';
