@@ -1827,6 +1827,7 @@ const EVENT_STYLE = {
   fert:  { icon: '🌱', color: '#1d7a3a', label: '施肥' },
   pest:  { icon: '🐛', color: '#ff9500', label: '病害虫' },
   water: { icon: '💧', color: '#007aff', label: '灌水' },
+  leaf:  { icon: '🌿', color: '#30a46c', label: '葉水' },
 };
 let chartEvents = [];   // { kind, time: Date, text }
 
@@ -1858,18 +1859,21 @@ async function fetchIrrigationEvents() {
       body: JSON.stringify({ p_days: 4 }),
     });
     if (!res.ok) return [];
-    // 同じ日・同じ時間帯のものは1つの印にまとめる (パイプ5分 + 5分 + 手灌水 など)
+    // 時刻が入っていればその時刻に、無ければ 午前=9時 / 午後=15時 に置く (目安)。
+    // 同じ位置・同じ種類のものは1つの印にまとめる (パイプ灌水 5分+5分・手灌水 など)
     const groups = new Map();
     (await res.json()).forEach(r => {
-      const key = `${r.date}|${r.period}`;
-      if (!groups.has(key)) groups.set(key, { date: r.date, period: r.period, pipe: [], hand: [] });
-      groups.get(key)[r.kind === 'hand_irrigate' ? 'hand' : 'pipe'].push(r.detail || '');
+      const leaf = r.kind === 'leaf_water';
+      const hhmm = r.at_time || (r.period === 'pm' ? '15:00' : '09:00');
+      const key = `${r.date}|${hhmm}|${leaf ? 'leaf' : 'water'}|${r.at_time ? 't' : 'a'}`;
+      if (!groups.has(key)) groups.set(key, { date: r.date, period: r.period, hhmm, exact: !!r.at_time, leaf, pipe: [], hand: [], leafs: [] });
+      groups.get(key)[leaf ? 'leafs' : r.kind === 'hand_irrigate' ? 'hand' : 'pipe'].push(r.detail || '');
     });
-    // 「パイプ灌水 5分+5分・手灌水 東棟 株元」の形にまとめる
     const label = (name, details) => details.length === 0 ? '' : `${name} ${details.filter(Boolean).join('+')}`.trim();
     return [...groups.values()].map(g => {
-      const time = new Date(`${String(g.date).slice(0, 10)}T${g.period === 'pm' ? '15' : '09'}:00:00`);
-      return { kind: 'water', time: isNaN(time) ? null : time, approx: true, text: `${g.period === 'pm' ? '午後' : '午前'}　${[label('パイプ灌水', g.pipe), label('手灌水', g.hand)].filter(Boolean).join('・')}` };
+      const time = new Date(`${String(g.date).slice(0, 10)}T${g.hhmm}:00`);
+      const what = g.leaf ? (g.leafs.filter(Boolean).join('・')) : [label('パイプ灌水', g.pipe), label('手灌水', g.hand)].filter(Boolean).join('・');
+      return { kind: g.leaf ? 'leaf' : 'water', time: isNaN(time) ? null : time, approx: !g.exact, text: `${g.exact ? '' : (g.period === 'pm' ? '午後　' : '午前　')}${what}`.trim() };
     });
   } catch (e) {
     return [];
@@ -1901,11 +1905,11 @@ async function fetchChartEvents() {
     chartEvents = out;
   } catch (e) {
     console.warn('作業の印を取得できませんでした:', e && e.message);
-    chartEvents = chartEvents.filter(e => e.kind !== 'water');
+    chartEvents = chartEvents.filter(e => e.kind === 'water' || e.kind === 'leaf');  // 作業側が失敗しても灌水の印は残す
   }
   // 灌水は別の DB。片方が失敗しても、もう片方は出す
   const water = await fetchIrrigationEvents();
-  chartEvents = [...chartEvents.filter(e => e.kind !== 'water'), ...water].filter(e => e.time).sort((a, b) => a.time - b.time);
+  chartEvents = [...chartEvents.filter(e => e.kind !== 'water' && e.kind !== 'leaf'), ...water].filter(e => e.time).sort((a, b) => a.time - b.time);
   renderChartEvents();
 }
 
