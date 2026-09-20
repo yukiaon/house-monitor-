@@ -3069,46 +3069,27 @@ function formatPrecip(mm, hours) {
 }
 
 async function fetchTodayData() {
-  // 今日0:00〜現在のデータを取得して最高・最低を計算
-  // AmbientはJST（日本時間）で日時指定する
+  // 今日 0:00 (JST) 〜現在のデータから最高・最低を計算する。
+  // 以前は Ambient を読んでいたが、センサーは Supabase 直送に変わったので
+  // ほかの表示と同じ get_environment_recent から読む。
+  const jstDateOf = (t) => {
+    const j = new Date(t.getTime() + 9 * 60 * 60000);
+    return j.getUTCFullYear() + '-'
+      + String(j.getUTCMonth() + 1).padStart(2, '0') + '-'
+      + String(j.getUTCDate()).padStart(2, '0');
+  };
   const now = new Date();
-  const jstOffset = 9 * 60; // JST = UTC+9
-  const nowJST = new Date(now.getTime() + jstOffset * 60000);
-
-  const y = nowJST.getUTCFullYear();
-  const m = String(nowJST.getUTCMonth() + 1).padStart(2, '0');
-  const d = String(nowJST.getUTCDate()).padStart(2, '0');
-
-  const fromStr = `${y}-${m}-${d} 00:00:00`;
-  const toStr   = `${y}-${m}-${d} 23:59:59`;
-  const dateStr = `${y}-${m}-${d}`;
+  const todayDateStr = jstDateOf(now);
+  const nowJST = new Date(now.getTime() + 9 * 60 * 60000);
+  // JST の 0:00 から今までの時間数 (切り上げ)。RPC は時間単位なので少し多めに取り、下で今日分だけに絞る
+  const hoursSinceMidnight = Math.max(1, Math.ceil(nowJST.getUTCHours() + nowJST.getUTCMinutes() / 60 + 0.1));
 
   try {
-    // date=YYYY-mm-dd パラメータでその日のデータを取得（Ambient公式推奨）
-    const url = `https://ambidata.io/api/v2/channels/${CHANNEL_ID}/data?readKey=${READ_KEY}&date=${dateStr}`;
-    console.log('📅 fetchTodayData URL:', url);
-    console.log('📅 date:', dateStr);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('API error');
-    const data = await res.json();
-    if (!data || data.length === 0) throw new Error('no today data');
+    const sb = await fetchSupabaseRecent(hoursSinceMidnight);
+    const filtered = sb.env.filter(item => item.created && jstDateOf(new Date(item.created)) === todayDateStr);
+    console.log('📅 本日データ: 取得', sb.env.length, '件 / 今日分', filtered.length, '件');
+    if (filtered.length === 0) throw new Error('no today data');
 
-    // 取得データを今日（JST）の日付でフィルタリング ← 昨日以前を除外
-    const todayDateStr = `${y}-${m}-${d}`;
-    const filtered = data.filter(item => {
-      const raw = item.created_at || item.created;
-      if (!raw) return false;
-      const t = new Date(raw);
-      // JSTに変換して日付を確認
-      const tJST = new Date(t.getTime() + 9 * 60 * 60000);
-      const tDate = tJST.getUTCFullYear() + '-'
-        + String(tJST.getUTCMonth() + 1).padStart(2,'0') + '-'
-        + String(tJST.getUTCDate()).padStart(2,'0');
-      return tDate === todayDateStr;
-    });
-    console.log('📅 取得件数:', data.length, '/ 今日分:', filtered.length,
-      '/ 先頭時刻:', data[data.length-1]?.created || data[data.length-1]?.created_at,
-      '/ 末尾時刻:', data[0]?.created || data[0]?.created_at);
     // 2センサー対応：d1とd4の両方から温度を集める（どちらか一方でも記録あれば反映）
     const temps = [];
     const hums  = [];
@@ -3278,16 +3259,24 @@ function diagnoseSensor(key) {
 //     esp32_03 → soil {created, d1:地温, d2:水分, d3:EC, d4:pH}
 //   RPC は recorded_at desc で返すので、Ambient 同様「新しい順」のまま。
 async function fetchSupabaseRecent(hours) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_environment_recent`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify({ p_hours: hours }),
-  });
-  if (!res.ok) throw new Error('Supabase RPC error: ' + res.status);
-  const rows = await res.json();
+  // PostgREST は1回の応答が最大1000行。4台 × 12回/h だと約21時間で超えるので、
+  // 分割して全部取る (切れると古い側 = 早朝のデータが欠け、本日最低がずれる)。
+  const PAGE = 1000;
+  const rows = [];
+  for (let offset = 0; offset < 5000; offset += PAGE) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_environment_recent?limit=${PAGE}&offset=${offset}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ p_hours: hours }),
+    });
+    if (!res.ok) throw new Error('Supabase RPC error: ' + res.status);
+    const page = await res.json();
+    rows.push(...page);
+    if (page.length < PAGE) break;
+  }
 
   const num = (v) => (v == null ? null : Number(v));
   const env = [];
