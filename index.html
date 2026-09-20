@@ -1308,10 +1308,10 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       <div style="font-size:0.88rem;font-weight:500;font-family:'DM Mono',monospace;">RUT241</div>
       <div style="font-size:0.88rem;color:var(--text-secondary);white-space:nowrap;">🌐 回線</div>
       <div style="font-size:0.88rem;font-weight:500;font-family:'DM Mono',monospace;">SORACOM</div>
-      <div style="font-size:0.88rem;color:var(--text-secondary);white-space:nowrap;">📊 環境ch</div>
-      <div style="font-size:0.88rem;font-weight:500;font-family:'DM Mono',monospace;">99929</div>
-      <div style="font-size:0.88rem;color:var(--text-secondary);white-space:nowrap;">🌱 土壌ch</div>
-      <div style="font-size:0.88rem;font-weight:500;font-family:'DM Mono',monospace;" id="soilChDisplay">未設定</div>
+      <div style="font-size:0.88rem;color:var(--text-secondary);white-space:nowrap;">🗄️ 保存先</div>
+      <div style="font-size:0.88rem;font-weight:500;font-family:'DM Mono',monospace;">Supabase 直送</div>
+      <div style="font-size:0.88rem;color:var(--text-secondary);white-space:nowrap;">📟 センサー</div>
+      <div style="font-size:0.88rem;font-weight:500;font-family:'DM Mono',monospace;">4台</div>
       <div style="font-size:0.88rem;color:var(--text-secondary);white-space:nowrap;">⏱️ 送信間隔</div>
       <div style="font-size:0.88rem;font-weight:500;font-family:'DM Mono',monospace;">気温10分／土壌5分</div>
     </div>
@@ -1330,20 +1330,11 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
 </div>
 
 <script>
-const CHANNEL_ID = 99929;
-const READ_KEY = 'd024ac32d02366de';
 const NTFY_TOPIC = 'house-mon-3c71991b6ec8eb3fa5abe3f5c42ff3d9'; // ランダム化（推測不可能なトピック名 = 実質的なアクセス制御）
 
-// ===== 土壌専用Ambientチャンネル (SEN0604 4in1) =====
-//   ★ 新規Ambientチャンネルを作成して、ここに ID と ReadKey を貼り付ける
-//   未設定（0 のまま）でも他の機能は動作する。土壌部分のみ「--」表示。
-const SOIL_CHANNEL_ID = 100374;             // 土壌4in1専用チャンネル
-const SOIL_READ_KEY   = '6666ecc0f1ccd2f4'; // 土壌4in1ReadKey
-
-// ===== Supabase (プライマリデータソース / 脱 Ambient) =====
+// ===== Supabase (データソース) =====
 //   ESP32 各ユニットが pepper-advisor の Supabase (environment_log) へ直接送信し、
 //   このページは get_environment_recent RPC で読む。
-//   Supabase が空 or エラーの場合のみ従来の Ambient へフォールバック。
 const SUPABASE_URL      = 'https://gjagzyexefnxnkbgueza.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_xYtXkjyYBkBkIIdSc0WJEw_MwzCF7bK';
 
@@ -3736,87 +3727,21 @@ async function fetchData() {
 
   let supabaseEmpty = false;   // Supabase は読めたが直近にデータが無い (= 全センサー停止) を区別する
   try {
-    // ===== ① Supabase (プライマリ) =====
+    // ===== Supabase (唯一のデータソース。Ambient は 2026-06 に送信停止、2026-09 に取得処理も撤去) =====
     let data = [];
     let soilData = [];
-    let fromSupabase = false;
     try {
       const sb = await fetchSupabaseRecent(CHART_HOURS);
       if (sb.env.length > 0 || sb.soil.length > 0) {
         data = sb.env;
         soilData = sb.soil;
-        fromSupabase = true;
         console.log(`📦 Supabase取得: env=${data.length} / soil=${soilData.length}`);
       } else {
         supabaseEmpty = true;
-        console.warn('📦 Supabase に直近データなし (全センサー停止?) → Ambient フォールバック');
+        console.warn('📦 Supabase に直近データなし (全センサー停止?)');
       }
     } catch (e) {
-      console.warn('📦 Supabase取得失敗 → Ambient フォールバック:', e);
-    }
-
-    // ===== ② Ambient (フォールバック) =====
-    if (!fromSupabase) {
-      // Ambient API は start/end を「日本時間」で受け取る（YYYY-mm-dd HH:MM:SS形式）
-      // 公式仕様: https://ambidata.io/refs/node-js/
-      const now = new Date();
-      const jstNow = new Date(now.getTime() + 9 * 60 * 60000);
-      const jstFrom = new Date(jstNow.getTime() - CHART_HOURS * 60 * 60000);
-      const fmtJST = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
-      const startStr = fmtJST(jstFrom);
-      const endStr   = fmtJST(jstNow);
-
-      // 5分間隔で24時間 = 288点。余裕を見て 500件取得
-      const fetchN = 500;
-
-      // ★Ambient正しいパラメータ名: start / end （from/to ではない！）
-      const url = `https://ambidata.io/api/v2/channels/${CHANNEL_ID}/data`
-        + `?readKey=${READ_KEY}`
-        + `&start=${encodeURIComponent(startStr)}`
-        + `&end=${encodeURIComponent(endStr)}`
-        + `&n=${fetchN}`;
-      console.log('🔄 fetchData(Ambient) 24h start='+startStr+' / end='+endStr);
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('API error: ' + res.status);
-      let adata = await res.json();
-      if (!adata || adata.length === 0) throw new Error('no data');
-
-      // 念のためクライアント側でも期間フィルタ
-      const fromTimeUTC = jstFrom.getTime() - 9 * 60 * 60000;
-      data = adata.filter(d => {
-        const raw = d.created_at || d.created;
-        if (!raw) return false;
-        return new Date(raw).getTime() >= fromTimeUTC;
-      });
-
-      // ===== 土壌専用チャンネル(SEN0604)を並行fetch =====
-      if (SOIL_CHANNEL_ID > 0 && SOIL_READ_KEY) {
-        try {
-          const soilUrl = `https://ambidata.io/api/v2/channels/${SOIL_CHANNEL_ID}/data`
-            + `?readKey=${SOIL_READ_KEY}`
-            + `&start=${encodeURIComponent(startStr)}`
-            + `&end=${encodeURIComponent(endStr)}`
-            + `&n=${fetchN}`;
-          console.log('🌱 fetchSoilData(Ambient) 24h start='+startStr+' / end='+endStr);
-          const soilRes = await fetch(soilUrl);
-          if (soilRes.ok) {
-            let sd = await soilRes.json();
-            soilData = (sd || []).filter(d => {
-              const raw = d.created_at || d.created;
-              if (!raw) return false;
-              return new Date(raw).getTime() >= fromTimeUTC;
-            });
-            console.log('🌱 土壌取得件数: '+soilData.length);
-          } else {
-            console.warn('🌱 土壌チャンネル取得失敗: ' + soilRes.status);
-          }
-        } catch (e) {
-          console.warn('🌱 土壌チャンネル取得エラー:', e);
-        }
-      } else {
-        console.log('🌱 土壌チャンネル未設定（SOIL_CHANNEL_ID/SOIL_READ_KEYを設定してください）');
-      }
+      console.warn('📦 Supabase取得失敗:', e);
     }
 
     console.log('📊 取得件数: env='+data.length+' / soil='+soilData.length);
@@ -4034,10 +3959,6 @@ async function fetchData() {
     } else {
       document.getElementById('soilTime').textContent = '未受信';
     }
-
-    // 接続情報の土壌ch表示更新
-    const soilChEl = document.getElementById('soilChDisplay');
-    if (soilChEl) soilChEl.textContent = (SOIL_CHANNEL_ID > 0) ? String(SOIL_CHANNEL_ID) : '未設定';
 
     // VPD（飽差）表示：代表温度・湿度から計算（両方オフラインの場合はnull）
     let vpd = null;
