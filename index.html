@@ -624,11 +624,22 @@ canvas#chartYAxis {
 }
 canvas#chart { height: 210px !important; display: block; width: 100% !important; }
 /* グラフのツールチップ (参謀の温度推移と同じ見た目: 縦線 + 各線上の点 + 黒い吹き出し) */
+.humid-run-list { display: grid; gap: 10px; }
+.humid-run-row { display: grid; grid-template-columns: 4.6em 1fr 4.2em; align-items: center; gap: 10px; font-size: 0.95rem; }
+.humid-run-date { color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.humid-run-bar { height: 14px; border-radius: 7px; background: rgba(0,0,0,0.06); overflow: hidden; position: relative; }
+.humid-run-bar::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: rgba(0,0,0,0.25); } /* 8時間の目盛り (16時間幅) */
+.humid-run-fill { height: 100%; border-radius: 7px; background: var(--accent-green); }
+.humid-run-fill.warn { background: var(--accent-orange); }
+.humid-run-fill.danger { background: var(--accent-red); }
+.humid-run-val { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.humid-run-note { margin-top: 14px; font-size: 0.9rem; line-height: 1.6; color: var(--text-primary); }
+.humid-run-note:empty { display: none; }
 .chart-event { position: absolute; width: 0; border-left: 2px dashed var(--ev, #5856d6); pointer-events: none; z-index: 1; opacity: .85; }
 .chart-event-badge { position: absolute; top: -2px; left: -12px; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 1.5px solid var(--ev, #5856d6); display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; }
-.chart-events { margin-top: 10px; display: grid; gap: 6px; }
+.chart-events { margin: 10px 4px 0; display: grid; gap: 6px; }
 .chart-events:empty { display: none; }
-.chart-events-row { display: flex; gap: 8px; align-items: baseline; font-size: 0.85rem; color: var(--text-primary); line-height: 1.45; }
+.chart-events-row { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; font-size: 0.85rem; color: var(--text-primary); line-height: 1.45; }
 .chart-events-time { flex: none; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .chart-cursor-line {
   position: absolute; width: 1px; background: #ccc;
@@ -1114,6 +1125,15 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="chart-info-val" id="chartMin">--</div>
       </div>
     </div>
+  </div>
+
+  <!-- 夜の高湿度: 湿度90%以上が何時間続いたか (灰色かび病などは「濡れたままの長さ」で決まる) -->
+  <div class="card" id="humidRunCard" style="display:none;padding:20px;">
+    <div class="card-head-row"><span class="section-title">💧 夜の高湿度</span></div>
+    <div class="section-sub" style="margin:4px 0 14px;">湿度90%以上が続いた最長時間。8時間を超えると病気が出やすい</div>
+    <div class="humid-run-list" id="humidRunList"></div>
+    <div class="humid-run-note" id="humidRunNote"></div>
+    <div class="section-sub" id="humidRunUpdated" style="margin-top:8px;"></div>
   </div>
 
   <!-- 📚 ピーマン適正値ガイド -->
@@ -1753,6 +1773,56 @@ function drawChart(data, color, unit, retry = 0) {
   }
   restoreChartTip();
   renderChartEvents();
+}
+
+// ===== 夜の高湿度 (日次指標 RPC: get_environment_daily, 参謀と共通) =====
+// 参謀の灰色かび病の判定と同じ数字を見せる。RPC が未適用・失敗ならカードごと出さない。
+async function fetchHumidRuns() {
+  const card = document.getElementById('humidRunCard');
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_environment_daily`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ p_days: 7 }),
+    });
+    if (!res.ok) throw new Error('daily ' + res.status);
+    const rows = (await res.json()).filter(r => Number(r.sample_count) >= 36).slice(0, 7); // 6時間分以上ある日だけ
+    if (rows.length === 0) { card.style.display = 'none'; return; }
+    const list = document.getElementById('humidRunList');
+    list.textContent = '';
+    const WD = ['日', '月', '火', '水', '木', '金', '土'];
+    rows.forEach(r => {
+      const h = Number(r.humid_run_max_hours) || 0;
+      const d = new Date(r.date + 'T00:00:00');
+      const row = document.createElement('div');
+      row.className = 'humid-run-row';
+      const date = document.createElement('span');
+      date.className = 'humid-run-date';
+      date.textContent = `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`;
+      const bar = document.createElement('div');
+      bar.className = 'humid-run-bar';
+      const fill = document.createElement('div');
+      fill.className = 'humid-run-fill' + (h >= 12 ? ' danger' : h >= 8 ? ' warn' : '');
+      fill.style.width = Math.min(100, (h / 16) * 100) + '%';
+      bar.appendChild(fill);
+      const val = document.createElement('span');
+      val.className = 'humid-run-val';
+      val.textContent = h > 0 ? `${h.toFixed(1)}時間` : 'なし';
+      row.append(date, bar, val);
+      list.appendChild(row);
+    });
+    const recent = rows.slice(0, 3).filter(r => Number(r.humid_run_max_hours) >= 8).length;
+    document.getElementById('humidRunNote').textContent =
+      recent >= 2 ? '⚠️ 直近3日で8時間以上の夜が' + recent + '回。灰色かび病が出やすい状態です。朝の換気を早めに、夕方は葉を濡らさない。'
+      : recent === 1 ? '8時間以上の夜が1回ありました。続くようなら朝の換気を早めに。'
+      : '長く湿ったままの夜は続いていません。';
+    const yesterday = rows[1]; // きのう = 1日分そろっている最新の日
+    const dif = yesterday && yesterday.dif_c != null ? `きのうの昼夜の温度差 ${Number(yesterday.dif_c).toFixed(1)}℃` : '';
+    document.getElementById('humidRunUpdated').textContent = dif;
+    card.style.display = '';
+  } catch (e) {
+    card.style.display = 'none'; // 0020 が未適用のあいだは何も出さない
+  }
 }
 
 // ===== グラフに重ねる「作業の印」 =====
@@ -4165,6 +4235,8 @@ window.addEventListener('load', () => {
   fetchTodayData();
   fetchWeather();
   fetchChartEvents();
+  fetchHumidRuns();
+  setInterval(fetchHumidRuns, 1800000); // 日次指標は30分ごと
   setInterval(fetchChartEvents, 600000); // 作業の印は10分ごと
   setInterval(fetchData, 300000);
   setInterval(fetchTodayData, 300000);
