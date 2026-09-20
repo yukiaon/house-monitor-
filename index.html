@@ -285,8 +285,9 @@ small { font-size: 0.8rem; }
 /* 1段目: 名前 (左) と判定 (右) は同じ段に重ねて置く。2段目: 値 (左・幅は中身なり) と 30分前比 (右・狭ければ折れる) */
 .soil-item-head   { grid-row: 1; grid-column: 1 / -1; justify-self: start; }
 .soil-item-status { grid-row: 1; grid-column: 1 / -1; justify-self: end; }
-.soil-item-val    { grid-row: 2; grid-column: 1; white-space: nowrap; }
-.soil-item-trend  { grid-row: 2; grid-column: 2; justify-self: end; justify-content: flex-end; text-align: right; }
+/* 2段目: 大きな値、その下に30分前比 (4項目とも同じ形に揃える) */
+.soil-item-main   { grid-row: 2; grid-column: 1 / -1; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.soil-item-val    { white-space: nowrap; }
 .soil-item::before {
   display: none;   /* スマホの行レイアウトでは右上に判定バッジが来るので飾りは出さない */
   content: ''; position: absolute; top: 0; right: 0;
@@ -306,8 +307,8 @@ small { font-size: 0.8rem; }
 .soil-item-icon { font-size: 1.1rem; }
 .soil-item-val {
   font-family: 'DM Mono', monospace;
-  font-size: 2.2rem; font-weight: 500;
-  letter-spacing: -0.03em; line-height: 1.05;
+  font-size: 3rem; font-weight: 500;
+  letter-spacing: -0.04em; line-height: 1.05;
   font-variant-numeric: tabular-nums;
 }
 .soil-item-trend {
@@ -328,7 +329,7 @@ small { font-size: 0.8rem; }
 .soil-item.hum  .soil-item-val { color: var(--accent-green); }
 .soil-item.ec   .soil-item-val { color: #5856d6; }
 .soil-item.ph   .soil-item-val { color: #ec4899; }
-.soil-item-unit { font-size: 0.96rem; font-weight: 400; opacity: 0.7; }
+.soil-item-unit { font-size: 1.1rem; letter-spacing: 0; margin-left: 2px; font-weight: 400; opacity: 0.7; }
 .soil-item-status {
   font-size: 0.92rem; font-weight: 500;
   padding: 3px 8px; border-radius: 6px;
@@ -722,14 +723,13 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     grid-template-columns: minmax(0, 1fr);
   }
   .soil-item-head   { grid-row: 1; grid-column: 1; }
-  .soil-item-val    { grid-row: 2; grid-column: 1; }
-  .soil-item-trend  { grid-row: 3; grid-column: 1; }
-  .soil-item-status { grid-row: 4; grid-column: 1; }
+  .soil-item-main   { grid-row: 2; grid-column: 1; gap: 8px; }
+  .soil-item-status { grid-row: 3; grid-column: 1; }
   .soil-item::before { display: block; }
   .soil-item-status, .soil-item-trend { justify-self: start; justify-content: flex-start; text-align: left; }
   .soil-item-head { font-size: 0.96rem; }
-  .soil-item-val { font-size: 2.6rem; }
-  .soil-item-unit { font-size: 1rem; }
+  .soil-item-val { font-size: 2.8rem; }
+  .soil-item-unit { font-size: 1.1rem; }
   .soil-item-trend { font-size: 0.94rem; }
   .soil-item-status { font-size: 0.93rem; }
 
@@ -1010,26 +1010,34 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <div class="soil-grid">
       <div class="soil-item temp" id="soilTempItem">
         <div class="soil-item-head"><span class="soil-item-icon">🌡️</span><span>地温</span></div>
-        <div class="soil-item-val" id="soilTempVal">--<span class="soil-item-unit">℃</span></div>
-        <div class="soil-item-trend" id="soilTempTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+        <div class="soil-item-main">
+          <div class="soil-item-val" id="soilTempVal">--<span class="soil-item-unit">℃</span></div>
+          <div class="soil-item-trend" id="soilTempTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+        </div>
         <div class="soil-item-status status-normal" id="soilTempStatus">--</div>
       </div>
       <div class="soil-item hum" id="soilHumItem">
         <div class="soil-item-head"><span class="soil-item-icon">💧</span><span>水分</span></div>
-        <div class="soil-item-val" id="soilHumVal">--<span class="soil-item-unit">%</span></div>
-        <div class="soil-item-trend" id="soilHumTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+        <div class="soil-item-main">
+          <div class="soil-item-val" id="soilHumVal">--<span class="soil-item-unit">%</span></div>
+          <div class="soil-item-trend" id="soilHumTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+        </div>
         <div class="soil-item-status status-normal" id="soilHumStatus">--</div>
       </div>
       <div class="soil-item ec" id="soilEcItem">
         <div class="soil-item-head"><span class="soil-item-icon">⚡</span><span>EC</span></div>
-        <div class="soil-item-val" id="soilEcVal">--<span class="soil-item-unit">μS/cm</span></div>
-        <div class="soil-item-trend" id="soilEcTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+        <div class="soil-item-main">
+          <div class="soil-item-val" id="soilEcVal">--<span class="soil-item-unit">μS/cm</span></div>
+          <div class="soil-item-trend" id="soilEcTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+        </div>
         <div class="soil-item-status status-normal" id="soilEcStatus">--</div>
       </div>
       <div class="soil-item ph" id="soilPhItem">
         <div class="soil-item-head"><span class="soil-item-icon">⚗️</span><span>pH</span></div>
-        <div class="soil-item-val" id="soilPhVal">--</div>
-        <div class="soil-item-trend" id="soilPhTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+        <div class="soil-item-main">
+          <div class="soil-item-val" id="soilPhVal">--</div>
+          <div class="soil-item-trend" id="soilPhTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+        </div>
         <div class="soil-item-status status-normal" id="soilPhStatus">--</div>
       </div>
     </div>
