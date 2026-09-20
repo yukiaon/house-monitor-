@@ -241,7 +241,7 @@ body {
 
 /* 土壌モニター（SEN0604 4in1 統合カード） */
 .soil-card {
-  padding: 16px 18px;
+  padding: 18px 18px;
 }
 .soil-card-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -250,44 +250,44 @@ body {
 .soil-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
 }
 .soil-item {
   background: rgba(0,0,0,0.03);
   border-radius: var(--radius-sm);
-  padding: 12px;
+  padding: 16px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
   position: relative;
   overflow: hidden;
 }
 .soil-item::before {
   content: ''; position: absolute; top: 0; right: 0;
-  width: 50px; height: 50px; border-radius: 50%; opacity: 0.08;
-  transform: translate(12px,-12px);
+  width: 64px; height: 64px; border-radius: 50%; opacity: 0.08;
+  transform: translate(16px,-16px);
 }
 .soil-item.temp::before { background: #d97706; }
 .soil-item.hum::before  { background: var(--accent-green); }
 .soil-item.ec::before   { background: #5856d6; }
 .soil-item.ph::before   { background: #ec4899; }
 .soil-item-head {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 0.79rem; font-weight: 600;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.92rem; font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase; letter-spacing: 0.04em;
 }
-.soil-item-icon { font-size: 0.92rem; }
+.soil-item-icon { font-size: 1.1rem; }
 .soil-item-val {
   font-family: 'DM Mono', monospace;
-  font-size: 1.7rem; font-weight: 500;
-  letter-spacing: -0.025em; line-height: 1;
+  font-size: 2.2rem; font-weight: 500;
+  letter-spacing: -0.03em; line-height: 1.05;
   font-variant-numeric: tabular-nums;
 }
 .soil-item-trend {
   flex-wrap: wrap;
-  display: inline-flex; align-items: baseline; gap: 4px;
-  font-size: 0.81rem; font-weight: 500;
+  display: inline-flex; align-items: baseline; gap: 2px 5px;
+  font-size: 0.9rem; font-weight: 500;
   color: var(--text-tertiary);
   font-family: 'DM Mono', monospace;
   line-height: 1.1;
@@ -296,16 +296,16 @@ body {
 }
 .soil-item-trend.up,
 .soil-item-trend.down { color: var(--text-secondary); }
-.soil-item-trend-arrow { font-size: 0.85rem; opacity: 0.85; }
-.soil-item-trend-label { white-space: nowrap; font-size: 0.77rem; opacity: 0.7; font-family: 'DM Sans', sans-serif; font-weight: 400; }
+.soil-item-trend-arrow { font-size: 0.92rem; opacity: 0.85; }
+.soil-item-trend-label { white-space: nowrap; font-size: 0.82rem; opacity: 0.7; font-family: 'DM Sans', sans-serif; font-weight: 400; }
 .soil-item.temp .soil-item-val { color: #d97706; }
 .soil-item.hum  .soil-item-val { color: var(--accent-green); }
 .soil-item.ec   .soil-item-val { color: #5856d6; }
 .soil-item.ph   .soil-item-val { color: #ec4899; }
-.soil-item-unit { font-size: 0.83rem; font-weight: 400; opacity: 0.7; }
+.soil-item-unit { font-size: 0.95rem; font-weight: 400; opacity: 0.7; }
 .soil-item-status {
-  font-size: 0.79rem; font-weight: 500;
-  padding: 2px 6px; border-radius: 5px;
+  font-size: 0.88rem; font-weight: 500;
+  padding: 3px 8px; border-radius: 6px;
   display: inline-block; align-self: flex-start;
 }
 .soil-offline .soil-item-val { color: var(--text-tertiary); }
@@ -662,9 +662,12 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
     grid-template-columns: repeat(4, 1fr);
     gap: 14px;
   }
-  .soil-item { padding: 16px; }
-  .soil-item-val { font-size: 2rem; }
-  .soil-item-trend { font-size: 0.85rem; }
+  .soil-item { padding: 22px 20px; gap: 8px; }
+  .soil-item-head { font-size: 0.95rem; }
+  .soil-item-val { font-size: 2.6rem; }
+  .soil-item-unit { font-size: 1rem; }
+  .soil-item-trend { font-size: 0.92rem; }
+  .soil-item-status { font-size: 0.9rem; }
 
   .metric-card { padding: 24px; }
   .metric-value { font-size: 3.3rem; }
@@ -954,10 +957,10 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
   <div class="card soil-card" id="soilCard">
     <div class="soil-card-header">
       <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:0.85rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌱 土壌モニター</span>
-        <span style="font-size:0.78rem;color:var(--text-tertiary);">温度・水分・EC・pH</span>
+        <span style="font-size:0.95rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌱 土壌モニター</span>
+        <span style="font-size:0.82rem;color:var(--text-tertiary);">温度・水分・EC・pH</span>
       </div>
-      <span id="soilTime" style="font-size:0.79rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;">--</span>
+      <span id="soilTime" style="font-size:0.85rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;">--</span>
     </div>
     <div class="soil-grid">
       <div class="soil-item temp" id="soilTempItem">
