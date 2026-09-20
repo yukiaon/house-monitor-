@@ -582,15 +582,37 @@ canvas#chartYAxis {
   flex: 1;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  cursor: grab;
+  cursor: crosshair;
 }
-.chart-scroll:active { cursor: grabbing; }
 .chart-canvas-inner {
   position: relative;
   min-width: 1920px;  /* 48h × 40px/h = 1920px */
   height: 100%;
 }
 canvas#chart { height: 160px !important; display: block; width: 100% !important; }
+/* グラフのツールチップ (参謀の温度推移と同じ見た目: 縦線 + 各線上の点 + 黒い吹き出し) */
+.chart-cursor-line {
+  position: absolute; width: 1px; background: #ccc;
+  pointer-events: none; display: none; z-index: 1;
+}
+.chart-cursor-dot {
+  position: absolute; width: 8px; height: 8px; border-radius: 50%;
+  border: 2px solid #fff; box-sizing: content-box;
+  transform: translate(-50%, -50%);
+  pointer-events: none; display: none; z-index: 2;
+}
+.chart-tip {
+  position: absolute; left: 0; top: 0;
+  background: rgba(29,29,31,0.95); color: #fff;
+  border-radius: 8px; padding: 8px 10px;
+  font-size: 13px; line-height: 1.5; white-space: nowrap;
+  pointer-events: none; display: none; z-index: 5;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+}
+.chart-tip-time { font-weight: 600; margin-bottom: 2px; font-family: 'DM Mono', monospace; }
+.chart-tip-row { display: flex; align-items: baseline; gap: 6px; }
+.chart-tip-name { font-weight: 600; }
+.chart-tip-val { font-family: 'DM Mono', monospace; font-weight: 600; margin-left: auto; padding-left: 8px; }
 .chart-info { display: flex; justify-content: space-between; padding: 8px 18px 0; }
 .chart-info-item { text-align: center; }
 .chart-info-label { font-size: 0.79rem; color: var(--text-tertiary); margin-bottom: 1px; }
@@ -1030,8 +1052,12 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       <div class="chart-scroll" id="chartWrap">
         <div class="chart-canvas-inner" id="chartInner">
           <canvas id="chart" style="display:block; width:100%; height:180px;"></canvas>
+          <div class="chart-cursor-line" id="chartCursorLine"></div>
+          <div class="chart-cursor-dot" id="chartCursorDot1"></div>
+          <div class="chart-cursor-dot" id="chartCursorDot2"></div>
         </div>
       </div>
+      <div class="chart-tip" id="chartTip" role="status" aria-live="polite"></div>
     </div>
     <div class="chart-info">
       <div class="chart-info-item">
@@ -1391,6 +1417,10 @@ async function sendNtfy(title, body, priority = 'default') {
 
 // グラフ描画
 const canvas = document.getElementById('chart');
+// ツールチップの状態 (drawChart より前に宣言しておく)
+let chartGeom = null;      // 直近の drawChart の座標系 (null = 表示不可)
+let chartTipTime = null;   // 表示中の時刻 (ms)。再描画後に同じ時刻へ戻すために持つ
+let chartTipPointerY = 0;
 const ctx = canvas.getContext('2d');
 
 const yAxisCanvas = document.getElementById('chartYAxis');
@@ -1427,6 +1457,7 @@ function drawYAxis(min, max, displayH, dpr, digits = 0, unit = '') {
 }
 
 function drawChart(data, color, unit, retry = 0) {
+  chartGeom = null;   // 描き終えるまでツールチップは無効 (データ無しで return した場合もこのまま)
   const dpr = window.devicePixelRatio || 1;
   const W = canvas.offsetWidth * dpr;
   const H = canvas.offsetHeight * dpr;
@@ -1654,7 +1685,171 @@ function drawChart(data, color, unit, retry = 0) {
   } else {
     drawSingleSeries(data, color, color);
   }
+
+  // ツールチップ用に、今描いたグラフの座標系と系列を控えておく
+  const SINGLE_NAMES = { soiltemp: '地温', soil: '土壌水分', soilec: 'EC', soilph: 'pH', vpd: '飽差', co2: 'CO2' };
+  let tipSeries;
+  if (chartMode === 'temp') {
+    tipSeries = [{ name: '北側', arr: temp1History, color: '#007aff' }, { name: '南側', arr: temp2History, color: '#ff6b35' }];
+  } else if (chartMode === 'hum') {
+    tipSeries = [{ name: '北側', arr: hum1History, color: '#007aff' }, { name: '南側', arr: hum2History, color: '#34c759' }];
+  } else {
+    tipSeries = [{ name: SINGLE_NAMES[chartMode] || '', arr: data, color }];
+  }
+  let tipDigits = 1;
+  if (chartMode === 'vpd') tipDigits = 2;
+  else if (chartMode === 'co2' || chartMode === 'soilec') tipDigits = 0;
+  if (isFinite(xStep) && xStep > 0) {
+    chartGeom = {
+      mode: chartMode, w, h, pad, cw, ch, min, range, xStep,
+      n: data.length, labels: labelsForX || [], series: tipSeries,
+      unit: unit || '', digits: tipDigits,
+    };
+  }
+  restoreChartTip();
 }
+
+// ===== グラフのツールチップ =====
+// 参謀 (recharts) の温度推移と同じ操作: なぞる/タップした位置に縦線と点、時刻と値の吹き出し。
+// canvas は描き直さず、上に重ねた要素だけを動かす。
+
+function hideChartTip() {
+  chartTipTime = null;
+  ['chartCursorLine', 'chartCursorDot1', 'chartCursorDot2', 'chartTip'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+const isNum = (v) => v !== null && v !== undefined && !isNaN(v);
+
+// idx に値が無ければ、近くで値のある点を探す (バケットが抜けている所をタップしても反応するように)
+function findTipIndex(idx) {
+  const g = chartGeom;
+  const has = (i) => i >= 0 && i < g.n && g.series.some(sr => isNum((sr.arr || [])[i]));
+  if (has(idx)) return idx;
+  for (let d = 1; d <= 6; d++) {
+    if (has(idx - d)) return idx - d;
+    if (has(idx + d)) return idx + d;
+  }
+  return -1;
+}
+
+function showChartTipAt(idx, pointerY) {
+  const g = chartGeom;
+  if (!g || g.mode !== chartMode) { hideChartTip(); return; }
+  idx = findTipIndex(Math.max(0, Math.min(g.n - 1, idx)));
+  if (idx < 0) { hideChartTip(); return; }
+
+  const line = document.getElementById('chartCursorLine');
+  const dots = [document.getElementById('chartCursorDot1'), document.getElementById('chartCursorDot2')];
+  const tip  = document.getElementById('chartTip');
+  const outer = tip.parentElement;                       // .chart-wrap (スクロールしない)
+  const scroller = document.getElementById('chartWrap'); // 横スクロールする枠
+
+  // 描画後に canvas の表示サイズが変わっていても合うよう、現在の表示サイズとの比で換算する
+  const sx = (canvas.offsetWidth  || g.w) / g.w;
+  const sy = (canvas.offsetHeight || g.h) / g.h;
+  const px = (g.pad.left + idx * g.xStep) * sx;
+
+  line.style.left   = px + 'px';
+  line.style.top    = (g.pad.top * sy) + 'px';
+  line.style.height = (g.ch * sy) + 'px';
+  line.style.display = 'block';
+
+  // 吹き出しの中身 (textContent だけで組み立てる)
+  tip.textContent = '';
+  const t = g.labels[idx];
+  if (t instanceof Date && !isNaN(t)) {
+    const timeEl = document.createElement('div');
+    timeEl.className = 'chart-tip-time';
+    timeEl.textContent = `${t.getMonth() + 1}/${t.getDate()} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+    tip.appendChild(timeEl);
+  }
+  dots.forEach(d => { d.style.display = 'none'; });
+  g.series.forEach((sr, k) => {
+    const v = (sr.arr || [])[idx];
+    if (!isNum(v)) return;
+    const row = document.createElement('div');
+    row.className = 'chart-tip-row';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'chart-tip-name';
+    nameEl.style.color = sr.color;
+    nameEl.textContent = sr.name;
+    const valEl = document.createElement('span');
+    valEl.className = 'chart-tip-val';
+    valEl.textContent = Number(v).toFixed(g.digits) + g.unit;
+    row.appendChild(nameEl); row.appendChild(valEl);
+    tip.appendChild(row);
+
+    const dot = dots[k];
+    if (dot) {
+      const vy = g.pad.top + g.ch - ((v - g.min) / g.range) * g.ch;
+      dot.style.left = px + 'px';
+      dot.style.top  = (vy * sy) + 'px';
+      dot.style.background = sr.color;
+      dot.style.display = 'block';
+    }
+  });
+
+  chartTipTime = (t instanceof Date && !isNaN(t)) ? t.getTime() : idx;
+  chartTipPointerY = pointerY;
+
+  // 吹き出しの位置: 見えている範囲の中で、縦線の右 (入らなければ左)
+  const outerRect  = outer.getBoundingClientRect();
+  const viewRect   = scroller.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  const pointX = canvasRect.left + px;                   // 画面上の縦線の位置
+  if (pointX < viewRect.left - 1 || pointX > viewRect.right + 1) {
+    tip.style.display = 'none';                          // 横スクロールで縦線が枠外に出ている間は隠す
+    return;
+  }
+  tip.style.display = 'block';
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let left = pointX + 10;
+  if (left + tw > viewRect.right) left = pointX - 10 - tw;
+  left = Math.max(viewRect.left, Math.min(viewRect.right - tw, left));
+  let top = canvasRect.top + pointerY + 10;
+  if (top + th > canvasRect.bottom) top = canvasRect.top + pointerY - 10 - th;
+  top = Math.max(canvasRect.top, Math.min(canvasRect.bottom - th, top));
+  tip.style.left = (left - outerRect.left) + 'px';
+  tip.style.top  = (top - outerRect.top) + 'px';
+}
+
+// 再描画 (5分ごとの自動更新など) のあと、同じ時刻の点に出し直す。無くなっていれば消す
+function restoreChartTip() {
+  if (chartTipTime === null) return;
+  const g = chartGeom;
+  if (!g) { hideChartTip(); return; }
+  const idx = g.labels.findIndex(t => t instanceof Date && t.getTime() === chartTipTime);
+  if (idx < 0) { hideChartTip(); return; }
+  showChartTipAt(idx, chartTipPointerY);
+}
+
+function chartTipFromEvent(e) {
+  const g = chartGeom;
+  if (!g) return;
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width) return;
+  const sx = rect.width / g.w;
+  const x = (e.clientX - rect.left) / sx;
+  const idx = Math.round((x - g.pad.left) / g.xStep);
+  showChartTipAt(idx, Math.max(0, Math.min(rect.height, e.clientY - rect.top)));
+}
+
+(function initChartTip() {
+  const scroller = document.getElementById('chartWrap');
+  // マウス: なぞると表示、グラフから出たら消す
+  canvas.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') chartTipFromEvent(e); });
+  canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hideChartTip(); });
+  // タップ (とクリック): その位置に表示。指を離しても残る
+  canvas.addEventListener('click', (e) => { chartTipFromEvent(e); e.stopPropagation(); });
+  // グラフの外をタップしたら消す
+  document.addEventListener('click', hideChartTip);
+  // 横スクロール中は吹き出しを縦線に追従させる
+  scroller.addEventListener('scroll', () => { if (chartTipTime !== null) restoreChartTip(); }, { passive: true });
+  window.addEventListener('resize', hideChartTip);
+})();
 
 // ===== 📚 ピーマン適正値ガイド =====
 // 現在値からマーカー位置を計算してバー上に▼を表示
@@ -1722,6 +1917,7 @@ if (document.readyState === 'loading') {
 }
 
 function switchChart(mode) {
+  hideChartTip();   // 系列が変わるので吹き出しは消す
   chartMode = mode;
   let activeTab = null;
   document.querySelectorAll('.chart-tab').forEach(t => {
