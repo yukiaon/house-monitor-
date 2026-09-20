@@ -48,6 +48,9 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+/* 文字の基準を 16px → 18px に (rem 指定が全部 12.5% 大きくなる)。親父の老眼対策 */
+html { font-size: 112.5%; -webkit-text-size-adjust: 100%; }
+
 body {
   font-family: 'DM Sans', -apple-system, sans-serif;
   background: var(--bg);
@@ -75,16 +78,16 @@ body {
   flex-wrap: wrap;
   gap: 6px;
 }
-.header h1 { font-size: 1rem; font-weight: 600; letter-spacing: -0.02em; }
+.header h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: -0.02em; }
 .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
-.last-update { font-size: 0.81rem; color: var(--text-tertiary); font-family: 'DM Mono', monospace; }
+.last-update { font-size: 0.87rem; color: var(--text-tertiary); font-family: 'DM Mono', monospace; }
 .header-mini { display: flex; align-items: center; gap: 6px; }
-.header-mini-item { font-size: 0.86rem; font-weight: 500; color: var(--text-primary); font-family: 'DM Mono', monospace; }
-.header-mini-sep { font-size: 0.83rem; color: var(--text-tertiary); }
+.header-mini-item { font-size: 0.9rem; font-weight: 500; color: var(--text-primary); font-family: 'DM Mono', monospace; }
+.header-mini-sep { font-size: 0.88rem; color: var(--text-tertiary); }
 
 .status-badge {
   display: flex; align-items: center; gap: 5px;
-  font-size: 0.85rem; font-weight: 500;
+  font-size: 0.9rem; font-weight: 500;
   padding: 4px 10px; border-radius: 20px; transition: all 0.3s;
 }
 .status-badge.online  { background: rgba(52,199,89,0.12);  color: var(--accent-green); }
@@ -101,13 +104,13 @@ body {
 .sensor-pill {
   display: flex; align-items: center; gap: 4px;
   padding: 3px 8px; border-radius: 12px;
-  font-size: 0.81rem; font-family: 'DM Mono', monospace; font-weight: 500;
+  font-size: 0.87rem; font-family: 'DM Mono', monospace; font-weight: 500;
   background: rgba(0,0,0,0.05); color: var(--text-secondary);
   white-space: nowrap; transition: all 0.3s;
 }
 .sensor-pill .pill-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .sensor-pill .pill-name { font-weight: 600; }
-.sensor-pill .pill-elapsed { opacity: 0.85; font-size: 0.79rem; }
+.sensor-pill .pill-elapsed { opacity: 0.85; font-size: 0.85rem; }
 .sensor-pill.ok    { background: rgba(52,199,89,0.12); color: var(--accent-green); }
 .sensor-pill.warn  { background: rgba(255,149,0,0.12); color: var(--accent-orange); }
 .sensor-pill.error { background: rgba(255,59,48,0.12); color: var(--accent-red); }
@@ -137,8 +140,14 @@ body {
   overflow: hidden;
   transition: transform 0.15s, box-shadow 0.15s;
 }
+/* 接続情報: スマホはラベル/値の2列、PCは4列 */
+.conn-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; align-items: baseline; }
+@media (min-width: 768px) { .conn-grid { grid-template-columns: auto 1fr auto 1fr; } }
+small { font-size: 0.8rem; }
+.section-title { font-size: 1.05rem; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.05em; white-space: nowrap; }
+.section-sub { font-size: 0.87rem; color: var(--text-tertiary); }
 .card-label {
-  font-size: 0.85rem; font-weight: 600;
+  font-size: 1.05rem; font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.05em; text-transform: uppercase;
 }
@@ -146,11 +155,11 @@ body {
 /* オフラインバナー */
 .weather-week { display: flex; gap: 6px; overflow-x: auto; margin-top: 12px; padding-bottom: 2px; }
 .weather-week .wd { flex: 0 0 auto; min-width: 54px; text-align: center; padding: 6px 4px; border-radius: 10px; background: rgba(120,120,128,0.06); }
-.weather-week .wd-day { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
+.weather-week .wd-day { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
 .weather-week .wd-icon { font-size: 1.25rem; line-height: 1.3; }
-.weather-week .wd-temp { font-size: 0.81rem; font-weight: 600; font-family: 'DM Mono', monospace; }
+.weather-week .wd-temp { font-size: 0.87rem; font-weight: 600; font-family: 'DM Mono', monospace; }
 .weather-week .wd-temp span { color: var(--text-tertiary); font-weight: 400; }
-.weather-week .wd-rain { font-size: 0.77rem; color: #4a7ab5; min-height: 12px; }
+.weather-week .wd-rain { font-size: 0.84rem; color: #4a7ab5; min-height: 12px; }
 .offline-banner {
   display: none;
   background: rgba(255,59,48,0.08);
@@ -161,45 +170,52 @@ body {
 }
 .offline-banner.show { display: flex; }
 .offline-icon { font-size: 1.6rem; }
-.offline-text h3 { font-size: 0.95rem; font-weight: 600; color: var(--accent-red); margin-bottom: 2px; }
-.offline-text p { font-size: 0.86rem; color: var(--text-secondary); line-height: 1.4; }
+.offline-text h3 { font-size: 0.96rem; font-weight: 600; color: var(--accent-red); margin-bottom: 2px; }
+.offline-text p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4; }
 /* 停止センサーの診断表示（原因のあたりをつけるためのもの） */
 .offline-banner { align-items: flex-start; }
 .diag-item { margin-top: 8px; }
 .diag-item:first-child { margin-top: 2px; }
-.diag-head   { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); }
-.diag-cause  { font-size: 0.86rem; color: var(--text-secondary); line-height: 1.45; margin-top: 2px; }
-.diag-action { font-size: 0.86rem; color: var(--accent-red); line-height: 1.45; margin-top: 1px; }
+.diag-head   { font-size: 0.92rem; font-weight: 600; color: var(--text-primary); }
+.diag-cause  { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.45; margin-top: 2px; }
+.diag-action { font-size: 0.9rem; color: var(--accent-red); line-height: 1.45; margin-top: 1px; }
 
-/* メトリクス */
-.metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* メトリクス: 項目ごとに1枚 (現在値 + 北側/南側 + 本日の最高/最低)。スマホ1列 / PC2列 */
+.metrics-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
 .metric-card {
   background: var(--card); border-radius: var(--radius);
   border: 1px solid var(--card-border); box-shadow: var(--shadow);
-  padding: 18px; position: relative; overflow: hidden;
-  transition: transform 0.15s;
+  padding: 20px 20px 18px; position: relative; overflow: hidden;
 }
-.metric-card:active { transform: scale(0.97); }
 .metric-card::before {
   content: ''; position: absolute; top: 0; right: 0;
-  width: 80px; height: 80px; border-radius: 50%; opacity: 0.07;
-  transform: translate(20px,-20px);
+  width: 120px; height: 120px; border-radius: 50%; opacity: 0.07;
+  transform: translate(34px,-34px);
+  background: var(--metric-accent, transparent);
 }
-.metric-card.temp::before { background: var(--accent-temp); }
-.metric-card.hum::before  { background: var(--accent-hum); }
-.metric-icon { font-size: 1.3rem; margin-bottom: 10px; display: block; }
-.metric-label { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
-.metric-value { font-family: 'DM Mono', monospace; font-size: 2.6rem; font-weight: 500; letter-spacing: -0.035em; line-height: 1; margin-bottom: 7px; font-variant-numeric: tabular-nums; }
-.metric-trend { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px 5px; font-size: 0.85rem; font-weight: 500; color: var(--text-tertiary); font-family: 'DM Mono', monospace; line-height: 1.1; margin-top: 4px; letter-spacing: -0.005em; }
+.metric-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.metric-icon { font-size: 1.35rem; line-height: 1; }
+.metric-label { font-size: 1rem; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.04em; }
+.metric-value { font-family: 'DM Mono', monospace; font-size: 3.6rem; font-weight: 500; letter-spacing: -0.04em; line-height: 1; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.metric-trend { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; font-size: 1rem; font-weight: 500; color: var(--text-tertiary); font-family: 'DM Mono', monospace; line-height: 1.2; letter-spacing: -0.005em; }
+.metric-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+/* 北側/南側 と 本日の最高/最低 は同じ形のタイルで揃える */
+.stat-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.stat-tile { background: rgba(0,0,0,0.04); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.stat-tile-label { font-size: 0.85rem; color: var(--text-tertiary); font-weight: 600; letter-spacing: 0.04em; margin-bottom: 4px; }
+.stat-tile-val { font-family: 'DM Mono', monospace; font-size: 1.7rem; font-weight: 500; line-height: 1.05; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.stat-tile-unit { font-size: 0.9rem; font-weight: 400; opacity: 0.7; letter-spacing: 0; }
+.metric-badges + .stat-tiles { margin-top: 12px; }
+.today-status { margin-top: 8px; }
 .metric-trend.up    { color: var(--text-secondary); }
 .metric-trend.down  { color: var(--text-secondary); }
 .metric-trend.flat  { color: var(--text-tertiary); }
-.metric-trend-arrow { font-size: 0.88rem; opacity: 0.85; }
-.metric-trend-label { white-space: nowrap; font-size: 0.79rem; opacity: 0.7; font-family: 'DM Sans', sans-serif; font-weight: 400; }
+.metric-trend-arrow { font-size: 1rem; opacity: 0.85; }
+.metric-trend-label { white-space: nowrap; font-size: 0.9rem; opacity: 0.7; font-family: 'DM Sans', sans-serif; font-weight: 400; }
 .metric-card.temp .metric-value { color: var(--accent-temp); }
 .metric-card.hum  .metric-value { color: var(--accent-hum); }
-.metric-unit { font-size: 1rem; font-weight: 400; opacity: 0.7; }
-.metric-status { font-size: 0.82rem; font-weight: 500; padding: 3px 8px; border-radius: 6px; display: inline-block; }
+.metric-unit { font-size: 1.25rem; font-weight: 400; opacity: 0.7; letter-spacing: 0; margin-left: 2px; }
+.metric-status { font-size: 0.95rem; font-weight: 600; padding: 4px 10px; border-radius: 8px; display: inline-block; }
 .status-normal { background: rgba(52,199,89,0.12);  color: var(--accent-green); }
 .status-warn   { background: rgba(255,149,0,0.12);  color: var(--accent-orange); }
 .status-danger { background: rgba(255,59,48,0.12);  color: var(--accent-red); }
@@ -207,9 +223,8 @@ body {
 /* 差バッジ＆個別センサー値（2センサー対応） */
 .diff-badge {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 0.81rem; font-weight: 600;
-  padding: 3px 8px; border-radius: 6px;
-  margin-top: 6px;
+  font-size: 0.95rem; font-weight: 600;
+  padding: 4px 10px; border-radius: 8px;
   font-family: 'DM Mono', monospace;
 }
 .diff-badge.diff-ok     { background: rgba(52,199,89,0.10); color: var(--accent-green); }
@@ -217,25 +232,26 @@ body {
 .diff-badge.diff-danger { background: rgba(255,59,48,0.12); color: var(--accent-red); }
 .sensor-mini-grid {
   display: grid; grid-template-columns: 1fr 1fr;
-  gap: 6px; margin-top: 10px;
+  gap: 8px; margin-top: 12px;
 }
 .sensor-mini {
   background: rgba(0,0,0,0.04);
-  border-radius: 8px;
-  padding: 6px 8px;
+  border-radius: 10px;
+  padding: 10px 12px; min-width: 0;
   transition: opacity 0.2s;
 }
 .sensor-mini.offline { opacity: 0.4; }
 .sensor-mini-label {
-  font-size: 0.78rem; color: var(--text-tertiary);
+  font-size: 0.85rem; color: var(--text-tertiary);
   font-weight: 600; letter-spacing: 0.04em;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 .sensor-mini-val {
   font-family: 'DM Mono', monospace;
-  font-size: 0.96rem; font-weight: 500;
+  font-size: 1.7rem; font-weight: 500;
   color: var(--text-primary);
-  line-height: 1;
+  line-height: 1.05; letter-spacing: -0.03em;
+  white-space: nowrap;
 }
 .sensor-mini.offline .sensor-mini-val { color: var(--text-tertiary); }
 
@@ -244,7 +260,7 @@ body {
   padding: 18px 18px;
 }
 .soil-card-header {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
   margin-bottom: 12px;
 }
 .soil-grid {
@@ -273,7 +289,7 @@ body {
 .soil-item.ph::before   { background: #ec4899; }
 .soil-item-head {
   display: flex; align-items: center; gap: 6px;
-  font-size: 0.92rem; font-weight: 600;
+  font-size: 0.94rem; font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase; letter-spacing: 0.04em;
 }
@@ -287,7 +303,7 @@ body {
 .soil-item-trend {
   flex-wrap: wrap;
   display: inline-flex; align-items: baseline; gap: 2px 5px;
-  font-size: 0.9rem; font-weight: 500;
+  font-size: 0.93rem; font-weight: 500;
   color: var(--text-tertiary);
   font-family: 'DM Mono', monospace;
   line-height: 1.1;
@@ -296,15 +312,15 @@ body {
 }
 .soil-item-trend.up,
 .soil-item-trend.down { color: var(--text-secondary); }
-.soil-item-trend-arrow { font-size: 0.92rem; opacity: 0.85; }
-.soil-item-trend-label { white-space: nowrap; font-size: 0.82rem; opacity: 0.7; font-family: 'DM Sans', sans-serif; font-weight: 400; }
+.soil-item-trend-arrow { font-size: 0.94rem; opacity: 0.85; }
+.soil-item-trend-label { white-space: nowrap; font-size: 0.87rem; opacity: 0.7; font-family: 'DM Sans', sans-serif; font-weight: 400; }
 .soil-item.temp .soil-item-val { color: #d97706; }
 .soil-item.hum  .soil-item-val { color: var(--accent-green); }
 .soil-item.ec   .soil-item-val { color: #5856d6; }
 .soil-item.ph   .soil-item-val { color: #ec4899; }
-.soil-item-unit { font-size: 0.95rem; font-weight: 400; opacity: 0.7; }
+.soil-item-unit { font-size: 0.96rem; font-weight: 400; opacity: 0.7; }
 .soil-item-status {
-  font-size: 0.88rem; font-weight: 500;
+  font-size: 0.92rem; font-weight: 500;
   padding: 3px 8px; border-radius: 6px;
   display: inline-block; align-self: flex-start;
 }
@@ -340,34 +356,45 @@ body {
 
 /* スマホ専用: タブを少しコンパクトに */
 @media (max-width: 600px) {
-  /* スマホ幅でもセンサー4台が1段に収まるように */
-  .sensor-pills { gap: 3px; }
-  .sensor-pill { padding: 3px 6px; gap: 3px; font-size: 0.74rem; }
-  .sensor-pill .pill-elapsed { font-size: 0.72rem; }
+  /* スマホ: ヘッダーは固定しない (文字を大きくした分、画面を食わないように)。
+     センサー4台は横幅いっぱいの4等分タイルにして、名前と経過時間を2段で見せる */
+  .header { position: static; padding: 14px 16px 12px; }
+  .header-inner { gap: 10px; }
+  .header h1 { font-size: 1.2rem; }
+  .header-right { width: 100%; align-items: stretch; gap: 6px; }
+  .sensor-pills { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .sensor-pill {
+    display: grid; grid-template-columns: auto 1fr; align-items: center;
+    column-gap: 5px; row-gap: 1px;
+    padding: 7px 8px; border-radius: 10px;
+    font-size: 0.9rem; white-space: normal;
+  }
+  .sensor-pill .pill-elapsed { grid-column: 1 / -1; font-size: 0.85rem; white-space: nowrap; }
+  .last-update { text-align: right; }
   .chart-tabs {
     padding: 0 14px;
     gap: 5px;
   }
   .chart-tab {
-    font-size: 0.83rem;
+    font-size: 0.88rem;
     padding: 5px 10px;
   }
 }
 
 /* 📚 ピーマン適正値ガイド */
 .ref-card { padding: 14px 18px; }
-.ref-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.ref-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
 .ref-section { margin-bottom: 18px; }
 .ref-section:last-child { margin-bottom: 0; }
 .ref-section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
-.ref-title { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
-.ref-current { white-space: nowrap; font-family: 'DM Mono', monospace; font-size: 0.87rem; font-weight: 600; color: var(--text-primary); }
+.ref-title { font-size: 0.93rem; font-weight: 600; color: var(--text-primary); }
+.ref-current { white-space: nowrap; font-family: 'DM Mono', monospace; font-size: 0.91rem; font-weight: 600; color: var(--text-primary); }
 .ref-bar-wrap { position: relative; height: 22px; margin: 4px 0 2px; }
 .ref-bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; }
 .ref-bar-seg {
   position: relative;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.75rem; font-weight: 600; color: rgba(0,0,0,0.45);
+  font-size: 0.82rem; font-weight: 600; color: rgba(0,0,0,0.45);
   white-space: nowrap;
 }
 .ref-bar-seg.danger { background: #ffd6d6; }
@@ -375,7 +402,7 @@ body {
 .ref-bar-seg.ok     { background: #c8e9c2; color: rgba(20,90,40,0.7); }
 .ref-marker {
   position: absolute; top: -3px; transform: translateX(-50%);
-  font-size: 0.97rem; line-height: 1;
+  font-size: 0.98rem; line-height: 1;
   color: #1c1c1e;
   transition: left 0.6s cubic-bezier(0.4,0,0.2,1);
   pointer-events: none; z-index: 2;
@@ -384,7 +411,7 @@ body {
 .ref-labels {
   position: relative;
   height: 14px;
-  font-size: 0.75rem; color: var(--text-tertiary);
+  font-size: 0.82rem; color: var(--text-tertiary);
   font-family: 'DM Mono', monospace;
   margin-top: 2px;
 }
@@ -397,14 +424,14 @@ body {
 .ref-labels span.left  { transform: translateX(0); }
 .ref-labels span.right { transform: translateX(-100%); }
 .ref-desc {
-  font-size: 0.83rem; color: var(--text-secondary);
+  font-size: 0.88rem; color: var(--text-secondary);
   line-height: 1.5; margin-top: 8px;
 }
 .ref-desc strong { color: var(--text-primary); font-weight: 600; }
 .ref-toggle-btn {
   white-space: nowrap; flex-shrink: 0;
   background: none; border: none; cursor: pointer;
-  font-size: 0.83rem; color: var(--accent-blue);
+  font-size: 0.88rem; color: var(--accent-blue);
   padding: 2px 8px; border-radius: 6px;
   transition: background 0.15s;
   font-family: 'DM Sans', sans-serif;
@@ -413,23 +440,23 @@ body {
 #refContent.collapsed { display: none; }
 
 /* 🌟 ハウス効率スコア（二軸構造） */
-.score-card { padding: 16px 18px; }
+.score-card { padding: 20px; }
 .score-card-header {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 12px; flex-wrap: wrap; gap: 6px;
 }
 .score-main {
-  display: flex; align-items: center; gap: 14px;
-  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 18px;
 }
 .score-ring-wrap {
-  position: relative; width: 90px; height: 90px; flex-shrink: 0;
+  position: relative; width: 112px; height: 112px; flex-shrink: 0;
 }
 .score-num-big {
   position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   font-family: 'DM Mono', monospace;
-  font-size: 1.7rem; font-weight: 600;
+  font-size: 2.3rem; font-weight: 600;
   letter-spacing: -0.04em; color: #8e8e93;
 }
 .score-axes {
@@ -440,62 +467,62 @@ body {
 .axis-card {
   background: rgba(0,0,0,0.025);
   border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  border-left: 3px solid var(--text-tertiary);
+  padding: 14px 14px;
+  border-left: 4px solid var(--text-tertiary);
 }
 .axis-card.upper { border-left-color: #ff9500; }
 .axis-card.root  { border-left-color: #34c759; }
 .axis-card-head {
   display: flex; align-items: baseline; justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .axis-card-title {
-  font-size: 0.86rem; font-weight: 600;
+  font-size: 1.1rem; font-weight: 600;
   color: var(--text-primary);
 }
 .axis-card-subtitle {
-  font-size: 0.77rem; color: var(--text-tertiary);
-  margin-left: 4px; font-weight: 400;
+  font-size: 0.88rem; color: var(--text-tertiary);
+  margin-left: 6px; font-weight: 400;
 }
 .axis-card-score {
   font-family: 'DM Mono', monospace;
-  font-size: 1.05rem; font-weight: 600;
+  font-size: 1.5rem; font-weight: 600;
   letter-spacing: -0.02em;
 }
 .axis-card.upper .axis-card-score { color: #ff9500; }
 .axis-card.root  .axis-card-score { color: #34c759; }
 .axis-bars {
-  display: flex; flex-direction: column; gap: 5px;
+  display: flex; flex-direction: column; gap: 9px;
 }
 .axis-bar-row {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 0.81rem;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 1rem;
 }
 .axis-bar-label {
-  width: 52px; flex-shrink: 0; color: var(--text-secondary);
+  width: 4.4em; flex-shrink: 0; color: var(--text-secondary);
   white-space: nowrap;
 }
 .axis-bar-track {
-  flex: 1; height: 5px;
+  flex: 1; height: 8px;
   background: rgba(0,0,0,0.06);
-  border-radius: 3px; overflow: hidden;
+  border-radius: 4px; overflow: hidden;
 }
 .axis-bar-fill {
   height: 100%; width: 0%;
-  border-radius: 3px;
+  border-radius: 4px;
   transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
 }
 .axis-bar-val {
-  width: 22px; text-align: right;
+  width: 2.2em; text-align: right;
   font-family: 'DM Mono', monospace;
-  font-size: 0.79rem; color: var(--text-secondary);
+  font-size: 1rem; font-weight: 500; color: var(--text-secondary);
 }
 .score-balance {
   margin-top: 12px;
-  padding: 8px 10px;
+  padding: 12px 14px;
   background: rgba(0,0,0,0.025);
-  border-radius: 8px;
-  font-size: 0.83rem;
+  border-radius: 10px;
+  font-size: 1rem;
   color: var(--text-secondary);
   line-height: 1.5;
 }
@@ -503,14 +530,14 @@ body {
 
 @media (min-width: 768px) {
   .score-axes { grid-template-columns: 1fr 1fr; gap: 14px; }
-  .axis-card { padding: 14px 16px; }
-  .score-ring-wrap { width: 110px; height: 110px; }
-  .score-num-big { font-size: 2.1rem; }
+  .axis-card { padding: 16px 18px; }
+  .score-ring-wrap { width: 132px; height: 132px; }
+  .score-num-big { font-size: 2.7rem; }
 }
 
 @media (min-width: 768px) {
   .ref-section { margin-bottom: 22px; }
-  .ref-title { font-size: 0.96rem; }
+  .ref-title { font-size: 0.97rem; }
   .ref-bar { height: 18px; }
   .ref-marker { font-size: 1.1rem; }
 }
@@ -545,13 +572,13 @@ body {
   }
   .chart-tabs-stack .chart-tabs { gap: 5px; }
   .chart-tabs-stack .chart-tab {
-    font-size: 0.85rem;
-    padding: 6px 4px;
+    font-size: 1rem;
+    padding: 10px 4px;
   }
 }
 .chart-tab {
-  font-size: 0.85rem; font-weight: 500; padding: 5px 12px;
-  border-radius: 8px; border: none; cursor: pointer;
+  font-size: 1rem; font-weight: 500; padding: 9px 12px;
+  border-radius: 10px; border: none; cursor: pointer;
   transition: all 0.2s; background: rgba(0,0,0,0.05); color: var(--text-secondary);
 }
 .chart-tab.active.temp { background: rgba(255,107,53,0.12); color: var(--accent-temp); }
@@ -589,7 +616,7 @@ canvas#chartYAxis {
   min-width: 1920px;  /* 48h × 40px/h = 1920px */
   height: 100%;
 }
-canvas#chart { height: 160px !important; display: block; width: 100% !important; }
+canvas#chart { height: 210px !important; display: block; width: 100% !important; }
 /* グラフのツールチップ (参謀の温度推移と同じ見た目: 縦線 + 各線上の点 + 黒い吹き出し) */
 .chart-cursor-line {
   position: absolute; width: 1px; background: #ccc;
@@ -605,7 +632,7 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
   position: absolute; left: 0; top: 0;
   background: rgba(29,29,31,0.95); color: #fff;
   border-radius: 8px; padding: 8px 10px;
-  font-size: 13px; line-height: 1.5; white-space: nowrap;
+  font-size: 16px; line-height: 1.55; white-space: nowrap;
   pointer-events: none; display: none; z-index: 5;
   box-shadow: 0 4px 12px rgba(0,0,0,0.18);
 }
@@ -615,45 +642,45 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
 .chart-tip-val { font-family: 'DM Mono', monospace; font-weight: 600; margin-left: auto; padding-left: 8px; }
 .chart-info { display: flex; justify-content: space-between; padding: 8px 18px 0; }
 .chart-info-item { text-align: center; }
-.chart-info-label { font-size: 0.79rem; color: var(--text-tertiary); margin-bottom: 1px; }
-.chart-info-val { font-size: 0.88rem; font-weight: 600; font-family: 'DM Mono', monospace; }
+.chart-info-label { font-size: 0.9rem; color: var(--text-tertiary); margin-bottom: 2px; }
+.chart-info-val { font-size: 1.2rem; font-weight: 600; font-family: 'DM Mono', monospace; }
 
 /* 電池 */
 .battery-card { padding: 16px 18px 18px; }
 .battery-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .battery-label-row { display: flex; align-items: baseline; gap: 6px; }
 .battery-pct { font-family: 'DM Mono', monospace; font-size: 1.8rem; font-weight: 500; letter-spacing: -0.03em; line-height: 1; }
-.battery-sub { font-size: 0.85rem; color: var(--text-secondary); }
+.battery-sub { font-size: 0.9rem; color: var(--text-secondary); }
 .battery-bar-wrap { background: rgba(0,0,0,0.06); border-radius: 6px; height: 8px; overflow: hidden; margin-bottom: 8px; }
 .battery-bar-fill { height: 100%; border-radius: 6px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
-.battery-detail { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-tertiary); }
+.battery-detail { display: flex; justify-content: space-between; font-size: 0.87rem; color: var(--text-tertiary); }
 
 /* 接続情報 */
 .conn-card { padding: 14px 18px; }
 .conn-rows { display: flex; flex-direction: column; gap: 10px; }
 .conn-row { display: flex; align-items: center; justify-content: space-between; }
-.conn-row-left { display: flex; align-items: center; gap: 8px; font-size: 0.89rem; color: var(--text-secondary); }
-.conn-row-icon { font-size: 0.95rem; width: 20px; text-align: center; }
-.conn-row-val { font-size: 0.89rem; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text-primary); }
+.conn-row-left { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; color: var(--text-secondary); }
+.conn-row-icon { font-size: 0.96rem; width: 20px; text-align: center; }
+.conn-row-val { font-size: 0.92rem; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text-primary); }
 
 /* 更新ボタン */
 .refresh-btn {
   width: 100%; background: var(--accent-blue); color: white;
   border: none; border-radius: var(--radius-sm); padding: 14px;
-  font-size: 0.93rem; font-weight: 600; font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem; font-weight: 600; font-family: 'DM Sans', sans-serif;
   cursor: pointer; transition: all 0.15s; letter-spacing: -0.01em;
 }
 .refresh-btn:active { transform: scale(0.98); background: #0066dd; }
 .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.footer { text-align: center; padding: 8px 0 24px; font-size: 0.81rem; color: var(--text-tertiary); font-family: 'DM Mono', monospace; }
+.footer { text-align: center; padding: 8px 0 24px; font-size: 0.87rem; color: var(--text-tertiary); font-family: 'DM Mono', monospace; }
 
 /* ========== PCレイアウト ========== */
 @media (min-width: 768px) {
   body { background: #e5e5ea; }
 
   .header { padding: 16px 40px; }
-  .header h1 { font-size: 1.1rem; }
+  .header h1 { font-size: 1.3rem; }
 
   .content {
     max-width: 1200px;
@@ -661,10 +688,10 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
     gap: 20px;
   }
 
-  /* 上段：メトリクス4列 */
+  /* 上段：メトリクス2列 */
   .metrics-grid {
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 16px;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
   }
 
   /* 電池と接続情報を横並びに */
@@ -676,8 +703,8 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
 
   /* 中段：グラフを大きく */
   .chart-card { padding-bottom: 22px; }
-  canvas#chart { height: 240px !important; }
-  canvas#chartYAxis { height: 240px !important; }
+  canvas#chart { height: 300px !important; }
+  canvas#chartYAxis { height: 300px !important; }
 
   /* PC: 土壌グリッドを4列に */
   .soil-grid {
@@ -685,17 +712,17 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
     gap: 14px;
   }
   .soil-item { padding: 22px 20px; gap: 8px; }
-  .soil-item-head { font-size: 0.95rem; }
+  .soil-item-head { font-size: 0.96rem; }
   .soil-item-val { font-size: 2.6rem; }
   .soil-item-unit { font-size: 1rem; }
-  .soil-item-trend { font-size: 0.92rem; }
-  .soil-item-status { font-size: 0.9rem; }
+  .soil-item-trend { font-size: 0.94rem; }
+  .soil-item-status { font-size: 0.93rem; }
 
-  .metric-card { padding: 24px; }
-  .metric-value { font-size: 3.3rem; }
+  .metric-card { padding: 26px 28px 24px; }
+  .metric-value { font-size: 4.2rem; }
   .metric-icon { font-size: 1.5rem; }
-  .metric-trend { font-size: 0.89rem; }
-  .metric-trend-label { font-size: 0.82rem; }
+  .stat-tile, .sensor-mini { padding: 12px 16px; }
+  .stat-tile-val, .sensor-mini-val { font-size: 1.9rem; }
 
   .battery-card { padding: 20px 24px 22px; }
   .conn-card { padding: 18px 24px; }
@@ -707,10 +734,10 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
     margin: 0 auto;
     display: block;
     padding: 16px;
-    font-size: 0.97rem;
+    font-size: 0.98rem;
   }
 
-  .footer { padding: 4px 0 40px; font-size: 0.83rem; }
+  .footer { padding: 4px 0 40px; font-size: 0.88rem; }
 }
 </style>
 </head>
@@ -762,10 +789,10 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
   <div class="card score-card" id="scoreCard">
     <div class="score-card-header">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <span style="font-size:0.85rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌟 ハウス効率スコア</span>
-        <span style="font-size:0.78rem;color:var(--text-tertiary);">光合成 × 根圏 の総合評価</span>
+        <span style="font-size:1.05rem;font-weight:600;color:var(--text-secondary);letter-spacing:0.05em;">🌟 ハウス効率スコア</span>
+        <span style="font-size:0.85rem;color:var(--text-tertiary);">光合成 × 根圏 の総合評価</span>
       </div>
-      <span id="scoreTime" style="font-size:0.79rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;">--</span>
+      <span id="scoreTime" style="font-size:0.85rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;">--</span>
     </div>
 
     <!-- メイン総合スコア -->
@@ -780,8 +807,8 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
         <div class="score-num-big" id="scoreNum">--</div>
       </div>
       <div style="flex:1;min-width:0;">
-        <div id="scoreLabel" style="font-size:1.05rem;font-weight:600;color:var(--text-primary);margin-bottom:2px;">--</div>
-        <div id="scoreDesc" style="font-size:0.86rem;color:var(--text-secondary);line-height:1.45;">データ取得後に評価されます</div>
+        <div id="scoreLabel" style="font-size:1.4rem;font-weight:600;color:var(--text-primary);margin-bottom:2px;">--</div>
+        <div id="scoreDesc" style="font-size:1rem;color:var(--text-secondary);line-height:1.45;">データ取得後に評価されます</div>
       </div>
     </div>
 
@@ -854,15 +881,16 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
     <div class="score-balance" id="scoreBalance" style="display:none;"></div>
   </div>
 
-  <!-- 温度・湿度（PC時は4列に拡張） -->
+  <!-- 現在値 + 本日の最高/最低 を項目ごとに1枚へ (スマホ1列 / PC2列) -->
   <div class="metrics-grid">
-    <div class="metric-card temp">
-      <span class="metric-icon">🌡️</span>
-      <div class="metric-label" id="tempLabel">気温（平均）</div>
+    <div class="metric-card temp" style="--metric-accent:var(--accent-temp);">
+      <div class="metric-head"><span class="metric-icon">🌡️</span><span class="metric-label" id="tempLabel">気温（平均）</span></div>
       <div class="metric-value" id="tempVal">--<span class="metric-unit">℃</span></div>
       <div class="metric-trend" id="tempTrend">— <span class="metric-trend-label">30分前比</span></div>
-      <div class="metric-status status-normal" id="tempStatus">--</div>
-      <div class="diff-badge diff-ok" id="tempDiff" style="display:none;">差 --℃</div>
+      <div class="metric-badges">
+        <div class="metric-status status-normal" id="tempStatus">--</div>
+        <div class="diff-badge diff-ok" id="tempDiff" style="display:none;">差 --℃</div>
+      </div>
       <div class="sensor-mini-grid" id="tempMiniGrid">
         <div class="sensor-mini" id="temp1Mini">
           <div class="sensor-mini-label">北側</div>
@@ -873,30 +901,26 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
           <div class="sensor-mini-val" id="temp2Val">-- ℃</div>
         </div>
       </div>
-    </div>
-    <!-- 本日気温 (PC時のみ表示) -->
-    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
-      <span class="metric-icon">🌡️</span>
-      <div class="metric-label">本日気温</div>
-      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div style="font-size:0.78rem;color:var(--text-tertiary);width:30px;white-space:nowrap;">最高</div>
-          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#ff6b35;line-height:1;" id="todayMax">--<span style="font-size:0.92rem;opacity:0.7;">℃</span></div>
+      <div class="stat-tiles">
+        <div class="stat-tile">
+          <div class="stat-tile-label">本日 最高</div>
+          <div class="stat-tile-val" id="todayMax" style="color:#ff6b35;">--<span class="stat-tile-unit">℃</span></div>
         </div>
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div style="font-size:0.78rem;color:var(--text-tertiary);width:30px;white-space:nowrap;">最低</div>
-          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#007aff;line-height:1;" id="todayMin">--<span style="font-size:0.92rem;opacity:0.7;">℃</span></div>
+        <div class="stat-tile">
+          <div class="stat-tile-label">本日 最低</div>
+          <div class="stat-tile-val" id="todayMin" style="color:#007aff;">--<span class="stat-tile-unit">℃</span></div>
         </div>
       </div>
-      <div class="metric-status status-normal" id="todayMaxStatus">--</div>
+      <div class="metric-status status-normal today-status" id="todayMaxStatus">--</div>
     </div>
-    <div class="metric-card hum">
-      <span class="metric-icon">💧</span>
-      <div class="metric-label" id="humLabel">湿度（平均）</div>
+    <div class="metric-card hum" style="--metric-accent:var(--accent-hum);">
+      <div class="metric-head"><span class="metric-icon">💧</span><span class="metric-label" id="humLabel">湿度（平均）</span></div>
       <div class="metric-value" id="humVal">--<span class="metric-unit">%</span></div>
       <div class="metric-trend" id="humTrend">— <span class="metric-trend-label">30分前比</span></div>
-      <div class="metric-status status-normal" id="humStatus">--</div>
-      <div class="diff-badge diff-ok" id="humDiff" style="display:none;">差 --%</div>
+      <div class="metric-badges">
+        <div class="metric-status status-normal" id="humStatus">--</div>
+        <div class="diff-badge diff-ok" id="humDiff" style="display:none;">差 --%</div>
+      </div>
       <div class="sensor-mini-grid" id="humMiniGrid">
         <div class="sensor-mini" id="hum1Mini">
           <div class="sensor-mini-label">北側</div>
@@ -907,82 +931,66 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
           <div class="sensor-mini-val" id="hum2Val">-- %</div>
         </div>
       </div>
-    </div>
-    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
-      <span class="metric-icon">💦</span>
-      <div class="metric-label">本日湿度</div>
-      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div style="font-size:0.78rem;color:var(--text-tertiary);width:30px;white-space:nowrap;">最高</div>
-          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#007aff;line-height:1;" id="todayMaxHum">--<span style="font-size:0.92rem;opacity:0.7;">%</span></div>
+      <div class="stat-tiles">
+        <div class="stat-tile">
+          <div class="stat-tile-label">本日 最高</div>
+          <div class="stat-tile-val" id="todayMaxHum" style="color:#007aff;">--<span class="stat-tile-unit">%</span></div>
         </div>
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div style="font-size:0.78rem;color:var(--text-tertiary);width:30px;white-space:nowrap;">最低</div>
-          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#34c759;line-height:1;" id="todayMinHum">--<span style="font-size:0.92rem;opacity:0.7;">%</span></div>
+        <div class="stat-tile">
+          <div class="stat-tile-label">本日 最低</div>
+          <div class="stat-tile-val" id="todayMinHum" style="color:#34c759;">--<span class="stat-tile-unit">%</span></div>
         </div>
       </div>
-      <div class="metric-status status-normal" id="todayMaxHumStatus">--</div>
+      <div class="metric-status status-normal today-status" id="todayMaxHumStatus">--</div>
     </div>
-    <!-- VPDカード（現在値） -->
-    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;position:relative;overflow:hidden;">
-      <div style="content:'';position:absolute;top:0;right:0;width:80px;height:80px;border-radius:50%;opacity:0.07;transform:translate(20px,-20px);background:var(--accent-vpd);"></div>
-      <span class="metric-icon">🍃</span>
-      <div class="metric-label">飽差 (VPD)</div>
+    <div class="metric-card vpd" style="--metric-accent:var(--accent-vpd);">
+      <div class="metric-head"><span class="metric-icon">🍃</span><span class="metric-label">飽差 (VPD)</span></div>
       <div class="metric-value" id="vpdVal" style="color:var(--accent-vpd);">--<span class="metric-unit">kPa</span></div>
       <div class="metric-trend" id="vpdTrend">— <span class="metric-trend-label">30分前比</span></div>
-      <div class="metric-status status-normal" id="vpdStatus">--</div>
-    </div>
-    <!-- 本日VPDカード -->
-    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
-      <span class="metric-icon">🍃</span>
-      <div class="metric-label">本日飽差</div>
-      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div style="font-size:0.78rem;color:var(--text-tertiary);width:30px;white-space:nowrap;">最高</div>
-          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#af52de;line-height:1;" id="todayMaxVpd">--<span style="font-size:0.92rem;opacity:0.7;">kPa</span></div>
+      <div class="metric-badges">
+        <div class="metric-status status-normal" id="vpdStatus">--</div>
+      </div>
+      <div class="stat-tiles">
+        <div class="stat-tile">
+          <div class="stat-tile-label">本日 最高</div>
+          <div class="stat-tile-val" id="todayMaxVpd" style="color:#af52de;">--<span class="stat-tile-unit">kPa</span></div>
         </div>
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div style="font-size:0.78rem;color:var(--text-tertiary);width:30px;white-space:nowrap;">最低</div>
-          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#007aff;line-height:1;" id="todayMinVpd">--<span style="font-size:0.92rem;opacity:0.7;">kPa</span></div>
+        <div class="stat-tile">
+          <div class="stat-tile-label">本日 最低</div>
+          <div class="stat-tile-val" id="todayMinVpd" style="color:#007aff;">--<span class="stat-tile-unit">kPa</span></div>
         </div>
       </div>
-      <div class="metric-status status-normal" id="todayMaxVpdStatus">--</div>
+      <div class="metric-status status-normal today-status" id="todayMaxVpdStatus">--</div>
     </div>
-    <!-- CO2カード（現在値） -->
-    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;position:relative;overflow:hidden;">
-      <div style="content:'';position:absolute;top:0;right:0;width:80px;height:80px;border-radius:50%;opacity:0.07;transform:translate(20px,-20px);background:var(--accent-co2);"></div>
-      <span class="metric-icon">💨</span>
-      <div class="metric-label">CO2濃度</div>
+    <div class="metric-card co2" style="--metric-accent:var(--accent-co2);">
+      <div class="metric-head"><span class="metric-icon">💨</span><span class="metric-label">CO2濃度</span></div>
       <div class="metric-value" id="co2Val" style="color:#0a84d6;">--<span class="metric-unit">ppm</span></div>
       <div class="metric-trend" id="co2Trend">— <span class="metric-trend-label">30分前比</span></div>
-      <div class="metric-status status-normal" id="co2Status">--</div>
-    </div>
-    <!-- 本日CO2カード -->
-    <div class="metric-card" style="background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow);padding:24px;">
-      <span class="metric-icon">💨</span>
-      <div class="metric-label">本日CO2</div>
-      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div style="font-size:0.78rem;color:var(--text-tertiary);width:30px;white-space:nowrap;">最高</div>
-          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#0a84d6;line-height:1;" id="todayMaxCo2">--<span style="font-size:0.92rem;opacity:0.7;">ppm</span></div>
+      <div class="metric-badges">
+        <div class="metric-status status-normal" id="co2Status">--</div>
+      </div>
+      <div class="stat-tiles">
+        <div class="stat-tile">
+          <div class="stat-tile-label">本日 最高</div>
+          <div class="stat-tile-val" id="todayMaxCo2" style="color:#0a84d6;">--<span class="stat-tile-unit">ppm</span></div>
         </div>
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div style="font-size:0.78rem;color:var(--text-tertiary);width:30px;white-space:nowrap;">最低</div>
-          <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#8e8e93;line-height:1;" id="todayMinCo2">--<span style="font-size:0.92rem;opacity:0.7;">ppm</span></div>
+        <div class="stat-tile">
+          <div class="stat-tile-label">本日 最低</div>
+          <div class="stat-tile-val" id="todayMinCo2" style="color:#8e8e93;">--<span class="stat-tile-unit">ppm</span></div>
         </div>
       </div>
-      <div class="metric-status status-normal" id="todayMaxCo2Status">--</div>
+      <div class="metric-status status-normal today-status" id="todayMaxCo2Status">--</div>
     </div>
   </div>
 
   <!-- 🌱 土壌モニター (SEN0604 4in1) -->
   <div class="card soil-card" id="soilCard">
     <div class="soil-card-header">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:0.95rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌱 土壌モニター</span>
-        <span style="font-size:0.82rem;color:var(--text-tertiary);">温度・水分・EC・pH</span>
+      <div style="display:flex;align-items:baseline;gap:2px 8px;flex-wrap:wrap;min-width:0;">
+        <span class="section-title">🌱 土壌モニター</span>
+        <span class="section-sub">温度・水分・EC・pH</span>
       </div>
-      <span id="soilTime" style="font-size:0.85rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;">--</span>
+      <span id="soilTime" style="font-size:0.9rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;">--</span>
     </div>
     <div class="soil-grid">
       <div class="soil-item temp" id="soilTempItem">
@@ -1016,7 +1024,7 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
   <div class="card chart-card">
     <div class="chart-header">
       <span class="card-label">履歴グラフ</span>
-      <span style="font-size:0.83rem;color:var(--text-secondary);font-family:'DM Mono',monospace;font-weight:600;" id="chartUnitLabel">--</span>
+      <span style="font-size:0.88rem;color:var(--text-secondary);font-family:'DM Mono',monospace;font-weight:600;" id="chartUnitLabel">--</span>
     </div>
     <div class="chart-tabs-stack">
       <div class="chart-tabs">
@@ -1033,7 +1041,7 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
       </div>
     </div>
     <!-- 凡例（気温・湿度タブの時のみ表示） -->
-    <div id="chartLegend" style="display:none;padding:0 18px;margin:0 0 8px;gap:16px;font-size:0.83rem;align-items:center;">
+    <div id="chartLegend" style="display:none;padding:0 18px;margin:0 0 8px;gap:16px;font-size:0.88rem;align-items:center;">
       <span style="display:inline-flex;align-items:center;gap:5px;">
         <span id="legendDot1" style="width:14px;height:3px;border-radius:2px;background:#007aff;display:inline-block;"></span>
         <span style="color:var(--text-secondary);">北側</span>
@@ -1078,9 +1086,9 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
   <!-- 📚 ピーマン適正値ガイド -->
   <div class="card ref-card" id="refCard">
     <div class="ref-card-header">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:0.85rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">📚 ピーマン適正値ガイド</span>
-        <span style="font-size:0.78rem;color:var(--text-tertiary);">土壌4項目の判定基準</span>
+      <div style="display:flex;align-items:baseline;gap:2px 8px;flex-wrap:wrap;min-width:0;">
+        <span class="section-title">📚 ピーマン適正値ガイド</span>
+        <span class="section-sub">土壌4項目の判定基準</span>
       </div>
       <button class="ref-toggle-btn" id="refToggleBtn" onclick="toggleRefGuide()">▲ 閉じる</button>
     </div>
@@ -1208,33 +1216,33 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
   <div class="card" id="adviceCard" style="padding:16px 18px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
       <span class="card-label">💡 ハウス管理アドバイス</span>
-      <span style="font-size:0.79rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="adviceTime">--</span>
+      <span style="font-size:0.85rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="adviceTime">--</span>
     </div>
     <div id="adviceList" style="display:flex;flex-direction:column;gap:8px;">
-      <div style="font-size:0.89rem;color:var(--text-tertiary);padding:8px 0;">データ取得後に表示されます...</div>
+      <div style="font-size:0.92rem;color:var(--text-tertiary);padding:8px 0;">データ取得後に表示されます...</div>
     </div>
   </div>
 
   <!-- 天気情報 -->
   <div class="card" id="weatherCard" style="padding:14px 18px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <span style="font-size:0.82rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌤️ 天気予報（農園）</span>
-      <span style="font-size:0.78rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="weatherSource">JMA</span>
+      <span style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌤️ 天気予報（農園）</span>
+      <span style="font-size:0.85rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="weatherSource">JMA</span>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="weatherGrid">
       <div style="text-align:center;padding:10px;background:rgba(0,122,255,0.05);border-radius:12px;border:1px solid rgba(0,122,255,0.1);">
-        <div style="font-size:0.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">今日</div>
+        <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">今日</div>
         <div style="font-size:2rem;margin-bottom:4px;" id="todayWeatherIcon">--</div>
-        <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:4px;" id="todayWeatherDesc">取得中...</div>
-        <div style="font-size:0.88rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="todayWeatherTemp">--/--℃</div>
-        <div style="font-size:0.81rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="todayWeatherPrecip">--</div>
+        <div style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:4px;" id="todayWeatherDesc">取得中...</div>
+        <div style="font-size:0.92rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="todayWeatherTemp">--/--℃</div>
+        <div style="font-size:0.87rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="todayWeatherPrecip">--</div>
       </div>
       <div style="text-align:center;padding:10px;background:rgba(52,199,89,0.05);border-radius:12px;border:1px solid rgba(52,199,89,0.1);">
-        <div style="font-size:0.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">明日</div>
+        <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">明日</div>
         <div style="font-size:2rem;margin-bottom:4px;" id="tomorrowWeatherIcon">--</div>
-        <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:4px;" id="tomorrowWeatherDesc">取得中...</div>
-        <div style="font-size:0.88rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="tomorrowWeatherTemp">--/--℃</div>
-        <div style="font-size:0.81rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="tomorrowWeatherPrecip">--</div>
+        <div style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:4px;" id="tomorrowWeatherDesc">取得中...</div>
+        <div style="font-size:0.92rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="tomorrowWeatherTemp">--/--℃</div>
+        <div style="font-size:0.87rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="tomorrowWeatherPrecip">--</div>
       </div>
     </div>
     <!-- 週間（参謀のホームと同じデータ） -->
@@ -1243,18 +1251,18 @@ canvas#chart { height: 160px !important; display: block; width: 100% !important;
 
   <!-- 接続情報のみ（コンパクト） -->
   <div class="card" style="padding:12px 16px;">
-    <div style="font-size:0.82rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">接続情報</div>
-    <div style="display:grid;grid-template-columns:auto 1fr auto 1fr;gap:6px 10px;">
-      <div style="font-size:0.83rem;color:var(--text-secondary);white-space:nowrap;">📡 ルーター</div>
-      <div style="font-size:0.83rem;font-weight:500;font-family:'DM Mono',monospace;">RUT241</div>
-      <div style="font-size:0.83rem;color:var(--text-secondary);white-space:nowrap;">🌐 回線</div>
-      <div style="font-size:0.83rem;font-weight:500;font-family:'DM Mono',monospace;">SORACOM</div>
-      <div style="font-size:0.83rem;color:var(--text-secondary);white-space:nowrap;">📊 環境ch</div>
-      <div style="font-size:0.83rem;font-weight:500;font-family:'DM Mono',monospace;">99929</div>
-      <div style="font-size:0.83rem;color:var(--text-secondary);white-space:nowrap;">🌱 土壌ch</div>
-      <div style="font-size:0.83rem;font-weight:500;font-family:'DM Mono',monospace;" id="soilChDisplay">未設定</div>
-      <div style="font-size:0.83rem;color:var(--text-secondary);white-space:nowrap;">⏱️ 送信間隔</div>
-      <div style="font-size:0.83rem;font-weight:500;font-family:'DM Mono',monospace;">気温10分／土壌5分</div>
+    <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">接続情報</div>
+    <div class="conn-grid">
+      <div style="font-size:0.88rem;color:var(--text-secondary);white-space:nowrap;">📡 ルーター</div>
+      <div style="font-size:0.88rem;font-weight:500;font-family:'DM Mono',monospace;">RUT241</div>
+      <div style="font-size:0.88rem;color:var(--text-secondary);white-space:nowrap;">🌐 回線</div>
+      <div style="font-size:0.88rem;font-weight:500;font-family:'DM Mono',monospace;">SORACOM</div>
+      <div style="font-size:0.88rem;color:var(--text-secondary);white-space:nowrap;">📊 環境ch</div>
+      <div style="font-size:0.88rem;font-weight:500;font-family:'DM Mono',monospace;">99929</div>
+      <div style="font-size:0.88rem;color:var(--text-secondary);white-space:nowrap;">🌱 土壌ch</div>
+      <div style="font-size:0.88rem;font-weight:500;font-family:'DM Mono',monospace;" id="soilChDisplay">未設定</div>
+      <div style="font-size:0.88rem;color:var(--text-secondary);white-space:nowrap;">⏱️ 送信間隔</div>
+      <div style="font-size:0.88rem;font-weight:500;font-family:'DM Mono',monospace;">気温10分／土壌5分</div>
     </div>
   </div>
   <!-- 更新ボタン -->
@@ -1429,7 +1437,7 @@ const yCtx = yAxisCanvas.getContext('2d');
 function drawYAxis(min, max, displayH, dpr, digits = 0, unit = '') {
   const range = max - min || 1;
   // 本体グラフと同じpadを使用（縦の位置を一致させる）
-  const pad = { top: 12, bottom: 28 };
+  const pad = { top: 18, bottom: 30 };
   const ch = displayH - pad.top - pad.bottom;
   const w = 44;
 
@@ -1450,7 +1458,7 @@ function drawYAxis(min, max, displayH, dpr, digits = 0, unit = '') {
     const y = pad.top + (ch / 4) * i;
     const val = max - (range / 4) * i;
     yC.fillStyle = 'rgba(0,0,0,0.55)';
-    yC.font = '12px DM Mono, monospace';
+    yC.font = '14px DM Mono, monospace';
     yC.textAlign = 'right';
     yC.fillText(val.toFixed(digits), w - 4, y + 4);
   }
@@ -1474,7 +1482,7 @@ function drawChart(data, color, unit, retry = 0) {
   const w = canvas.offsetWidth;
   const h = canvas.offsetHeight;
   // Y軸ラベルは外側固定パネルが担当するので、左パディングを最小化
-  const pad = { top: 12, right: 12, bottom: 28, left: 8 };
+  const pad = { top: 18, right: 12, bottom: 30, left: 8 };
   const cw = w - pad.left - pad.right;
   const ch = h - pad.top - pad.bottom;
 
@@ -1579,7 +1587,7 @@ function drawChart(data, color, unit, retry = 0) {
       ctx.setLineDash([]);
       // ラベル（左端に控えめに）
       ctx.fillStyle = `rgba(${zone.color}, 0.55)`;
-      ctx.font = 'bold 11px DM Sans, sans-serif';
+      ctx.font = 'bold 13px DM Sans, sans-serif';
       ctx.textAlign = 'left';
       ctx.fillText(zone.label, pad.left + 6, yTop - 4);
     }
@@ -1611,11 +1619,11 @@ function drawChart(data, color, unit, retry = 0) {
 
       if (labelStr === lastLabel) continue;
       const x = pad.left + i * xStep;
-      if (x - lastLabelX < 50) continue; // 最小50px間隔
+      if (x - lastLabelX < 60) continue; // 最小60px間隔
       lastLabel = labelStr;
       lastLabelX = x;
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      ctx.font = '11px DM Mono, monospace';
+      ctx.font = '13px DM Mono, monospace';
       ctx.textAlign = 'center';
       ctx.fillText(labelStr, x, h - 4);
     }
@@ -2914,8 +2922,8 @@ function renderAdvice() {
       <div style="display:flex;gap:10px;padding:10px 12px;background:${c.bg};border:1px solid ${c.border};border-radius:12px;">
         <div style="font-size:1.3rem;flex-shrink:0;line-height:1.2;">${a.icon}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:0.9rem;font-weight:600;color:${c.title};margin-bottom:3px;">${a.title}</div>
-          <div style="font-size:0.86rem;color:var(--text-secondary);line-height:1.45;">${a.body}</div>
+          <div style="font-size:0.93rem;font-weight:600;color:${c.title};margin-bottom:3px;">${a.title}</div>
+          <div style="font-size:0.9rem;color:var(--text-secondary);line-height:1.45;">${a.body}</div>
         </div>
       </div>
     `;
@@ -3144,8 +3152,8 @@ function clearSensorValues() {
       <div style="display:flex;gap:10px;padding:10px 12px;background:rgba(142,142,147,0.08);border:1px solid rgba(142,142,147,0.2);border-radius:12px;">
         <div style="font-size:1.3rem;flex-shrink:0;">📵</div>
         <div style="flex:1;">
-          <div style="font-size:0.9rem;font-weight:600;color:#8e8e93;margin-bottom:3px;">データ途絶中</div>
-          <div style="font-size:0.86rem;color:var(--text-secondary);">センサー復旧後に再開します。</div>
+          <div style="font-size:0.93rem;font-weight:600;color:#8e8e93;margin-bottom:3px;">データ途絶中</div>
+          <div style="font-size:0.9rem;color:var(--text-secondary);">センサー復旧後に再開します。</div>
         </div>
       </div>
     `;
@@ -3314,8 +3322,8 @@ async function fetchTodayData() {
     const todayMax = Math.max(...temps).toFixed(1);
     const todayMin = Math.min(...temps).toFixed(1);
 
-    document.getElementById('todayMax').innerHTML = todayMax + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
-    document.getElementById('todayMin').innerHTML = todayMin + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
+    document.getElementById('todayMax').innerHTML = todayMax + '<span class="stat-tile-unit">℃</span>';
+    document.getElementById('todayMin').innerHTML = todayMin + '<span class="stat-tile-unit">℃</span>';
     const [tmLabel, tmClass] = getTempStatus(parseFloat(todayMax));
     document.getElementById('todayMaxStatus').textContent = `最高 ${tmLabel}`;
     document.getElementById('todayMaxStatus').className = 'metric-status ' + tmClass;
@@ -3324,8 +3332,8 @@ async function fetchTodayData() {
     if (hums.length > 0) {
       const todayMaxHum = Math.max(...hums).toFixed(0);
       const todayMinHum = Math.min(...hums).toFixed(0);
-      document.getElementById('todayMaxHum').innerHTML = todayMaxHum + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">%</span>';
-      document.getElementById('todayMinHum').innerHTML = todayMinHum + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">%</span>';
+      document.getElementById('todayMaxHum').innerHTML = todayMaxHum + '<span class="stat-tile-unit">%</span>';
+      document.getElementById('todayMinHum').innerHTML = todayMinHum + '<span class="stat-tile-unit">%</span>';
       const [hmaxLabel, hmaxClass] = getHumStatus(parseFloat(todayMaxHum));
       document.getElementById('todayMaxHumStatus').textContent = `最高 ${hmaxLabel}`;
       document.getElementById('todayMaxHumStatus').className = 'metric-status ' + hmaxClass;
@@ -3343,8 +3351,8 @@ async function fetchTodayData() {
     if (vpds.length > 0) {
       const todayMaxVpd = Math.max(...vpds).toFixed(2);
       const todayMinVpd = Math.min(...vpds).toFixed(2);
-      document.getElementById('todayMaxVpd').innerHTML = todayMaxVpd + '<span style="font-size:0.92rem;opacity:0.7;">kPa</span>';
-      document.getElementById('todayMinVpd').innerHTML = todayMinVpd + '<span style="font-size:0.92rem;opacity:0.7;">kPa</span>';
+      document.getElementById('todayMaxVpd').innerHTML = todayMaxVpd + '<span class="stat-tile-unit">kPa</span>';
+      document.getElementById('todayMinVpd').innerHTML = todayMinVpd + '<span class="stat-tile-unit">kPa</span>';
       const [vmaxLabel, vmaxClass] = getVpdStatus(parseFloat(todayMaxVpd));
       document.getElementById('todayMaxVpdStatus').textContent = `最高 ${vmaxLabel}`;
       document.getElementById('todayMaxVpdStatus').className = 'metric-status ' + vmaxClass;
@@ -3355,16 +3363,16 @@ async function fetchTodayData() {
     if (co2s.length > 0) {
       const todayMaxCo2 = Math.round(Math.max(...co2s));
       const todayMinCo2 = Math.round(Math.min(...co2s));
-      document.getElementById('todayMaxCo2').innerHTML = todayMaxCo2 + '<span style="font-size:0.92rem;opacity:0.7;">ppm</span>';
-      document.getElementById('todayMinCo2').innerHTML = todayMinCo2 + '<span style="font-size:0.92rem;opacity:0.7;">ppm</span>';
+      document.getElementById('todayMaxCo2').innerHTML = todayMaxCo2 + '<span class="stat-tile-unit">ppm</span>';
+      document.getElementById('todayMinCo2').innerHTML = todayMinCo2 + '<span class="stat-tile-unit">ppm</span>';
       const [cmaxLabel, cmaxClass] = getCo2Status(todayMaxCo2);
       document.getElementById('todayMaxCo2Status').textContent = `最高 ${cmaxLabel}`;
       document.getElementById('todayMaxCo2Status').className = 'metric-status ' + cmaxClass;
     }
 
   } catch(e) {
-    document.getElementById('todayMax').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
-    document.getElementById('todayMin').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">℃</span>';
+    document.getElementById('todayMax').innerHTML = '--<span class="stat-tile-unit">℃</span>';
+    document.getElementById('todayMin').innerHTML = '--<span class="stat-tile-unit">℃</span>';
     document.getElementById('todayMaxStatus').textContent = '--';
     const minStatus = document.getElementById('todayMinStatus'); if (minStatus) minStatus.textContent = '--';
   }
@@ -3826,26 +3834,26 @@ async function fetchData() {
     if (temp !== null && hum !== null) {
       vpd = calcVPD(temp, hum);
       if (!isNaN(vpd)) {
-        document.getElementById('vpdVal').innerHTML = vpd.toFixed(2) + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">kPa</span>';
+        document.getElementById('vpdVal').innerHTML = vpd.toFixed(2) + '<span class="metric-unit">kPa</span>';
         const [vLabel, vClass] = getVpdStatus(vpd);
         document.getElementById('vpdStatus').textContent = vLabel;
         document.getElementById('vpdStatus').className = 'metric-status ' + vClass;
       }
     } else {
       // 両方オフラインの場合はVPDも--に
-      document.getElementById('vpdVal').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">kPa</span>';
+      document.getElementById('vpdVal').innerHTML = '--<span class="metric-unit">kPa</span>';
       document.getElementById('vpdStatus').textContent = '--';
       document.getElementById('vpdStatus').className = 'metric-status status-normal';
     }
 
     // CO2表示
     if (!isNaN(co2)) {
-      document.getElementById('co2Val').innerHTML = Math.round(co2) + '<span class="metric-unit" style="font-size:1rem;opacity:0.7;">ppm</span>';
+      document.getElementById('co2Val').innerHTML = Math.round(co2) + '<span class="metric-unit">ppm</span>';
       const [cLabel, cClass] = getCo2Status(co2);
       document.getElementById('co2Status').textContent = cLabel;
       document.getElementById('co2Status').className = 'metric-status ' + cClass;
     } else {
-      document.getElementById('co2Val').innerHTML = '--<span class="metric-unit" style="font-size:1rem;opacity:0.7;">ppm</span>';
+      document.getElementById('co2Val').innerHTML = '--<span class="metric-unit">ppm</span>';
       document.getElementById('co2Status').textContent = '--';
       document.getElementById('co2Status').className = 'metric-status status-normal';
     }
