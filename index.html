@@ -624,6 +624,12 @@ canvas#chartYAxis {
 }
 canvas#chart { height: 210px !important; display: block; width: 100% !important; }
 /* グラフのツールチップ (参謀の温度推移と同じ見た目: 縦線 + 各線上の点 + 黒い吹き出し) */
+.chart-event { position: absolute; width: 0; border-left: 2px dashed var(--ev, #5856d6); pointer-events: none; z-index: 1; opacity: .85; }
+.chart-event-badge { position: absolute; top: -2px; left: -12px; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 1.5px solid var(--ev, #5856d6); display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; }
+.chart-events { margin-top: 10px; display: grid; gap: 6px; }
+.chart-events:empty { display: none; }
+.chart-events-row { display: flex; gap: 8px; align-items: baseline; font-size: 0.85rem; color: var(--text-primary); line-height: 1.45; }
+.chart-events-time { flex: none; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .chart-cursor-line {
   position: absolute; width: 1px; background: #ccc;
   pointer-events: none; display: none; z-index: 1;
@@ -680,6 +686,9 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
 .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .footer span { display: block; white-space: nowrap; }
+.app-links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0 8px; }
+.app-links a { min-height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 14px; border: 1px solid var(--card-border); background: var(--card); color: var(--text-primary); text-decoration: none; font-size: 0.9rem; font-weight: 600; white-space: nowrap; }
+@media (min-width: 720px) { .app-links { grid-template-columns: repeat(4, 1fr); } }
 .footer { text-align: center; line-height: 1.7; padding: 8px 0 24px; font-size: 0.87rem; color: var(--text-tertiary); font-family: 'DM Mono', monospace; }
 
 /* ========== PCレイアウト ========== */
@@ -1090,6 +1099,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       </div>
       <div class="chart-tip" id="chartTip" role="status" aria-live="polite"></div>
     </div>
+    <div class="chart-events" id="chartEvents" aria-label="グラフの期間内の作業"></div>
     <div class="chart-info">
       <div class="chart-info-item">
         <div class="chart-info-label">最高</div>
@@ -1289,6 +1299,12 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
   <!-- 更新ボタン -->
   <button class="refresh-btn" id="refreshBtn" onclick="fetchData()">データを更新</button>
 
+  <nav class="app-links" aria-label="ほかのアプリ">
+    <a href="https://pepper-advisor.vercel.app/">🌶️ 参謀</a>
+    <a href="https://kishaku-calc.vercel.app/">🧮 希釈計算</a>
+    <a href="https://pepper-pesticide-app.vercel.app/">🧪 農薬・肥料</a>
+    <a href="https://pest-map-ebon.vercel.app/">🐛 病害虫マップ</a>
+  </nav>
   <div class="footer"><span>自動更新 5分ごと</span><span>送信間隔 気温湿度10分／土壌5分</span></div>
 
 </div>
@@ -1736,6 +1752,109 @@ function drawChart(data, color, unit, retry = 0) {
     };
   }
   restoreChartTip();
+  renderChartEvents();
+}
+
+// ===== グラフに重ねる「作業の印」 =====
+// 希釈計算・農薬ナビ・肥料アプリの記録 (散布・灌注・液肥) と、病害虫マップの初認を縦線で出す。
+// 液肥や灌注のあとに EC・水分がどう動いたか、散布の前後の湿度がどうだったかを見比べるため。
+// 記録は別の Supabase (農薬プロジェクト) にある。読むだけ。
+const FARM_URL = 'https://jckjdfvoqsgqvhornnjs.supabase.co';
+const FARM_KEY = 'sb_publishable_BX-8YWYXbwl0WzscvcrRfA_mL9EZAXD';
+const EVENT_STYLE = {
+  spray: { icon: '🧴', color: '#5856d6', label: '防除' },
+  fert:  { icon: '🌱', color: '#1d7a3a', label: '施肥' },
+  pest:  { icon: '🐛', color: '#ff9500', label: '病害虫' },
+};
+let chartEvents = [];   // { kind, time: Date, text }
+
+async function farmGet(path) {
+  const res = await fetch(`${FARM_URL}/rest/v1/${path}`, { headers: { apikey: FARM_KEY }, cache: 'no-store' });
+  if (!res.ok) throw new Error('farm ' + res.status);
+  return res.json();
+}
+
+// 記録には日付しか無い (時刻なし)。その日のうちに記録していれば記録した時刻を、後日の入力なら正午を使う
+function eventTime(dateStr, createdAt) {
+  const day = String(dateStr || '').slice(0, 10);
+  const created = createdAt ? new Date(createdAt) : null;
+  if (created && !isNaN(created)) {
+    const local = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')}`;
+    if (local === day) return created;
+  }
+  const noon = new Date(`${day}T12:00:00`);
+  return isNaN(noon) ? null : noon;
+}
+
+async function fetchChartEvents() {
+  const since = new Date(Date.now() - 4 * 86400000).toISOString().slice(0, 10);
+  const firstLine = (v) => String(v || '').split('\n')[0].trim();
+  try {
+    const [sprays, ferts, pests] = await Promise.all([
+      farmGet(`applications?select=applied_date,created_at,notes,application_pesticides(pesticides(name))&applied_date=gte.${since}&order=applied_date.desc&limit=30`),
+      farmGet(`fertilizer_applications?select=applied_at,created_at,amount,unit,dilution_ratio,notes,fertilizers(name)&applied_at=gte.${since}&order=applied_at.desc&limit=30`),
+      farmGet(`pest_observations?select=observed_at,pest_name,house,severity&observed_at=gte.${since}&order=observed_at.desc&limit=50`).catch(() => []),
+    ]);
+    const out = [];
+    sprays.forEach(r => {
+      const names = (r.application_pesticides || []).map(ap => ap.pesticides && ap.pesticides.name).filter(Boolean).join('・');
+      out.push({ kind: 'spray', time: eventTime(r.applied_date, r.created_at), text: [names, firstLine(r.notes)].filter(Boolean).join(' — ') });
+    });
+    ferts.forEach(r => {
+      const what = [r.fertilizers && r.fertilizers.name, r.dilution_ratio ? `${r.dilution_ratio}倍` : '', r.amount ? `${r.amount}${r.unit || ''}` : ''].filter(Boolean).join(' ');
+      out.push({ kind: 'fert', time: eventTime(r.applied_at, r.created_at), text: [what, firstLine(r.notes)].filter(Boolean).join(' — ') });
+    });
+    pests.forEach(r => {
+      const t = new Date(r.observed_at);
+      out.push({ kind: 'pest', time: isNaN(t) ? null : t, text: [r.pest_name, r.house].filter(Boolean).join(' · ') });
+    });
+    chartEvents = out.filter(e => e.time).sort((a, b) => a.time - b.time);
+  } catch (e) {
+    console.warn('作業の印を取得できませんでした:', e && e.message);
+  }
+  renderChartEvents();
+}
+
+function renderChartEvents() {
+  const inner = document.getElementById('chartInner');
+  const list = document.getElementById('chartEvents');
+  const canvas = document.getElementById('chart');
+  if (!inner || !list || !canvas) return;
+  inner.querySelectorAll('.chart-event').forEach(n => n.remove());
+  list.textContent = '';
+  const g = chartGeom;
+  if (!g || !g.labels.length || !chartEvents.length) return;
+  const t0 = g.labels[0], t1 = g.labels[Math.min(g.labels.length, g.n) - 1];
+  if (!(t0 instanceof Date) || !(t1 instanceof Date) || t1 <= t0) return;
+  const sx = (canvas.offsetWidth || g.w) / g.w;
+  const sy = (canvas.offsetHeight || g.h) / g.h;
+  const last = Math.min(g.labels.length, g.n) - 1;
+
+  chartEvents.filter(e => e.time >= t0 && e.time <= t1).forEach(e => {
+    const st = EVENT_STYLE[e.kind];
+    const idx = ((e.time - t0) / (t1 - t0)) * last;
+    const line = document.createElement('div');
+    line.className = 'chart-event';
+    line.style.setProperty('--ev', st.color);
+    line.style.left = ((g.pad.left + idx * g.xStep) * sx) + 'px';
+    line.style.top = (g.pad.top * sy) + 'px';
+    line.style.height = (g.ch * sy) + 'px';
+    const badge = document.createElement('span');
+    badge.className = 'chart-event-badge';
+    badge.textContent = st.icon;
+    line.appendChild(badge);
+    inner.appendChild(line);
+
+    const row = document.createElement('div');
+    row.className = 'chart-events-row';
+    const time = document.createElement('span');
+    time.className = 'chart-events-time';
+    time.textContent = `${e.time.getMonth() + 1}/${e.time.getDate()} ${String(e.time.getHours()).padStart(2, '0')}:${String(e.time.getMinutes()).padStart(2, '0')}`;
+    const text = document.createElement('span');
+    text.textContent = `${st.icon} ${st.label}　${e.text}`;
+    row.append(time, text);
+    list.appendChild(row);
+  });
 }
 
 // ===== グラフのツールチップ =====
@@ -4045,6 +4164,8 @@ window.addEventListener('load', () => {
   fetchData();
   fetchTodayData();
   fetchWeather();
+  fetchChartEvents();
+  setInterval(fetchChartEvents, 600000); // 作業の印は10分ごと
   setInterval(fetchData, 300000);
   setInterval(fetchTodayData, 300000);
   setInterval(fetchWeather, 3600000); // 1時間ごとに天気更新
