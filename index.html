@@ -1826,6 +1826,7 @@ const EVENT_STYLE = {
   spray: { icon: '🧴', color: '#5856d6', label: '防除' },
   fert:  { icon: '🌱', color: '#1d7a3a', label: '施肥' },
   pest:  { icon: '🐛', color: '#ff9500', label: '病害虫' },
+  water: { icon: '💧', color: '#007aff', label: '灌水' },
 };
 let chartEvents = [];   // { kind, time: Date, text }
 
@@ -1845,6 +1846,34 @@ function eventTime(dateStr, createdAt) {
   }
   const noon = new Date(`${day}T12:00:00`);
   return isNaN(noon) ? null : noon;
+}
+
+// 日誌の灌水 (参謀の DB の公開 RPC: 0021 get_irrigation_recent)。未適用・失敗なら空。
+// 日誌には時刻が無いので、午前は 9時、午後は 15時の位置に置く (目安)。
+async function fetchIrrigationEvents() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_irrigation_recent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ p_days: 4 }),
+    });
+    if (!res.ok) return [];
+    // 同じ日・同じ時間帯のものは1つの印にまとめる (パイプ5分 + 5分 + 手灌水 など)
+    const groups = new Map();
+    (await res.json()).forEach(r => {
+      const key = `${r.date}|${r.period}`;
+      if (!groups.has(key)) groups.set(key, { date: r.date, period: r.period, pipe: [], hand: [] });
+      groups.get(key)[r.kind === 'hand_irrigate' ? 'hand' : 'pipe'].push(r.detail || '');
+    });
+    // 「パイプ灌水 5分+5分・手灌水 東棟 株元」の形にまとめる
+    const label = (name, details) => details.length === 0 ? '' : `${name} ${details.filter(Boolean).join('+')}`.trim();
+    return [...groups.values()].map(g => {
+      const time = new Date(`${String(g.date).slice(0, 10)}T${g.period === 'pm' ? '15' : '09'}:00:00`);
+      return { kind: 'water', time: isNaN(time) ? null : time, approx: true, text: `${g.period === 'pm' ? '午後' : '午前'}　${[label('パイプ灌水', g.pipe), label('手灌水', g.hand)].filter(Boolean).join('・')}` };
+    });
+  } catch (e) {
+    return [];
+  }
 }
 
 async function fetchChartEvents() {
@@ -1869,10 +1898,14 @@ async function fetchChartEvents() {
       const t = new Date(r.observed_at);
       out.push({ kind: 'pest', time: isNaN(t) ? null : t, text: [r.pest_name, r.house].filter(Boolean).join(' · ') });
     });
-    chartEvents = out.filter(e => e.time).sort((a, b) => a.time - b.time);
+    chartEvents = out;
   } catch (e) {
     console.warn('作業の印を取得できませんでした:', e && e.message);
+    chartEvents = chartEvents.filter(e => e.kind !== 'water');
   }
+  // 灌水は別の DB。片方が失敗しても、もう片方は出す
+  const water = await fetchIrrigationEvents();
+  chartEvents = [...chartEvents.filter(e => e.kind !== 'water'), ...water].filter(e => e.time).sort((a, b) => a.time - b.time);
   renderChartEvents();
 }
 
@@ -1910,7 +1943,9 @@ function renderChartEvents() {
     row.className = 'chart-events-row';
     const time = document.createElement('span');
     time.className = 'chart-events-time';
-    time.textContent = `${e.time.getMonth() + 1}/${e.time.getDate()} ${String(e.time.getHours()).padStart(2, '0')}:${String(e.time.getMinutes()).padStart(2, '0')}`;
+    time.textContent = e.approx
+      ? `${e.time.getMonth() + 1}/${e.time.getDate()}`
+      : `${e.time.getMonth() + 1}/${e.time.getDate()} ${String(e.time.getHours()).padStart(2, '0')}:${String(e.time.getMinutes()).padStart(2, '0')}`;
     const text = document.createElement('span');
     text.textContent = `${st.icon} ${st.label}　${e.text}`;
     row.append(time, text);
