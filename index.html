@@ -1837,16 +1837,23 @@ async function farmGet(path) {
   return res.json();
 }
 
-// 記録には日付しか無い (時刻なし)。その日のうちに記録していれば記録した時刻を、後日の入力なら正午を使う
-function eventTime(dateStr, createdAt) {
+// 散布・施肥の時刻。applied_time (日本時間 HH:MM、希釈計算・参謀で入る) があればその時刻。
+// 無い記録は目安: その日のうちに入力していれば入力した時刻、後日の入力なら正午に置き、一覧には「時刻なし」と出す
+function eventTime(dateStr, appliedTime, createdAt) {
   const day = String(dateStr || '').slice(0, 10);
+  const hhmm = appliedTime ? String(appliedTime).slice(0, 5) : '';
+  if (/^\d{2}:\d{2}$/.test(hhmm)) {
+    const t = new Date(`${day}T${hhmm}:00`);
+    if (!isNaN(t)) return { time: t, approx: false, note: '' };
+  }
   const created = createdAt ? new Date(createdAt) : null;
   if (created && !isNaN(created)) {
     const local = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')}`;
-    if (local === day) return created;
+    const hm = `${String(created.getHours()).padStart(2, '0')}:${String(created.getMinutes()).padStart(2, '0')}`;
+    if (local === day) return { time: created, approx: true, note: `（時刻なし・${hm} に入力）` };
   }
   const noon = new Date(`${day}T12:00:00`);
-  return isNaN(noon) ? null : noon;
+  return isNaN(noon) ? null : { time: noon, approx: true, note: '（時刻なし）' };
 }
 
 // 日誌の灌水 (参謀の DB の公開 RPC: 0021 get_irrigation_recent)。未適用・失敗なら空。
@@ -1885,18 +1892,20 @@ async function fetchChartEvents() {
   const firstLine = (v) => String(v || '').split('\n')[0].trim();
   try {
     const [sprays, ferts, pests] = await Promise.all([
-      farmGet(`applications?select=applied_date,created_at,notes,application_pesticides(pesticides(name))&applied_date=gte.${since}&order=applied_date.desc&limit=30`),
-      farmGet(`fertilizer_applications?select=applied_at,created_at,amount,unit,dilution_ratio,notes,fertilizers(name)&applied_at=gte.${since}&order=applied_at.desc&limit=30`),
+      farmGet(`applications?select=applied_date,applied_time,created_at,notes,application_pesticides(pesticides(name))&applied_date=gte.${since}&order=applied_date.desc&limit=30`),
+      farmGet(`fertilizer_applications?select=applied_at,applied_time,created_at,amount,unit,dilution_ratio,notes,fertilizers(name)&applied_at=gte.${since}&order=applied_at.desc&limit=30`),
       farmGet(`pest_observations?select=observed_at,pest_name,house,severity&observed_at=gte.${since}&order=observed_at.desc&limit=50`).catch(() => []),
     ]);
     const out = [];
     sprays.forEach(r => {
       const names = (r.application_pesticides || []).map(ap => ap.pesticides && ap.pesticides.name).filter(Boolean).join('・');
-      out.push({ kind: 'spray', time: eventTime(r.applied_date, r.created_at), text: [names, firstLine(r.notes)].filter(Boolean).join(' — ') });
+      const at = eventTime(r.applied_date, r.applied_time, r.created_at);
+      if (at) out.push({ kind: 'spray', time: at.time, approx: at.approx, text: [names, firstLine(r.notes)].filter(Boolean).join(' — ') + at.note });
     });
     ferts.forEach(r => {
       const what = [r.fertilizers && r.fertilizers.name, r.dilution_ratio ? `${r.dilution_ratio}倍` : '', r.amount ? `${r.amount}${r.unit || ''}` : ''].filter(Boolean).join(' ');
-      out.push({ kind: 'fert', time: eventTime(r.applied_at, r.created_at), text: [what, firstLine(r.notes)].filter(Boolean).join(' — ') });
+      const at = eventTime(r.applied_at, r.applied_time, r.created_at);
+      if (at) out.push({ kind: 'fert', time: at.time, approx: at.approx, text: [what, firstLine(r.notes)].filter(Boolean).join(' — ') + at.note });
     });
     pests.forEach(r => {
       const t = new Date(r.observed_at);
@@ -1928,9 +1937,19 @@ function renderChartEvents() {
   const sy = (canvas.offsetHeight || g.h) / g.h;
   const last = Math.min(g.labels.length, g.n) - 1;
 
+  // 横軸はデータのある10分枠を等間隔に並べている (センサーが止まった時間は詰まる)。
+  // なので最初〜最後の比率ではなく、前後の枠の時刻から位置を出す
+  const L = g.labels;
+  const indexOf = (t) => {
+    let lo = 0, hi = last;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (L[mid] <= t) lo = mid; else hi = mid; }
+    const span = L[hi] - L[lo];
+    return span > 0 ? lo + Math.min(1, Math.max(0, (t - L[lo]) / span)) : lo;
+  };
+
   chartEvents.filter(e => e.time >= t0 && e.time <= t1).forEach(e => {
     const st = EVENT_STYLE[e.kind];
-    const idx = ((e.time - t0) / (t1 - t0)) * last;
+    const idx = indexOf(e.time);
     const line = document.createElement('div');
     line.className = 'chart-event';
     line.style.setProperty('--ev', st.color);
