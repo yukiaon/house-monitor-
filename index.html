@@ -1147,7 +1147,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <div class="ref-card-header">
       <div style="display:flex;align-items:baseline;gap:2px 8px;flex-wrap:wrap;min-width:0;">
         <span class="section-title">📚 適正値ガイド</span>
-        <span class="section-sub">空気と土の目安（出典つき。EC・pH は未確認）</span>
+        <span class="section-sub">空気と土の目安（出典つき）</span>
       </div>
       <button class="ref-toggle-btn" id="refToggleBtn" onclick="toggleRefGuide()">▲ 閉じる</button>
     </div>
@@ -1237,23 +1237,22 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         </div>
         <div class="ref-bar-wrap">
           <div class="ref-bar">
-            <div class="ref-bar-seg danger" style="flex:3"></div>
-            <div class="ref-bar-seg warn"   style="flex:5"></div>
-            <div class="ref-bar-seg ok"     style="flex:17">適正</div>
-            <div class="ref-bar-seg warn"   style="flex:10">注意</div>
-            <div class="ref-bar-seg danger" style="flex:15">危険</div>
+            <div class="ref-bar-seg warn"   style="flex:3">低い</div>
+            <div class="ref-bar-seg ok"     style="flex:4">目安</div>
+            <div class="ref-bar-seg warn"   style="flex:3">注意</div>
+            <div class="ref-bar-seg danger" style="flex:5">高い</div>
           </div>
           <div class="ref-marker" id="refEcMarker" style="display:none;">▼</div>
         </div>
         <div class="ref-labels">
-          <span               style="left:6%">300</span>
-          <span               style="left:16%">800</span>
-          <span               style="left:50%">2500</span>
-          <span               style="left:70%">3500</span>
-          <span class="right" style="left:100%">5000+</span>
+          <span class="left"  style="left:0%">0</span>
+          <span               style="left:20%">300</span>
+          <span               style="left:46.7%">700</span>
+          <span               style="left:66.7%">1000</span>
+          <span class="right" style="left:100%">1500+</span>
         </div>
         <div class="ref-desc">
-          <strong>適正 800〜2500 μS/cm</strong>。300未満は肥料切れ、3500超は塩類集積・肥料焼けリスク。施設栽培は連作で蓄積しやすい。EC高い時は灌水で希釈、追肥控えめが基本。<small style="color:var(--text-tertiary);">※ 土壌挿入式SEN0604の直接測定値。土壌診断（懸濁液法）の値とは異なる。</small>
+          <strong>目安 300〜700 μS/cm</strong>（果菜類・壌土〜粘質土の好適 EC 0.3〜0.7 mS/cm・鹿児島県 土壌管理指針。この畑は細粒質土）。収穫期は 0.5〜0.7 が目標、<strong>1.0 mS/cm 以上で良果率低下・乱形果</strong>（岩手県）。低いだけで肥料切れとは判断しない（JA宮崎中央の土壌診断）。<small style="color:var(--text-tertiary);">※ 出典の値は土を採って水に溶かして測る値（1:5）。SEN0604 は土に刺したまま測るので同じ物差しではなく、参考として当てている。土壌診断の実測値と並べて見直す予定。</small>
         </div>
       </div>
 
@@ -1265,24 +1264,24 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         </div>
         <div class="ref-bar-wrap">
           <div class="ref-bar">
-            <div class="ref-bar-seg danger" style="flex:10">危険</div>
-            <div class="ref-bar-seg warn"   style="flex:8">注意</div>
-            <div class="ref-bar-seg ok"     style="flex:9">適正</div>
-            <div class="ref-bar-seg warn"   style="flex:6">注意</div>
-            <div class="ref-bar-seg danger" style="flex:17">危険</div>
+            <div class="ref-bar-seg danger" style="flex:10">強酸性</div>
+            <div class="ref-bar-seg warn"   style="flex:5"></div>
+            <div class="ref-bar-seg ok"     style="flex:10">目安</div>
+            <div class="ref-bar-seg warn"   style="flex:5"></div>
+            <div class="ref-bar-seg danger" style="flex:20">アルカリ</div>
           </div>
           <div class="ref-marker" id="refPhMarker" style="display:none;">▼</div>
         </div>
         <div class="ref-labels">
           <span class="left"  style="left:0%">4.0</span>
           <span               style="left:20%">5.0</span>
-          <span               style="left:36%">5.8</span>
-          <span               style="left:54%">6.7</span>
-          <span               style="left:66%">7.3</span>
+          <span               style="left:30%">5.5</span>
+          <span               style="left:50%">6.5</span>
+          <span               style="left:60%">7.0</span>
           <span class="right" style="left:100%">9.0</span>
         </div>
         <div class="ref-desc">
-          ピーマン適正 <strong>pH 5.8〜6.7</strong>（理想 6.0〜6.5）。5.0以下は強酸性で微量要素過剰、7.3超は鉄・マンガン欠乏。pH低い→苦土石灰投入、pH高い→硫安等の生理酸性肥料で調整。
+          <strong>目安 pH 5.5〜6.5</strong>（施設の果菜類 pH(H₂O)・鹿児島県 土壌管理指針）。5 以下の強酸性では生育が抑えられ、7 を超えると鉄・マンガン・ホウ素などが効きにくくなり濃度障害も起きやすい（同）。2026-05 の土壌診断は pH 5.83（JA の理想値 6.5）。<small style="color:var(--text-tertiary);">※ センサー値は土を採って測る pH(H₂O) と同じではない。灌水直後に大きく動くことがあるので、石灰などを入れる前に土壌診断で確かめる。</small>
         </div>
       </div>
 
@@ -1493,7 +1492,10 @@ let latestState = {
 //   CO2    : 岩手県 成果書 外気並み 400ppm 以上を保つ（上限側はピーマンの出典が無いので判定しない）
 //   地温   : 橘 1989「主要野菜の最適培地温度」とうがらし 22〜25℃（岡山県の資料に掲載）
 //   土壌水分: 65〜90% はこの畑の基準（SEN0604 実機スケール。変えない）
-//   EC・pH : 出典未確認（従来の値のまま）
+//   EC     : 鹿児島県 土壌管理指針（七訂）果菜類の好適EC 壌土〜粘質土 0.3〜0.7 mS/cm（この畑は細粒質土・JA宮崎中央 土壌診断書）
+//            岩手県 ハウスピーマンの施肥管理技術（S63）収穫期 0.5〜0.7 目標・1.0 以上で良果率低下・乱形果
+//   pH     : 鹿児島県 同指針 施設の果菜類 pH(H2O) 5.5〜6.5、5 以下の強酸性で生育が抑制、7 を超えるアルカリで微量要素欠乏・濃度障害
+//   ※ EC・pH の出典は土を採って水に溶かして測る値（1:5 など）。SEN0604 は土に刺したまま測るので、同じ物差しではない（参考として当てる）
 const PEPPER_TARGETS = {
   day:   { okMin: 25, okMax: 30, limit: 35 },        // 昼 6〜18時
   night: { okMin: 15, okMax: 20, limit: 12 },        // 夜 18〜翌6時
@@ -1505,6 +1507,8 @@ const PEPPER_TARGETS = {
   morningRiseMax: 2,                                 // ℃/h
   co2Min: 400,
   soilTemp: { okMin: 22, okMax: 25 },
+  soilEc: { okMin: 300, okMax: 700, high: 1000 },   // μS/cm（1 mS/cm = 1000 μS/cm）
+  soilPh: { okMin: 5.5, okMax: 6.5, acid: 5.0, alkali: 7.0 },
 };
 function isDayHour(h) { return h >= 6 && h < 18; }
 
@@ -1646,12 +1650,12 @@ function drawChart(data, color, unit, retry = 0) {
     if (min < 0) min = 0;
     if (max > 100) max = 100;
   } else if (chartMode === 'soilec') {
-    min = Math.min(min, 1000);
-    max = Math.max(max, 3000);
+    min = Math.min(min, PEPPER_TARGETS.soilEc.okMin - 100);   // 目安の帯が見えるように
+    max = Math.max(max, PEPPER_TARGETS.soilEc.okMax + 100);
     if (min < 0) min = 0;
   } else if (chartMode === 'soilph') {
-    min = Math.min(min, 5.5);
-    max = Math.max(max, 7.5);
+    min = Math.min(min, PEPPER_TARGETS.soilPh.okMin - 0.3);
+    max = Math.max(max, PEPPER_TARGETS.soilPh.okMax + 0.3);
     if (min < 3) min = 3;
     if (max > 9) max = 9;
   } else if (chartMode === 'co2') {
@@ -1678,8 +1682,8 @@ function drawChart(data, color, unit, retry = 0) {
     hum:  { min: T.mistMin, max: T.humHigh, color: '0, 122, 255',  label: `昼の目安 ${T.mistMin}% 〜 夜は${T.humHigh}%未満` },  // ブルー
     soiltemp: { min: T.soilTemp.okMin, max: T.soilTemp.okMax, color: '217, 119, 6', label: `適正 ${T.soilTemp.okMin}-${T.soilTemp.okMax}℃` },  // 地温
     soil:     { min: 65, max: 90, color: '52, 199, 89', label: '適正 65-90%(SEN0604)' },        // 土壌水分
-    soilec:   { min: 800, max: 2500, color: '88, 86, 214', label: '適正 800-2500 μS/cm' }, // EC
-    soilph:   { min: 5.8, max: 6.7, color: '236, 72, 153', label: '適正 pH 5.8-6.7' }, // pH
+    soilec:   { min: T.soilEc.okMin, max: T.soilEc.okMax, color: '88, 86, 214', label: `目安 ${T.soilEc.okMin}-${T.soilEc.okMax} μS/cm` }, // EC
+    soilph:   { min: T.soilPh.okMin, max: T.soilPh.okMax, color: '236, 72, 153', label: `目安 pH ${T.soilPh.okMin}-${T.soilPh.okMax}` }, // pH
     vpd:  { min: T.hdMin, max: T.hdMax, color: '52, 199, 89', label: `ふつう ${T.hdMin}-${T.hdMax} g/m³` },   // グリーン
     co2:  { min: T.co2Min, max: Math.max(max, T.co2Min + 1), color: '52, 199, 89', label: `外気並み ${T.co2Min}ppm 以上` }  // グリーン
   };
@@ -2231,7 +2235,7 @@ function updateRefMarker(markerId, curId, value, minVal, maxVal, suffix, digits)
 function updateAllRefMarkers() {
   updateRefMarker('refTempMarker', 'refTempCur', latestState.soilTemp,    5,   40, '℃',     1);
   updateRefMarker('refHumMarker',  'refHumCur',  latestState.soil,        0,  100, '%',     1);
-  updateRefMarker('refEcMarker',   'refEcCur',   latestState.soilEc,      0, 5000, 'μS/cm', 0);
+  updateRefMarker('refEcMarker',   'refEcCur',   latestState.soilEc,      0, 1500, 'μS/cm', 0);
   updateRefMarker('refPhMarker',   'refPhCur',   latestState.soilPh,      4,    9, '',      1);
 }
 
@@ -2410,25 +2414,26 @@ function getSoilTempStatus(t) {
   return ['⚠️ やや低め(22℃未満)', 'status-warn'];
 }
 
-// EC判定（SEN0604基準 適正 800〜2500 μS/cm）
+// EC判定（μS/cm）。300〜700 が目安（鹿児島県）、1000 以上は高い（岩手県）。
+// 低い側は「肥料切れ」とは言わない（JA の診断: 低い EC だけで全部の成分が不足とは判断しない）
 function getSoilEcStatus(ec) {
   if (ec === null || isNaN(ec)) return ['--', 'status-normal'];
-  if (ec >= 3500) return ['🚨 塩類集積危険', 'status-danger'];
-  if (ec >= 2500 && ec < 3500) return ['⚠️ 肥料過多', 'status-warn'];
-  if (ec >= 800 && ec < 2500) return ['✅ 適正', 'status-normal'];
-  if (ec >= 300 && ec < 800) return ['⚠️ 肥料少なめ', 'status-warn'];
-  return ['📉 肥料切れ', 'status-danger'];
+  const g = PEPPER_TARGETS.soilEc;
+  if (ec >= g.high)  return ['🚨 高い(1000以上)', 'status-danger'];
+  if (ec > g.okMax)  return ['⚠️ やや高め(700超)', 'status-warn'];
+  if (ec >= g.okMin) return ['✅ 目安の範囲', 'status-normal'];
+  return ['📉 目安より低い', 'status-warn'];
 }
 
-// pH判定（ピーマン適正 5.8〜6.7、理想 6.0〜6.5）
+// pH判定。5.5〜6.5 が目安、5.0 以下は強酸性、7.0 超はアルカリ（鹿児島県）
 function getSoilPhStatus(p) {
   if (p === null || isNaN(p)) return ['--', 'status-normal'];
-  if (p < 5.0) return ['🚨 強酸性', 'status-danger'];
-  if (p >= 5.8 && p <= 6.7) return ['✅ 適正', 'status-normal'];
-  if (p > 6.7 && p <= 7.3) return ['⚠️ やや中性', 'status-warn'];
-  if (p >= 5.0 && p < 5.8) return ['⚠️ やや酸性', 'status-warn'];
-  if (p > 7.3) return ['🚨 アルカリ性', 'status-danger'];
-  return ['⚠️ 範囲外', 'status-warn'];
+  const g = PEPPER_TARGETS.soilPh;
+  if (p <= g.acid)   return ['🚨 強酸性(5.0以下)', 'status-danger'];
+  if (p < g.okMin)   return ['⚠️ やや酸性(5.5未満)', 'status-warn'];
+  if (p <= g.okMax)  return ['✅ 目安の範囲', 'status-normal'];
+  if (p <= g.alkali) return ['⚠️ やや高め(6.5超)', 'status-warn'];
+  return ['🚨 アルカリ性(7.0超)', 'status-danger'];
 }
 
 // 飽差判定（g/m³）。3〜6 がふつう（兵庫県・大分県）
@@ -2496,28 +2501,10 @@ function calcAdvancedScore(temp, vpd, co2, soilTemp, soil, soilEc, soilPh) {
     if (h > 95 && h <= 100) return Math.max(0, (100 - h) / 5 * 60); // 60→0
     return 0;
   }
-  // ECスコア (800-2500 μS/cmが満点)
-  function ecScore(ec) {
-    if (ec === null || isNaN(ec)) return null;
-    if (ec >= 800 && ec <= 2500) return 100;
-    if (ec >= 500 && ec < 800)   return 75 + (ec - 500) / 300 * 25;   // 75→100
-    if (ec > 2500 && ec <= 3000) return 75 + (3000 - ec) / 500 * 25;  // 100→75
-    if (ec >= 200 && ec < 500)   return 30 + (ec - 200) / 300 * 45;   // 30→75
-    if (ec > 3000 && ec <= 4000) return Math.max(0, (4000 - ec) / 1000 * 60); // 60→0
-    if (ec > 4000) return 0;
-    if (ec < 200)  return Math.max(0, ec / 200 * 30);
-    return 0;
-  }
-  // pHスコア (5.8-6.7が満点)
-  function phScore(p) {
-    if (p === null || isNaN(p)) return null;
-    if (p >= 5.8 && p <= 6.7) return 100;
-    if (p >= 5.5 && p < 5.8) return 70 + (p - 5.5) / 0.3 * 30;    // 70→100
-    if (p > 6.7 && p <= 7.0) return 70 + (7.0 - p) / 0.3 * 30;    // 100→70
-    if (p >= 5.0 && p < 5.5) return Math.max(0, (p - 5.0) / 0.5 * 70); // 0→70
-    if (p > 7.0 && p <= 7.5) return Math.max(0, (7.5 - p) / 0.5 * 70); // 70→0
-    return 0;
-  }
+  // ECスコア: 300〜700 μS/cm が満点。0点の線（0・1300）は目安
+  function ecScore(ec) { return bandScore(ec, T.soilEc.okMin, T.soilEc.okMax, 0, 1300); }
+  // pHスコア: 5.5〜6.5 が満点。0点の線（4.5・7.5）は目安
+  function phScore(p) { return bandScore(p, T.soilPh.okMin, T.soilPh.okMax, 4.5, 7.5); }
 
   // ----- 各要素計算 -----
   const ts  = tempScore(temp);
@@ -2804,31 +2791,31 @@ function generateAdvice() {
     });
   }
 
-  // EC高すぎ（肥料焼け危険）
-  if (s.soilEc !== null && s.soilEc >= 3500) {
+  // EC 高い（岩手県: 1.0 mS/cm 以上で良果率低下・乱形果）
+  if (s.soilEc !== null && s.soilEc >= T.soilEc.high) {
     advices.push({
       level: 'danger',
       icon: '🚨',
-      title: 'EC高すぎ（塩類集積危険）',
-      body: `EC ${Math.round(s.soilEc)}μS/cm。塩類集積で根が水を吸えなくなります。灌水で薄める＋追肥を即停止。`
+      title: '土のECが高い（1000以上）',
+      body: `EC ${Math.round(s.soilEc)}μS/cm。岩手県の試験では EC 1.0 mS/cm 以上で良果の割合が下がり、乱形果が増えた。追肥を控える候補。※ センサーは土に刺したまま測る値で、土壌診断（1:5）とは物差しが違う。`
     });
   }
 
-  // pH極端
-  if (s.soilPh !== null && s.soilPh < 5.0) {
+  // pH 極端（鹿児島県 土壌管理指針）。センサー値なので、土壌診断で確かめてから資材を入れる
+  if (s.soilPh !== null && s.soilPh <= T.soilPh.acid) {
     advices.push({
       level: 'danger',
       icon: '🚨',
-      title: '土壌酸性化（強酸性）',
-      body: `pH ${s.soilPh.toFixed(1)}。微量要素過剰吸収の恐れ。苦土石灰の投入を検討してください。`
+      title: '土のpHが5.0以下（強酸性）',
+      body: `pH ${s.soilPh.toFixed(1)}。5以下の強酸性ではほとんどの作物の生育が抑えられる（鹿児島県）。目安は5.5〜6.5。センサー値なので、石灰などを入れる前に土壌診断で確かめてください。`
     });
   }
-  if (s.soilPh !== null && s.soilPh > 7.5) {
+  if (s.soilPh !== null && s.soilPh > T.soilPh.alkali) {
     advices.push({
       level: 'danger',
       icon: '🚨',
-      title: 'アルカリ性化',
-      body: `pH ${s.soilPh.toFixed(1)}。鉄・マンガン欠乏の恐れ。硫安等の生理酸性肥料で調整を。`
+      title: '土のpHが7.0超（アルカリ性）',
+      body: `pH ${s.soilPh.toFixed(1)}。7を超えると鉄・マンガン・ホウ素などが効きにくくなり、塩基が集まって濃度障害が起きやすい（鹿児島県）。目安は5.5〜6.5。土壌診断で確かめてください。`
     });
   }
 
@@ -2940,23 +2927,13 @@ function generateAdvice() {
     });
   }
 
-  // EC やや高め
-  if (s.soilEc !== null && s.soilEc >= 2500 && s.soilEc < 3500) {
+  // EC やや高め（目安 300〜700 μS/cm を超えた）
+  if (s.soilEc !== null && s.soilEc > T.soilEc.okMax && s.soilEc < T.soilEc.high) {
     advices.push({
       level: 'warn',
       icon: '⚠️',
-      title: 'EC高め（追肥控えめに）',
-      body: `EC ${Math.round(s.soilEc)}μS/cm。塩類が溜まり気味。灌水多めで希釈、追肥は控えめが安心です。`
-    });
-  }
-
-  // EC低すぎ（肥料切れ気味）
-  if (s.soilEc !== null && s.soilEc < 800 && s.soilEc >= 300 && !isNight) {
-    advices.push({
-      level: 'warn',
-      icon: '📉',
-      title: '肥料切れ気味',
-      body: `EC ${Math.round(s.soilEc)}μS/cm。養分不足の可能性。葉色観察＋追肥の検討を。`
+      title: '土のECがやや高め（700超）',
+      body: `EC ${Math.round(s.soilEc)}μS/cm。果菜類の目安は 0.3〜0.7 mS/cm（鹿児島県）、収穫期は 0.5〜0.7 が目標（岩手県）。1.0 を超えないように追肥を控えめに。`
     });
   }
 
