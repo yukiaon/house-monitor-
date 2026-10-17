@@ -607,6 +607,9 @@ small { font-size: 0.8rem; }
 .light-how { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border, rgba(0,0,0,0.06)); }
 .light-how p { margin: 6px 0; line-height: 1.5; }
 .light-how b { font-family: inherit; }
+.light-effect { display: block; margin-top: 4px; padding: 4px 8px; border-radius: 6px; font-size: 0.88rem; }
+.light-effect.good { background: rgba(52,199,89,0.10); color: #1f7a3a; }
+.light-effect.bad  { background: rgba(255,149,0,0.10); color: #a35a00; }
 .light-details { margin-top: 8px; font-size: 0.92rem; color: var(--text-secondary); }
 .light-details summary { cursor: pointer; padding: 4px 0; }
 .light-detail-list div { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; }
@@ -1052,10 +1055,10 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <summary>くわしく（数字と評価のしかた）</summary>
         <div class="light-detail-list" id="lightDetails"></div>
         <div class="light-how">
-          <p><b>光と温度（日射 × 気温）</b><br>直近24時間の日射の量と平均気温を、過去の日の「この光の量ならいつも何℃だったか」と比べます。1℃以上高ければ「温度高め」、低ければ「温度低め」。光が少ないのに温度が高いと、呼吸で養分を使って消耗します。</p>
-          <p><b>水の消費（日射）</b><br>ピーマンが吸う水の量はほぼ日射で決まるので、直近24時間の日射の量を過去の日と比べます。多いほうから1/3なら「よく使う日」、少ないほうから1/3なら「あまり使わない日」。</p>
-          <p><b>CO2（日射 × CO2）</b><br>光が当たっている時間（日射 150 W/m² 以上）だけ見ます。光合成で CO2 を使うので、そのときに 400ppm 未満なら「不足気味」、300ppm 未満なら「不足」。光が弱い時間と夜は評価しません。</p>
-          <p><b>葉の乾き（日射 × 湿度）</b><br>湿度 95% 以上で「濡れやすい」。90% 以上、または 85% 以上で光が弱い（150 W/m² 未満）ときは「乾きにくい」。光が当たると葉が温まって乾きます。</p>
+          <p><b>光と温度（日射 × 気温）</b><br>直近24時間の日射の量と平均気温を、過去の日の「この光の量ならいつも何℃だったか」と比べます。1℃以上高ければ「温度高め」、低ければ「温度低め」。光が少ないのに温度が高いと、呼吸で養分を使って消耗します。<span class="light-effect good">よいとき：光合成でできた養分が実と樹にきちんと回り、着果と実の太りが安定します。</span><span class="light-effect bad">温度高め：養分を呼吸で使ってしまい、樹が細る・花が落ちる・実の太りが遅れる。<br>温度低め：光を活かしきれず、生育と収量が伸びません。</span></p>
+          <p><b>水の消費（日射）</b><br>ピーマンが吸う水の量はほぼ日射で決まるので、直近24時間の日射の量を過去の日と比べます。多いほうから1/3なら「よく使う日」、少ないほうから1/3なら「あまり使わない日」。<span class="light-effect good">よいとき（使う量に合った灌水）：実がしっかり太り、カルシウムが実まで運ばれて尻腐れが出にくくなります。</span><span class="light-effect bad">使う日に水が足りない：しおれ・尻腐れ果・実の太り不足。<br>使わない日に水が多い：根が酸欠で弱る・徒長・病気が出やすい。</span></p>
+          <p><b>CO2（日射 × CO2）</b><br>光が当たっている時間（日射 150 W/m² 以上）だけ見ます。光合成で CO2 を使うので、そのときに 400ppm 未満なら「不足気味」、300ppm 未満なら「不足」。光が弱い時間と夜は評価しません。<span class="light-effect good">足りている：光をそのまま光合成に使え、収量と実の太りにつながります。</span><span class="light-effect bad">不足：光が当たっていても光合成が頭打ちになり、晴れの日の分の収量を取りこぼします。</span></p>
+          <p><b>葉の乾き（日射 × 湿度）</b><br>湿度 95% 以上で「濡れやすい」。90% 以上、または 85% 以上で光が弱い（150 W/m² 未満）ときは「乾きにくい」。光が当たると葉が温まって乾きます。<span class="light-effect good">乾きやすい：病気の菌が増えにくく、葉からの蒸散で根が水と養分をよく吸い上げます。</span><span class="light-effect bad">乾きにくい・濡れやすい：灰色かび・菌核病などが出やすくなります。蒸散が落ちて、カルシウム不足（尻腐れ）にもつながります。</span></p>
           <p>光と温度・水の消費は、日射が1日分そろった日が7日たまるまでは「データ集め中」です。比べる相手はこのハウスの過去の日です。</p>
         </div>
       </details>
