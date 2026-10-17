@@ -1414,11 +1414,21 @@ let notifiedLevels = { unit1: 0, unit2: 0, soil: 0, co2: 0 };
 //   2026-05-09 14:47: 北27.4℃/61% vs 南28.8℃/48% → 湿度差 -13%
 //   2026-05-09 16:12: 北23.1℃/66% vs 南22.9℃/55% → 湿度差 -11%
 // 完全に揃えるより緩めの補正(+5%)で実際の湿度ムラもある程度見えるように。
-// 継続観察して必要に応じて値を調整してください。
+//
+// 2026-10: 南側を SHT35 に交換 → 補正は BME280 時代の記録だけにかける。
+//   SOUTH_HUM_OFFSET_UNTIL より前に記録された南側の湿度だけ +5%（Supabase から読むときに足す）。
+//   null の間は全部 +5%（まだ BME280 が動いている）。入れ替えたらその日時を入れる。
+//   同じ値: pepper-advisor env-targets.ts / 0020系 SQL / kishaku-calc app.js / pest-map index.html
+const SOUTH_HUM_OFFSET = 5;
+const SOUTH_HUM_OFFSET_UNTIL = '2026-10-17T07:50:00+09:00';   // 2026-10-17 入れ替え（BME280 最終 07:46:12 / SHT35 ハウスで送信開始 07:51:30）
+function southHumOffset(recordedAt) {
+  if (SOUTH_HUM_OFFSET_UNTIL == null) return SOUTH_HUM_OFFSET;
+  return new Date(recordedAt) < new Date(SOUTH_HUM_OFFSET_UNTIL) ? SOUTH_HUM_OFFSET : 0;
+}
 const SENSOR_CALIBRATION = {
   unit2: {
     temp: 0,      // 南側温度は無補正（実際のハウス内温度ムラとして見る）
-    hum:  +5.0    // 南側湿度: BME280の特性上低めに出るので+5%補正
+    hum:  0       // 南側湿度の +5% は読み込み時に記録時刻で判断して足す (southHumOffset)
   }
 };
 
@@ -3782,7 +3792,7 @@ async function fetchSupabaseRecent(hours) {
     } else if (r.device_id === 'esp32_02') {
       const o = { created };
       if (r.temperature_c != null) o.d4 = num(r.temperature_c);
-      if (r.humidity_pct  != null) o.d5 = num(r.humidity_pct);
+      if (r.humidity_pct  != null) o.d5 = Math.min(100, num(r.humidity_pct) + southHumOffset(created));
       if (o.d4 !== undefined || o.d5 !== undefined) env.push(o);
     } else if (r.device_id === 'esp32_04') {
       if (r.co2_ppm != null) env.push({ created, d7: num(r.co2_ppm) });
@@ -3838,7 +3848,7 @@ async function fetchData() {
     const u2Latest = findLatestValues(data, ['d4', 'd5']);
     const t1 = u1Latest.values[0];  // 北側センサー温度
     const h1 = u1Latest.values[1];  // 北側センサー湿度
-    // 南側は補正適用（BME280のオフセット補正）
+    // 南側の湿度補正は読み込み時に済んでいる（southHumOffset）
     const t2 = applyCalibration(u2Latest.values[0], 'unit2', 'temp');
     const h2 = applyCalibration(u2Latest.values[1], 'unit2', 'hum');
 
