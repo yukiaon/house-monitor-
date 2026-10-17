@@ -596,6 +596,18 @@ small { font-size: 0.8rem; }
 .chart-tab.active.vpd  { background: rgba(175,82,222,0.12); color: var(--accent-vpd); }
 .chart-tab.active.co2  { background: rgba(90,200,250,0.15); color: #0a84d6; }
 .chart-tab.active.solar { background: rgba(245,158,11,0.15); color: #d97706; }
+.light-headline { border-radius: 10px; padding: 10px 12px; margin: 6px 0 10px; }
+.light-headline-title { font-size: 1.15rem; font-weight: 700; }
+.light-headline-sub { font-size: 0.95rem; margin-top: 2px; opacity: 0.85; }
+.light-headline-sub:empty { display: none; }
+.light-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border, rgba(0,0,0,0.06)); }
+.light-row:last-child { border-bottom: none; }
+.light-row-label { font-size: 1rem; color: var(--text-secondary); }
+.light-details { margin-top: 8px; font-size: 0.92rem; color: var(--text-secondary); }
+.light-details summary { cursor: pointer; padding: 4px 0; }
+.light-detail-list div { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; }
+.light-detail-list b { font-family: 'DM Mono', monospace; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+.status-wait   { background: rgba(142,142,147,0.14); color: #6e6e73; }
 .chart-wrap {
   padding: 0 20px 0 12px;
   position: relative;
@@ -1018,25 +1030,24 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       </div>
       <div class="metric-status status-normal today-status" id="todayMaxCo2Status">--</div>
     </div>
-    <!-- ☀️ 日射 (esp32_05 XM8580、中央の棟・作物の上)。データが届くまでは出さない -->
+    <!-- ☀️ 光の活かし方 (日射 esp32_05 XM8580 × 気温・湿度・CO2)。データが届くまでは出さない -->
+    <!-- 評価を主役にし、数字は「くわしく」を開いたときだけ出す -->
     <div class="metric-card solar" id="solarCard" style="--metric-accent:#f59e0b; display:none;">
-      <div class="metric-head"><span class="metric-icon">☀️</span><span class="metric-label">日射（ハウス内）</span></div>
-      <div class="metric-value" id="solarVal" style="color:#d97706;">--<span class="metric-unit">W/m²</span></div>
-      <div class="metric-trend" id="solarAt">— <span class="metric-trend-label">作物の上で測定</span></div>
-      <div class="metric-badges">
-        <div class="metric-status status-normal" id="solarStatus">--</div>
+      <div class="metric-head"><span class="metric-icon">☀️</span><span class="metric-label">光の活かし方</span></div>
+      <div class="light-headline status-normal" id="lightHeadline">
+        <div class="light-headline-title" id="lightHeadlineTitle">--</div>
+        <div class="light-headline-sub" id="lightHeadlineSub"></div>
       </div>
-      <div class="stat-tiles">
-        <div class="stat-tile">
-          <div class="stat-tile-label">今日 積算</div>
-          <div class="stat-tile-val" id="solarTodayMj" style="color:#d97706;">--<span class="stat-tile-unit">MJ/m²</span></div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-tile-label">昨日 積算</div>
-          <div class="stat-tile-val" id="solarYesterdayMj" style="color:#8e8e93;">--<span class="stat-tile-unit">MJ/m²</span></div>
-        </div>
+      <div class="light-rows">
+        <div class="light-row"><span class="light-row-label">光と温度</span><span class="metric-status status-normal" id="lightRowTemp">--</span></div>
+        <div class="light-row"><span class="light-row-label">水の消費</span><span class="metric-status status-normal" id="lightRowWater">--</span></div>
+        <div class="light-row"><span class="light-row-label">CO2</span><span class="metric-status status-normal" id="lightRowCo2">--</span></div>
+        <div class="light-row"><span class="light-row-label">葉の乾き</span><span class="metric-status status-normal" id="lightRowLeaf">--</span></div>
       </div>
-      <div class="metric-status status-normal today-status" id="solarTransmission">--</div>
+      <details class="light-details">
+        <summary>くわしく（数字）</summary>
+        <div class="light-detail-list" id="lightDetails"></div>
+      </details>
     </div>
   </div>
 
@@ -3704,92 +3715,206 @@ function solarJstDate(t) {
   return j.toISOString().slice(0, 10);
 }
 
-function solarStatus(w) {
-  if (w < 50)  return ['暗い（夜・朝夕）', 'status-normal'];
-  if (w < 300) return ['弱い光', 'status-normal'];
-  if (w < 700) return ['よく当たっている', 'status-normal'];
-  return ['強い日差し', 'status-warn'];
-}
+// ---- 評価のしくみ ----
+// CO2・葉の乾きは今ある基準ですぐ評価する。
+// 光と温度・水の消費は「このハウスのいつも」と比べるので、日射が1日分そろった日が
+// LIGHT_LEARN_DAYS 日たまるまでは「データ集め中」にする。
+// どれも直近24時間で計算する (朝でも夜でも1日分と比べられるように)。
+const LIGHT_LEARN_DAYS = 7;
+const LIGHT_DAY_MIN_SAMPLES = 130;   // 10分枠 144 のうちこれ以上あれば「1日分そろった」
+const LIGHT_TEMP_MARGIN = 1.0;       // いつもより ±1℃ 以上ずれたら高め/低め
 
 // 10分ごとに平均して W/m² × 600秒 を足す (Supabase の get_solar_daily と同じ計算)
-function solarMjOfDay(rows, dateStr) {
+function solarMj(rows, fromMs, toMs) {
   const bins = new Map();
   for (const r of rows) {
     const w = parseFloat(r.d8);
     if (isNaN(w) || !r.created) continue;
-    const t = new Date(r.created);
-    if (solarJstDate(t) !== dateStr) continue;
-    const b = Math.floor(t.getTime() / 600000);
+    const t = new Date(r.created).getTime();
+    if (t < fromMs || t > toMs) continue;
+    const b = Math.floor(t / 600000);
     if (!bins.has(b)) bins.set(b, []);
     bins.get(b).push(w);
   }
-  if (bins.size === 0) return null;
+  if (bins.size === 0) return { mj: null, bins: 0 };
   let sum = 0;
   for (const ws of bins.values()) sum += ws.reduce((a, v) => a + v, 0) / ws.length;
-  return sum * 600 / 1e6;
+  return { mj: sum * 600 / 1e6, bins: bins.size };
 }
 
-async function fetchSolarDaily() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_solar_daily`, {
+function meanOf(rows, keys, fromMs) {
+  const vs = [];
+  for (const r of rows) {
+    if (!r.created || new Date(r.created).getTime() < fromMs) continue;
+    for (const k of keys) { const v = parseFloat(r[k]); if (!isNaN(v)) vs.push(v); }
+  }
+  return vs.length ? vs.reduce((a, v) => a + v, 0) / vs.length : null;
+}
+
+function latestOf(rows, key, maxAgeMin) {
+  const r = rows.find(d => d[key] !== undefined && d[key] !== null && !isNaN(parseFloat(d[key])));
+  if (!r || Date.now() - new Date(r.created).getTime() > maxAgeMin * 60000) return null;
+  return parseFloat(r[key]);
+}
+
+async function rpcPost(fn, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-    body: JSON.stringify({ p_days: 2 }),
+    body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error('get_solar_daily: HTTP ' + res.status);
+  if (!res.ok) throw new Error(fn + ': HTTP ' + res.status);
   return res.json();
+}
+async function fetchSolarDaily() { return rpcPost('get_solar_daily', { p_days: 30 }); }
+async function fetchEnvDailyForLight() { return rpcPost('get_environment_daily', { p_days: 30 }); }
+
+// 過去の「1日分そろった日」: 日射 MJ と平均気温の組
+function learnedDays(solarDaily, envDaily) {
+  const today = solarJstDate(new Date());
+  const tempByDate = new Map(envDaily.map(r => [r.date, r.temp_mean_c == null ? null : Number(r.temp_mean_c)]));
+  return solarDaily
+    .filter(r => r.date !== today && r.inside_mj != null && (r.sample_count ?? 0) >= LIGHT_DAY_MIN_SAMPLES)
+    .map(r => ({ date: r.date, mj: Number(r.inside_mj), temp: tempByDate.get(r.date) ?? null }));
+}
+
+// 光と温度: 過去の日の「日射 → 平均気温」の関係 (直線) から、今の光ならいつもは何℃かを出し、比べる
+function judgeLightTemp(days, mj24, temp24) {
+  const pts = days.filter(d => d.temp != null);
+  if (pts.length < LIGHT_LEARN_DAYS) return { wait: LIGHT_LEARN_DAYS - pts.length };
+  if (mj24 == null || temp24 == null) return { none: true };
+  const n = pts.length;
+  const mx = pts.reduce((a, p) => a + p.mj, 0) / n, my = pts.reduce((a, p) => a + p.temp, 0) / n;
+  const sxx = pts.reduce((a, p) => a + (p.mj - mx) ** 2, 0);
+  const slope = sxx > 0 ? pts.reduce((a, p) => a + (p.mj - mx) * (p.temp - my), 0) / sxx : 0;
+  const expected = my + slope * (mj24 - mx);
+  return { diff: temp24 - expected, expected };
+}
+
+// 水の消費: 直近24時間の日射を、過去の日と比べて多い/ふつう/少ない (蒸散はほぼ日射で決まる)
+function judgeWater(days, mj24) {
+  if (days.length < LIGHT_LEARN_DAYS) return { wait: LIGHT_LEARN_DAYS - days.length };
+  if (mj24 == null) return { none: true };
+  const sorted = days.map(d => d.mj).sort((a, b) => a - b);
+  const rank = sorted.filter(v => v <= mj24).length / sorted.length;
+  return { rank, level: rank >= 2 / 3 ? 'high' : rank <= 1 / 3 ? 'low' : 'mid' };
+}
+
+function setChip(id, text, cls) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'metric-status ' + cls;
 }
 
 async function renderSolar(rows) {
   const card = document.getElementById('solarCard');
   const tab  = document.getElementById('chartTabSolar');
   if (!card) return;
-  const solarRows = (rows || []).filter(r => r.d8 !== undefined && r.d8 !== null && !isNaN(parseFloat(r.d8)));
-  let daily = [];
-  try { daily = await fetchSolarDaily(); } catch (e) { /* 0024 未適用・通信失敗: 昨日の欄は出さない */ }
-  if (solarRows.length === 0 && daily.length === 0) {
+  rows = rows || [];
+  const solarRows = rows.filter(r => r.d8 !== undefined && r.d8 !== null && !isNaN(parseFloat(r.d8)));
+  let solarDaily = [], envDaily = [];
+  try { solarDaily = await fetchSolarDaily(); } catch (e) { /* 0024 未適用・通信失敗 */ }
+  if (solarRows.length === 0 && solarDaily.length === 0) {
     card.style.display = 'none';
     if (tab) tab.style.display = 'none';
     return;
   }
   card.style.display = '';
   if (tab) tab.style.display = '';
+  try { envDaily = await fetchEnvDailyForLight(); } catch (e) { /* 無くても CO2・葉の乾きは出す */ }
 
-  const latest = solarRows[0];   // 新しい順
-  const fresh = latest && (Date.now() - new Date(latest.created).getTime()) < 40 * 60000;
-  if (fresh) {
-    const w = Math.round(parseFloat(latest.d8));
-    document.getElementById('solarVal').innerHTML = w + '<span class="metric-unit">W/m²</span>';
-    const [label, cls] = solarStatus(w);
-    document.getElementById('solarStatus').textContent = label;
-    document.getElementById('solarStatus').className = 'metric-status ' + cls;
-    const t = new Date(latest.created);
-    document.getElementById('solarAt').innerHTML =
-      `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')} <span class="metric-trend-label">作物の上で測定</span>`;
+  const now = Date.now();
+  const from24 = now - 24 * 3600000;
+  const solarNow = latestOf(solarRows, 'd8', 40);
+  const { mj: mj24, bins: bins24 } = solarMj(solarRows, from24, now);
+  const todayStart = new Date(solarJstDate(new Date()) + 'T00:00:00+09:00').getTime();
+  const { mj: mjToday } = solarMj(solarRows, todayStart, now);
+  const temp24 = meanOf(rows, ['d1', 'd4'], from24);
+  const humNow = (() => {
+    const vs = [latestOf(rows, 'd2', 40), latestOf(rows, 'd5', 40)].filter(v => v != null);
+    return vs.length ? vs.reduce((a, v) => a + v, 0) / vs.length : null;
+  })();
+  const co2Now = latestOf(rows, 'd7', 40);
+  const days = learnedDays(solarDaily, envDaily);
+  const lightOk = bins24 >= LIGHT_DAY_MIN_SAMPLES;   // 直近24時間の日射がほぼそろっている
+
+  const issues = [];   // [重さ, 見出し, 補足]  重さが大きいほど上に出す
+
+  // 光と温度
+  const lt = lightOk ? judgeLightTemp(days, mj24, temp24) : { none: true };
+  if (lt.wait) setChip('lightRowTemp', `データ集め中（あと${lt.wait}日）`, 'status-wait');
+  else if (lt.none) setChip('lightRowTemp', '--', 'status-wait');
+  else if (lt.diff > LIGHT_TEMP_MARGIN) {
+    setChip('lightRowTemp', '温度高め', 'status-warn');
+    issues.push([3, '光のわりに温度が高め', 'いつもの同じくらいの光の日より高い。呼吸で消耗しやすい']);
+  } else if (lt.diff < -LIGHT_TEMP_MARGIN) {
+    setChip('lightRowTemp', '温度低め', 'status-warn');
+    issues.push([2, '光のわりに温度が低め', '光を活かしきれていないかもしれません']);
+  } else setChip('lightRowTemp', 'ちょうどいい', 'status-normal');
+
+  // 水の消費
+  const wj = lightOk ? judgeWater(days, mj24) : { none: true };
+  if (wj.wait) setChip('lightRowWater', `データ集め中（あと${wj.wait}日）`, 'status-wait');
+  else if (wj.none) setChip('lightRowWater', '--', 'status-wait');
+  else if (wj.level === 'high') {
+    setChip('lightRowWater', 'よく使う日', 'status-warn');
+    issues.push([1, '今日は水をよく使う日', '土壌水分の下がり方に注意']);
+  } else if (wj.level === 'low') setChip('lightRowWater', 'あまり使わない日', 'status-normal');
+  else setChip('lightRowWater', 'ふつう', 'status-normal');
+
+  // CO2 (光が当たっている時間だけ評価する)
+  if (co2Now == null || solarNow == null) setChip('lightRowCo2', '--', 'status-wait');
+  else if (solarNow < 30) setChip('lightRowCo2', '夜・光なし', 'status-wait');
+  else if (solarNow < 150) setChip('lightRowCo2', '光が弱い時間', 'status-wait');
+  else if (co2Now < 300) {
+    setChip('lightRowCo2', '不足', 'status-danger');
+    issues.push([5, '光が当たっているのにCO2が足りません', '光合成が止まりかけています。換気か施用を']);
+  } else if (co2Now < 400) {
+    setChip('lightRowCo2', '不足気味', 'status-warn');
+    issues.push([4, 'CO2が足りず光を活かしきれていません', '換気か施用で光合成が進みます']);
+  } else setChip('lightRowCo2', '足りている', 'status-normal');
+
+  // 葉の乾き (湿度と光)
+  if (humNow == null) setChip('lightRowLeaf', '--', 'status-wait');
+  else if (humNow >= 95) {
+    setChip('lightRowLeaf', '濡れやすい', 'status-danger');
+    issues.push([4, '葉が濡れやすい状態です', '灰色かびなどの病気に注意']);
+  } else if (humNow >= 90 || (humNow >= 85 && (solarNow == null || solarNow < 150))) {
+    setChip('lightRowLeaf', '乾きにくい', 'status-warn');
+    issues.push([3, '葉が乾きにくい状態です', '湿度が高く光も弱い。病気に注意']);
+  } else setChip('lightRowLeaf', '乾きやすい', 'status-normal');
+
+  // 見出し: いちばん重いものを1つだけ
+  const head = document.getElementById('lightHeadline');
+  issues.sort((a, b) => b[0] - a[0]);
+  if (issues.length) {
+    document.getElementById('lightHeadlineTitle').textContent = issues[0][1];
+    document.getElementById('lightHeadlineSub').textContent = issues[0][2];
+    head.className = 'light-headline ' + (issues[0][0] >= 5 ? 'status-danger' : 'status-warn');
   } else {
-    document.getElementById('solarVal').innerHTML = '--<span class="metric-unit">W/m²</span>';
-    document.getElementById('solarStatus').textContent = latest ? '受信が止まっています' : '--';
-    document.getElementById('solarStatus').className = 'metric-status ' + (latest ? 'status-warn' : 'status-normal');
+    const night = solarNow != null && solarNow < 30;
+    document.getElementById('lightHeadlineTitle').textContent = night ? '夜です。問題はありません' : '光をよく活かせています';
+    document.getElementById('lightHeadlineSub').textContent = '';
+    head.className = 'light-headline status-normal';
   }
 
-  const today = solarJstDate(new Date());
-  const todayMj = solarMjOfDay(solarRows, today);
-  document.getElementById('solarTodayMj').innerHTML =
-    (todayMj === null ? '--' : todayMj.toFixed(1)) + '<span class="stat-tile-unit">MJ/m²</span>';
-
-  const yesterday = solarJstDate(new Date(Date.now() - 86400000));
-  const y = daily.find(r => r.date === yesterday);
-  const yMj = y && y.inside_mj != null ? Number(y.inside_mj) : null;
-  document.getElementById('solarYesterdayMj').innerHTML =
-    (yMj === null ? '--' : yMj.toFixed(1)) + '<span class="stat-tile-unit">MJ/m²</span>';
-
-  const tr = document.getElementById('solarTransmission');
-  if (y && y.transmission != null) {
-    const pct = Math.round(Number(y.transmission) * 100);
-    const partial = y.sample_count != null && y.sample_count < 130 ? '（欠測あり）' : '';
-    tr.textContent = `昨日の透過率 ${pct}%（外 ${Number(y.outside_mj).toFixed(1)} MJ）${partial}`;
-  } else {
-    tr.textContent = '透過率は1日分そろうと出ます';
-  }
+  // くわしく (数字)
+  const yesterday = solarJstDate(new Date(now - 86400000));
+  const y = solarDaily.find(r => r.date === yesterday);
+  const f = (v, d, u) => (v == null || isNaN(v)) ? '--' : v.toFixed(d) + u;
+  const lines = [
+    ['今の日射', f(solarNow, 0, ' W/m²')],
+    ['今日の積算（ここまで）', f(mjToday, 1, ' MJ/m²')],
+    ['直近24時間の積算', f(mj24, 1, ' MJ/m²')],
+    ['直近24時間の平均気温', f(temp24, 1, '℃')],
+  ];
+  if (lt.expected != null) lines.push(['いつもの気温（同じ光の日）', f(lt.expected, 1, '℃')]);
+  lines.push(['今のCO2', f(co2Now, 0, ' ppm')], ['今の湿度', f(humNow, 0, '%')]);
+  if (y && y.inside_mj != null) lines.push(['昨日の積算', f(Number(y.inside_mj), 1, ' MJ/m²')]);
+  if (y && y.transmission != null) lines.push(['昨日の透過率', Math.round(Number(y.transmission) * 100) + '%']);
+  lines.push(['比べる日の数', days.length + '日']);
+  document.getElementById('lightDetails').innerHTML =
+    lines.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
 }
 
 // ===== センサーが止まった原因を診断ログから読み解く =====
