@@ -1159,8 +1159,8 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
           <span class="ref-title">🌿 ハウス内の空気<span class="ref-title-note">気温・湿度・飽差・CO2</span></span>
         </div>
         <div class="ref-desc">
-          <strong>昼（6〜18時）25〜30℃</strong>・30℃超で樹勢低下・受精不良（高知県）・<strong>35℃が最高限界</strong>（岡山県／熊本県 35℃で着果阻害・変形果）<br>
-          <strong>夜（18〜6時）15〜20℃</strong>・<strong>12℃が最低限界</strong>（岡山県 高橋 1977）<br>
+          <strong>昼（日の出〜日の入り）25〜30℃</strong>・30℃超で樹勢低下・受精不良（高知県）・<strong>35℃が最高限界</strong>（岡山県／熊本県 35℃で着果阻害・変形果）<br>
+          <strong>夜（日の入り〜日の出）15〜20℃</strong>・<strong>12℃が最低限界</strong>（岡山県 高橋 1977）<span id="refSunTimes"></span><br>
           <strong>湿度</strong>：病害を抑えるには 90% 以下。100%（センサーにより95%）が4時間続けば病害の好適条件。高温期のミストは 10〜15時に 75〜80%（宮崎県マニュアル）<br>
           <strong>飽差 3〜6 g/m³</strong>・<strong>朝の昇温は1時間に1〜2℃まで</strong>（兵庫県・大分県）<br>
           <strong>CO2</strong>：日中は外気並み 400ppm 以上（岩手県）。上限側はピーマンの出典が無いので判定しない
@@ -1497,8 +1497,8 @@ let latestState = {
 //   pH     : 鹿児島県 同指針 施設の果菜類 pH(H2O) 5.5〜6.5、5 以下の強酸性で生育が抑制、7 を超えるアルカリで微量要素欠乏・濃度障害
 //   ※ EC・pH の出典は土を採って水に溶かして測る値（1:5 など）。SEN0604 は土に刺したまま測るので、同じ物差しではない（参考として当てる）
 const PEPPER_TARGETS = {
-  day:   { okMin: 25, okMax: 30, limit: 35 },        // 昼 6〜18時
-  night: { okMin: 15, okMax: 20, limit: 12 },        // 夜 18〜翌6時
+  day:   { okMin: 25, okMax: 30, limit: 35 },        // 昼 = 日の出〜日の入り
+  night: { okMin: 15, okMax: 20, limit: 12 },        // 夜 = 日の入り〜翌日の日の出
   // 宮崎県 表2-10 促成ピーマンの暖房設定温度 [下, 上]（月 → ℃）。8〜9月は暖房なし
   heatingByMonth: { 8: null, 9: null, 10: [16, 16], 11: [17, 18], 12: [17, 18], 1: [17, 18], 2: [17, 18], 3: [17, 18], 4: [16, 18], 5: [16, 18] },
   ventByMonth:    { 8: 26, 9: 26, 10: 28, 11: 28, 12: 28, 1: 28, 2: 28, 3: 28, 4: 26, 5: 26 },  // 午前(6→12時)の換気温度
@@ -1510,7 +1510,32 @@ const PEPPER_TARGETS = {
   soilEc: { okMin: 300, okMax: 700, high: 1000 },   // μS/cm（1 mS/cm = 1000 μS/cm）
   soilPh: { okMin: 5.5, okMax: 6.5, acid: 5.0, alkali: 7.0 },
 };
-function isDayHour(h) { return h >= 6 && h < 18; }
+// 昼 = 日の出〜日の入り、夜 = 日の入り〜翌日の日の出（農園の緯度経度で毎日計算）
+// 同じ区切り: 参謀 src/config/env-targets.ts isDaytimeAt
+const FARM_LAT = 31.9876, FARM_LON = 131.2916;   // 国富町向高（参謀 farm-profile.ts と同じ）
+// 日の出・日の入り（NOAA の簡易式、誤差は数分）。y/m/d は日本時間の日付。戻り値は UTC ミリ秒
+function sunTimesJst(y, m, d) {
+  const rad = Math.PI / 180;
+  const n = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(2000, 0, 1, 12)) / 86400000 + 0.5);
+  const Jstar = n - FARM_LON / 360;
+  const M = (357.5291 + 0.98560028 * Jstar) % 360;
+  const C = 1.9148 * Math.sin(M * rad) + 0.02 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad);
+  const lam = (M + C + 180 + 102.9372) % 360;
+  const Jtransit = 2451545 + Jstar + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * lam * rad);
+  const dec = Math.asin(Math.sin(lam * rad) * Math.sin(23.44 * rad));
+  const cosH = (Math.sin(-0.833 * rad) - Math.sin(FARM_LAT * rad) * Math.sin(dec)) / (Math.cos(FARM_LAT * rad) * Math.cos(dec));
+  const H = Math.acos(Math.max(-1, Math.min(1, cosH))) / rad;
+  const toMs = (jd) => (jd - 2440587.5) * 86400000;
+  return { rise: toMs(Jtransit - H / 360), set: toMs(Jtransit + H / 360) };
+}
+function sunTimesOf(ms) {
+  const j = new Date(ms + 9 * 3600000);
+  return sunTimesJst(j.getUTCFullYear(), j.getUTCMonth() + 1, j.getUTCDate());
+}
+function isDaytimeAt(ms) {
+  const s = sunTimesOf(ms);
+  return ms >= s.rise && ms < s.set;
+}
 
 // ===== 飽差 計算 =====
 // 飽差 (g/m³) = 飽和水蒸気量 × (1 − 湿度/100)。飽和水蒸気量 = 217 × 飽和水蒸気圧(hPa) / (T+273.15)
@@ -2233,6 +2258,12 @@ function updateRefMarker(markerId, curId, value, minVal, maxVal, suffix, digits)
 
 // 全4項目のリファレンスマーカーを更新
 function updateAllRefMarkers() {
+  const sunEl = document.getElementById('refSunTimes');
+  if (sunEl) {
+    const st = sunTimesOf(Date.now());
+    const hm = (ms) => new Date(ms).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' });
+    sunEl.textContent = `（今日の日の出 ${hm(st.rise)}・日の入り ${hm(st.set)}）`;
+  }
   updateRefMarker('refTempMarker', 'refTempCur', latestState.soilTemp,    5,   40, '℃',     1);
   updateRefMarker('refHumMarker',  'refHumCur',  latestState.soil,        0,  100, '%',     1);
   updateRefMarker('refEcMarker',   'refEcCur',   latestState.soilEc,      0, 1500, 'μS/cm', 0);
@@ -2363,9 +2394,9 @@ function updateChart() {
   }
 }
 
-// 気温判定。昼(6〜18時)と夜で目安が違う。isDay を省くと今の時刻で決める
+// 気温判定。昼(日の出〜日の入り)と夜で目安が違う。isDay を省くと今の時刻で決める
 function getTempStatus(t, isDay) {
-  if (isDay === undefined) isDay = isDayHour(new Date().getHours());
+  if (isDay === undefined) isDay = isDaytimeAt(Date.now());
   if (isDay) {
     const g = PEPPER_TARGETS.day;
     if (t >= g.limit) return ['🔥 限界(35℃以上)', 'status-danger'];
@@ -2476,7 +2507,7 @@ function calcAdvancedScore(temp, vpd, co2, soilTemp, soil, soilEc, soilPh) {
   const T = PEPPER_TARGETS;
   // 気温スコア: 昼 25〜30℃ / 夜 15〜20℃ が満点。0点は限界の 35℃・12℃
   function tempScore(t) {
-    if (isDayHour(new Date().getHours())) return bandScore(t, T.day.okMin, T.day.okMax, T.night.limit, T.day.limit);
+    if (isDaytimeAt(Date.now())) return bandScore(t, T.day.okMin, T.day.okMax, T.night.limit, T.day.limit);
     return bandScore(t, T.night.okMin, T.night.okMax, T.night.limit, T.day.limit);
   }
   // 飽差スコア: 3〜6 g/m³ が満点。0点の線（0・12）は目安
@@ -2722,13 +2753,14 @@ function recentRiseRate() {
   return null;
 }
 
-// 昨夜（前日18時〜今日6時）の最低気温。6時前なら今夜の分（前日18時〜今）
+// 昨夜（前日の日の入り〜今日の日の出）の最低気温。日の出前なら今夜の分（前日の日の入り〜今）
 function lastNightMin() {
-  const now = new Date();
-  const end = new Date(now); end.setHours(6, 0, 0, 0);
-  if (now < end) end.setTime(now.getTime());
-  const start = new Date(end); start.setDate(start.getDate() - 1); start.setHours(18, 0, 0, 0);
-  const vals = tempHistory.filter((v, i) => v !== null && timeLabels[i] && timeLabels[i] >= start && timeLabels[i] < end);
+  const now = Date.now();
+  const today = sunTimesOf(now);
+  const yesterday = sunTimesOf(now - 86400000);
+  const start = yesterday.set;
+  const end = Math.min(today.rise, now);
+  const vals = tempHistory.filter((v, i) => v !== null && timeLabels[i] && timeLabels[i].getTime() >= start && timeLabels[i].getTime() < end);
   return vals.length >= 6 ? Math.min(...vals) : null;
 }
 
@@ -2746,13 +2778,13 @@ function generateAdvice() {
 
   const advices = [];
   const T = PEPPER_TARGETS;
-  const isDay = isDayHour(hour);
+  const isDay = isDaytimeAt(now.getTime());
   const month = now.getMonth() + 1;
   const heat = T.heatingByMonth[month];         // 宮崎県 表2-10 の暖房設定 [下, 上] or null
   const vent = T.ventByMonth[month];            // 同 午前の換気温度
   const heatText = heat ? (heat[0] === heat[1] ? `${heat[0]}℃` : `${heat[0]}〜${heat[1]}℃`) : null;
   const rise = recentRiseRate();                // 直近1時間の昇温 ℃/h
-  const nightMin = lastNightMin();              // 昨夜(18〜6時)の最低気温
+  const nightMin = lastNightMin();              // 昨夜(日の入り〜日の出)の最低気温
 
   // ========== 🔴 緊急レベル (danger) ==========
   if (s.temp !== null && s.temp >= T.day.limit) {
