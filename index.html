@@ -595,6 +595,7 @@ small { font-size: 0.8rem; }
 .chart-tab.active.soilph   { background: rgba(236,72,153,0.14); color: #ec4899; }
 .chart-tab.active.vpd  { background: rgba(175,82,222,0.12); color: var(--accent-vpd); }
 .chart-tab.active.co2  { background: rgba(90,200,250,0.15); color: #0a84d6; }
+.chart-tab.active.solar { background: rgba(245,158,11,0.15); color: #d97706; }
 .chart-wrap {
   padding: 0 20px 0 12px;
   position: relative;
@@ -1017,6 +1018,26 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       </div>
       <div class="metric-status status-normal today-status" id="todayMaxCo2Status">--</div>
     </div>
+    <!-- ☀️ 日射 (esp32_05 XM8580、中央の棟・作物の上)。データが届くまでは出さない -->
+    <div class="metric-card solar" id="solarCard" style="--metric-accent:#f59e0b; display:none;">
+      <div class="metric-head"><span class="metric-icon">☀️</span><span class="metric-label">日射（ハウス内）</span></div>
+      <div class="metric-value" id="solarVal" style="color:#d97706;">--<span class="metric-unit">W/m²</span></div>
+      <div class="metric-trend" id="solarAt">— <span class="metric-trend-label">作物の上で測定</span></div>
+      <div class="metric-badges">
+        <div class="metric-status status-normal" id="solarStatus">--</div>
+      </div>
+      <div class="stat-tiles">
+        <div class="stat-tile">
+          <div class="stat-tile-label">今日 積算</div>
+          <div class="stat-tile-val" id="solarTodayMj" style="color:#d97706;">--<span class="stat-tile-unit">MJ/m²</span></div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-tile-label">昨日 積算</div>
+          <div class="stat-tile-val" id="solarYesterdayMj" style="color:#8e8e93;">--<span class="stat-tile-unit">MJ/m²</span></div>
+        </div>
+      </div>
+      <div class="metric-status status-normal today-status" id="solarTransmission">--</div>
+    </div>
   </div>
 
   <!-- 🌱 土壌モニター (SEN0604 4in1) -->
@@ -1076,6 +1097,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <button class="chart-tab hum" onclick="switchChart('hum')">湿度</button>
         <button class="chart-tab vpd" onclick="switchChart('vpd')">飽差</button>
         <button class="chart-tab co2" onclick="switchChart('co2')">CO2</button>
+        <button class="chart-tab solar" id="chartTabSolar" style="display:none;" onclick="switchChart('solar')">日射</button>
       </div>
       <div class="chart-tabs">
         <button class="chart-tab soiltemp" onclick="switchChart('soiltemp')">地温</button>
@@ -1355,6 +1377,7 @@ let soilEcHistory = [];     // EC(SEN0604 d3)
 let soilPhHistory = [];     // pH(SEN0604 d4)
 let vpdHistory = [];
 let co2History = [];
+let solarHistory = [];   // 日射 W/m² (esp32_05)
 let timeLabels = [];
 let soilTimeLabels = [];    // 土壌は別チャンネルなので独立した時間軸
 
@@ -1567,6 +1590,7 @@ function drawChart(data, color, unit, retry = 0) {
   let pad_range;
   if (chartMode === 'vpd') pad_range = 0.1;
   else if (chartMode === 'co2') pad_range = 50;
+  else if (chartMode === 'solar') pad_range = 20;
   else if (chartMode === 'soilec') pad_range = 100;
   else if (chartMode === 'soilph') pad_range = 0.3;
   else pad_range = 1;
@@ -1604,6 +1628,9 @@ function drawChart(data, color, unit, retry = 0) {
     min = Math.min(min, 600);   // 700ppmの少し下
     max = Math.max(max, 1100);  // 1000ppmの少し上
     if (min < 0) min = 0;
+  } else if (chartMode === 'solar') {
+    min = 0;                    // 夜は 0
+    max = Math.max(max, 300);
   }
   const range = max - min || 1;
   const xStep = cw / (data.length - 1);
@@ -1754,7 +1781,7 @@ function drawChart(data, color, unit, retry = 0) {
   }
 
   // ツールチップ用に、今描いたグラフの座標系と系列を控えておく
-  const SINGLE_NAMES = { soiltemp: '地温', soil: '土壌水分', soilec: 'EC', soilph: 'pH', vpd: '飽差', co2: 'CO2' };
+  const SINGLE_NAMES = { soiltemp: '地温', soil: '土壌水分', soilec: 'EC', soilph: 'pH', vpd: '飽差', co2: 'CO2', solar: '日射' };
   let tipSeries;
   if (chartMode === 'temp') {
     tipSeries = [{ name: '北側', arr: temp1History, color: '#007aff' }, { name: '南側', arr: temp2History, color: '#ff6b35' }];
@@ -1765,7 +1792,7 @@ function drawChart(data, color, unit, retry = 0) {
   }
   let tipDigits = 1;
   if (chartMode === 'vpd') tipDigits = 2;
-  else if (chartMode === 'co2' || chartMode === 'soilec') tipDigits = 0;
+  else if (chartMode === 'co2' || chartMode === 'soilec' || chartMode === 'solar') tipDigits = 0;
   if (isFinite(xStep) && xStep > 0) {
     chartGeom = {
       mode: chartMode, w, h, pad, cw, ch, min, range, xStep,
@@ -2240,6 +2267,7 @@ function updateChart() {
   else if (chartMode === 'soilph') { data = soilPhHistory; color = '#ec4899'; unit = ''; }
   else if (chartMode === 'vpd')  { data = vpdHistory;  color = '#af52de'; unit = 'kPa'; }
   else if (chartMode === 'co2')  { data = co2History;  color = '#0a84d6'; unit = 'ppm'; }
+  else if (chartMode === 'solar') { data = solarHistory; color = '#f59e0b'; unit = 'W/m²'; }
 
   // 凡例の表示切替（気温・湿度のみ表示）
   const legend = document.getElementById('chartLegend');
@@ -2285,7 +2313,7 @@ function updateChart() {
   if (statsArr.length > 0) {
     let digits;
     if (chartMode === 'vpd' || chartMode === 'soilph') digits = (chartMode === 'soilph' ? 1 : 2);
-    else if (chartMode === 'co2' || chartMode === 'soilec') digits = 0;
+    else if (chartMode === 'co2' || chartMode === 'soilec' || chartMode === 'solar') digits = 0;
     else digits = 1;
     const max = Math.max(...statsArr).toFixed(digits);
     const min = Math.min(...statsArr).toFixed(digits);
@@ -3666,6 +3694,104 @@ async function fetchTodayData() {
   }
 }
 
+// ===== ☀️ 日射 (esp32_05 XM8580、中央の棟・作物の上) =====
+// ビニールを通ってピーマンに届く光。今の値・今日の積算 (ここまで)・昨日の積算と、
+// 外の日射量 (天気) に対する割合 = フィルムの透過率を出す。
+// データが一度も届いていない間はカードもグラフのタブも出さない。
+// JST の日付 'YYYY-MM-DD'
+function solarJstDate(t) {
+  const j = new Date(t.getTime() + 9 * 60 * 60000);
+  return j.toISOString().slice(0, 10);
+}
+
+function solarStatus(w) {
+  if (w < 50)  return ['暗い（夜・朝夕）', 'status-normal'];
+  if (w < 300) return ['弱い光', 'status-normal'];
+  if (w < 700) return ['よく当たっている', 'status-normal'];
+  return ['強い日差し', 'status-warn'];
+}
+
+// 10分ごとに平均して W/m² × 600秒 を足す (Supabase の get_solar_daily と同じ計算)
+function solarMjOfDay(rows, dateStr) {
+  const bins = new Map();
+  for (const r of rows) {
+    const w = parseFloat(r.d8);
+    if (isNaN(w) || !r.created) continue;
+    const t = new Date(r.created);
+    if (solarJstDate(t) !== dateStr) continue;
+    const b = Math.floor(t.getTime() / 600000);
+    if (!bins.has(b)) bins.set(b, []);
+    bins.get(b).push(w);
+  }
+  if (bins.size === 0) return null;
+  let sum = 0;
+  for (const ws of bins.values()) sum += ws.reduce((a, v) => a + v, 0) / ws.length;
+  return sum * 600 / 1e6;
+}
+
+async function fetchSolarDaily() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_solar_daily`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+    body: JSON.stringify({ p_days: 2 }),
+  });
+  if (!res.ok) throw new Error('get_solar_daily: HTTP ' + res.status);
+  return res.json();
+}
+
+async function renderSolar(rows) {
+  const card = document.getElementById('solarCard');
+  const tab  = document.getElementById('chartTabSolar');
+  if (!card) return;
+  const solarRows = (rows || []).filter(r => r.d8 !== undefined && r.d8 !== null && !isNaN(parseFloat(r.d8)));
+  let daily = [];
+  try { daily = await fetchSolarDaily(); } catch (e) { /* 0024 未適用・通信失敗: 昨日の欄は出さない */ }
+  if (solarRows.length === 0 && daily.length === 0) {
+    card.style.display = 'none';
+    if (tab) tab.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+  if (tab) tab.style.display = '';
+
+  const latest = solarRows[0];   // 新しい順
+  const fresh = latest && (Date.now() - new Date(latest.created).getTime()) < 40 * 60000;
+  if (fresh) {
+    const w = Math.round(parseFloat(latest.d8));
+    document.getElementById('solarVal').innerHTML = w + '<span class="metric-unit">W/m²</span>';
+    const [label, cls] = solarStatus(w);
+    document.getElementById('solarStatus').textContent = label;
+    document.getElementById('solarStatus').className = 'metric-status ' + cls;
+    const t = new Date(latest.created);
+    document.getElementById('solarAt').innerHTML =
+      `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')} <span class="metric-trend-label">作物の上で測定</span>`;
+  } else {
+    document.getElementById('solarVal').innerHTML = '--<span class="metric-unit">W/m²</span>';
+    document.getElementById('solarStatus').textContent = latest ? '受信が止まっています' : '--';
+    document.getElementById('solarStatus').className = 'metric-status ' + (latest ? 'status-warn' : 'status-normal');
+  }
+
+  const today = solarJstDate(new Date());
+  const todayMj = solarMjOfDay(solarRows, today);
+  document.getElementById('solarTodayMj').innerHTML =
+    (todayMj === null ? '--' : todayMj.toFixed(1)) + '<span class="stat-tile-unit">MJ/m²</span>';
+
+  const yesterday = solarJstDate(new Date(Date.now() - 86400000));
+  const y = daily.find(r => r.date === yesterday);
+  const yMj = y && y.inside_mj != null ? Number(y.inside_mj) : null;
+  document.getElementById('solarYesterdayMj').innerHTML =
+    (yMj === null ? '--' : yMj.toFixed(1)) + '<span class="stat-tile-unit">MJ/m²</span>';
+
+  const tr = document.getElementById('solarTransmission');
+  if (y && y.transmission != null) {
+    const pct = Math.round(Number(y.transmission) * 100);
+    const partial = y.sample_count != null && y.sample_count < 130 ? '（欠測あり）' : '';
+    tr.textContent = `昨日の透過率 ${pct}%（外 ${Number(y.outside_mj).toFixed(1)} MJ）${partial}`;
+  } else {
+    tr.textContent = '透過率は1日分そろうと出ます';
+  }
+}
+
 // ===== センサーが止まった原因を診断ログから読み解く =====
 // ESP32 は起動のたびに「なぜ再起動したか」「前回どこで止まったか」「センサーは
 // 読めたか」を送っている (device_health_log)。その最後の1件を見れば、
@@ -3757,6 +3883,7 @@ function diagnoseSensor(key) {
 //     esp32_01 → env  {created, d1:気温, d2:湿度}   (北側)
 //     esp32_02 → env  {created, d4:気温, d5:湿度}   (南側)
 //     esp32_04 → env  {created, d7:CO2}
+//     esp32_05 → env  {created, d8:日射 W/m²}
 //     esp32_03 → soil {created, d1:地温, d2:水分, d3:EC, d4:pH}
 //   RPC は recorded_at desc で返すので、Ambient 同様「新しい順」のまま。
 async function fetchSupabaseRecent(hours) {
@@ -3796,6 +3923,8 @@ async function fetchSupabaseRecent(hours) {
       if (o.d4 !== undefined || o.d5 !== undefined) env.push(o);
     } else if (r.device_id === 'esp32_04') {
       if (r.co2_ppm != null) env.push({ created, d7: num(r.co2_ppm) });
+    } else if (r.device_id === 'esp32_05') {
+      if (r.solar_wm2 != null) env.push({ created, d8: num(r.solar_wm2) });
     } else if (r.device_id === 'esp32_03') {
       const o = { created };
       if (r.soil_temp_c       != null) o.d1 = num(r.soil_temp_c);
@@ -3890,7 +4019,7 @@ async function fetchData() {
         buckets.set(bucketStart, {
           u1Temps: [], u2Temps: [],
           u1Hums:  [], u2Hums:  [],
-          co2s: [],
+          co2s: [], solars: [],
           time: new Date(bucketStart)
         });
       }
@@ -3905,6 +4034,8 @@ async function fetchData() {
       if (!isNaN(h1r)) b.u1Hums.push(h1r);
       if (!isNaN(h2r)) b.u2Hums.push(h2r);
       if (!isNaN(cr))  b.co2s.push(cr);
+      const sr  = parseFloat(d.d8);
+      if (!isNaN(sr))  b.solars.push(sr);
     });
 
     // バケットを時刻昇順で配列化
@@ -3927,6 +4058,7 @@ async function fetchData() {
       return all.length > 0 ? all.reduce((s, v) => s + v, 0) / all.length : null;
     });
     co2History  = sortedBuckets.map(b => avg(b.co2s));
+    solarHistory = sortedBuckets.map(b => avg(b.solars));
     // VPDはバケット平均の温度・湿度から計算
     vpdHistory  = sortedBuckets.map((b, i) => {
       const at = tempHistory[i], ah = humHistory[i];
@@ -4075,6 +4207,8 @@ async function fetchData() {
       document.getElementById('co2Status').textContent = '--';
       document.getElementById('co2Status').className = 'metric-status status-normal';
     }
+
+    renderSolar(data);   // ☀️ 日射 (データが届いていれば出す)
 
     // 最新状態を保存してアドバイス再生成
     latestState.temp = temp;  // 既にnull or 数値
