@@ -692,6 +692,17 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
 .conn-row-icon { font-size: 0.96rem; width: 20px; text-align: center; }
 .conn-row-val { font-size: 0.92rem; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text-primary); }
 
+/* トップへ戻るボタン（下にスクロールしたら出る） */
+.to-top-btn {
+  position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
+  width: 48px; height: 48px; border-radius: 50%; border: none;
+  background: var(--accent-blue); color: white; font-size: 1.3rem; line-height: 1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer; z-index: 50;
+  opacity: 0; pointer-events: none; transform: translateY(12px); transition: opacity 0.2s, transform 0.2s;
+}
+.to-top-btn.show { opacity: 1; pointer-events: auto; transform: none; }
+.to-top-btn:active { transform: scale(0.94); }
+
 /* 更新ボタン */
 .refresh-btn {
   width: 100%; background: var(--accent-blue); color: white;
@@ -1350,6 +1361,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <a href="https://pepper-pesticide-app.vercel.app/">🧪 農薬・肥料</a>
     <a href="https://pest-map-ebon.vercel.app/">🐛 病害虫マップ</a>
   </nav>
+  <button class="to-top-btn" id="toTopBtn" type="button" aria-label="一番上へ戻る" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">↑</button>
   <div class="footer"><span>自動更新 5分ごと</span><span>送信間隔 気温湿度10分／土壌5分</span></div>
 
 </div>
@@ -4230,13 +4242,45 @@ function applyLayout() {
   // battConnRowは削除済みのため何もしない
 }
 
-window.addEventListener('load', () => {
-  applyLayout();
+function refreshAll() {
   fetchData();
   fetchTodayData();
   fetchWeather();
   fetchChartEvents();
   fetchHumidRuns();
+}
+
+// 画面を閉じて開き直したとき: 前に見ていた高さのまま古いデータが出ないよう、
+// 一番上に戻して全部取り直す（裏にいる間は自動更新が止まるため）。
+// 他のアプリを数秒見ただけで上に飛ばないよう、1分以上離れていたときだけ。
+const REOPEN_REFRESH_MS = 60000;
+let hiddenAt = null;
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+function refreshFromTop() {
+  window.scrollTo(0, 0);
+  refreshAll();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    hiddenAt = Date.now();
+  } else if (hiddenAt !== null && Date.now() - hiddenAt >= REOPEN_REFRESH_MS) {
+    hiddenAt = null;
+    refreshFromTop();
+  }
+});
+// 画面の高さ1つぶん以上下に行ったら「トップへ戻る」ボタンを出す
+function updateToTopBtn() {
+  document.getElementById('toTopBtn').classList.toggle('show', window.scrollY > window.innerHeight);
+}
+window.addEventListener('scroll', updateToTopBtn, { passive: true });
+
+// 戻るボタンなどでキャッシュから復元されたとき
+window.addEventListener('pageshow', (e) => { if (e.persisted) refreshFromTop(); });
+
+window.addEventListener('load', () => {
+  applyLayout();
+  window.scrollTo(0, 0);
+  refreshAll();
   setInterval(fetchHumidRuns, 1800000); // 日次指標は30分ごと
   setInterval(fetchChartEvents, 600000); // 作業の印は10分ごと
   setInterval(fetchData, 300000);
