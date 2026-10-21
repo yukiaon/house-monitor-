@@ -4230,13 +4230,39 @@ function applyLayout() {
   // battConnRowは削除済みのため何もしない
 }
 
-window.addEventListener('load', () => {
-  applyLayout();
+function refreshAll() {
   fetchData();
   fetchTodayData();
   fetchWeather();
   fetchChartEvents();
   fetchHumidRuns();
+}
+
+// 画面を閉じて開き直したとき: 前に見ていた高さのまま古いデータが出ないよう、
+// 一番上に戻して全部取り直す（裏にいる間は自動更新が止まるため）。
+// 他のアプリを数秒見ただけで上に飛ばないよう、1分以上離れていたときだけ。
+const REOPEN_REFRESH_MS = 60000;
+let hiddenAt = null;
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+function refreshFromTop() {
+  window.scrollTo(0, 0);
+  refreshAll();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    hiddenAt = Date.now();
+  } else if (hiddenAt !== null && Date.now() - hiddenAt >= REOPEN_REFRESH_MS) {
+    hiddenAt = null;
+    refreshFromTop();
+  }
+});
+// 戻るボタンなどでキャッシュから復元されたとき
+window.addEventListener('pageshow', (e) => { if (e.persisted) refreshFromTop(); });
+
+window.addEventListener('load', () => {
+  applyLayout();
+  window.scrollTo(0, 0);
+  refreshAll();
   setInterval(fetchHumidRuns, 1800000); // 日次指標は30分ごと
   setInterval(fetchChartEvents, 600000); // 作業の印は10分ごと
   setInterval(fetchData, 300000);
