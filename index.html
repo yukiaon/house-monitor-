@@ -663,6 +663,10 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
 .humid-run-val { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .humid-run-note { margin-top: 14px; font-size: 0.9rem; line-height: 1.6; color: var(--text-primary); }
 .humid-run-note:empty { display: none; }
+/* 毎朝の水やり前 pH (0030 get_soil_ph_morning) */
+.ph-morning-svg { width: 100%; height: 120px; display: block; }
+.ph-morning-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.9rem; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.ph-morning-list b { color: var(--text-primary); }
 .chart-event { position: absolute; width: 0; border-left: 2px dashed var(--ev, #5856d6); pointer-events: none; z-index: 1; opacity: .85; }
 .chart-event-badge { position: absolute; top: -2px; left: -12px; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 1.5px solid var(--ev, #5856d6); display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; }
 .chart-events { margin: 10px 4px 0; display: grid; gap: 6px; }
@@ -1101,6 +1105,15 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="soil-item-status status-normal" id="soilPhStatus">--</div>
       </div>
     </div>
+  </div>
+
+  <!-- ⚗️ 毎朝の水やり前 pH: 水やりで上がって1日かけて戻る上下ではなく、基準の値が下がっていないかを見る。0030 が未適用・データ無しなら出さない -->
+  <div class="card" id="phMorningCard" style="display:none;padding:20px;">
+    <div class="card-head-row"><span class="section-title">⚗️ 朝の pH（水やり前）</span></div>
+    <div class="section-sub" style="margin:4px 0 14px;">毎朝5〜7時の平均。水やりの後は2〜3時間で上がり、1日かけて戻るので、毎日同じ時間の値で比べます。緑の帯は目安 pH 5.5〜6.5</div>
+    <svg class="ph-morning-svg" id="phMorningSvg" viewBox="0 0 320 120" preserveAspectRatio="none" role="img" aria-label="朝の pH の推移"></svg>
+    <div class="ph-morning-list" id="phMorningList"></div>
+    <div class="humid-run-note" id="phMorningNote"></div>
   </div>
 
   <!-- ☀️ 光と環境の評価: 土壌モニターの下に単独の枠で出す（2列の中だと縦に長くなるため）。光の活かし方 (日射 esp32_05 XM8580 × 気温・湿度・CO2)。データが届くまでは出さない -->
@@ -2031,6 +2044,84 @@ async function fetchHumidRuns() {
   } catch (e) {
     card.style.display = 'none'; // 0020 が未適用のあいだは何も出さない
   }
+}
+
+// ===== 毎朝の水やり前 pH (0030 get_soil_ph_morning) =====
+// 埋め込み pH は水やりで上がり、1日かけて下がるのを繰り返す。上下ではなく、朝5〜7時の値が
+// 週を追って下がっていないかを見る。RPC が未適用・失敗ならカードごと出さない。
+const PH_TREND_STEP = 0.2; // センサーの刻み 0.1 の2つ分より大きく動いたら「上がった/下がった」と言う
+async function fetchPhMorning() {
+  const card = document.getElementById('phMorningCard');
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_soil_ph_morning`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ p_days: 30 }),
+    });
+    if (!res.ok) throw new Error('ph morning ' + res.status);
+    const rows = (await res.json())
+      .filter(r => Number(r.sample_count) >= 12 && Number.isFinite(Number(r.ph_avg))) // 1時間分以上ある朝だけ
+      .map(r => ({ date: String(r.date).slice(0, 10), ph: Number(r.ph_avg) }))
+      .reverse(); // 古い順
+    if (rows.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = '';
+    drawPhMorning(rows);
+
+    const WD = ['日', '月', '火', '水', '木', '金', '土'];
+    const label = (s) => { const d = new Date(s + 'T00:00:00'); return `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`; };
+    const list = document.getElementById('phMorningList');
+    list.textContent = '';
+    rows.slice(-7).reverse().forEach(r => {
+      const item = document.createElement('span');
+      const b = document.createElement('b');
+      b.textContent = r.ph.toFixed(1);
+      item.append(label(r.date) + ' ', b);
+      list.appendChild(item);
+    });
+
+    // 直近3日の平均と、いちばん古い3日 (最大2週間前) の平均をくらべる
+    const note = document.getElementById('phMorningNote');
+    const span = rows.slice(-14);
+    if (span.length < 7) {
+      note.textContent = `まだ${rows.length}日分です。1週間たまると、下がってきているかが分かります。`;
+      return;
+    }
+    const avg = (a) => a.reduce((s, r) => s + r.ph, 0) / a.length;
+    const recent = avg(span.slice(-3));
+    const before = avg(span.slice(0, 3));
+    const diff = recent - before;
+    const from = `${label(span[0].date)}ごろ ${before.toFixed(1)} → 最近 ${recent.toFixed(1)}`;
+    note.textContent =
+      diff <= -PH_TREND_STEP ? `⚠️ 朝の pH が下がってきています（${from}）。石灰を入れる前に、JA の土壌分析で確かめてください（埋め込みセンサーは肥料が多いと低めに出ます）。`
+      : diff >= PH_TREND_STEP ? `朝の pH が上がってきています（${from}）。`
+      : `朝の pH はほぼ横ばいです（${from}）。水やりの後の上下はいつもの動きです。`;
+  } catch (e) {
+    card.style.display = 'none'; // 0030 が未適用のあいだは何も出さない
+  }
+}
+
+function drawPhMorning(rows) {
+  const svg = document.getElementById('phMorningSvg');
+  const NS = 'http://www.w3.org/2000/svg';
+  const W = Math.max(240, Math.round(svg.clientWidth || 320)), H = 120;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  svg.textContent = '';
+  const T = PEPPER_TARGETS.soilPh;
+  const vals = rows.map(r => r.ph);
+  const lo = Math.floor((Math.min(T.okMin, ...vals) - 0.3) * 10) / 10;
+  const hi = Math.ceil((Math.max(T.okMax, ...vals) + 0.2) * 10) / 10;
+  const padL = 30, padR = 10, padT = 8, padB = 8;
+  const x = (i) => rows.length === 1 ? (padL + W - padR) / 2 : padL + (W - padL - padR) * i / (rows.length - 1);
+  const y = (v) => padT + (H - padT - padB) * (hi - v) / (hi - lo);
+  const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); svg.appendChild(e); return e; };
+  el('rect', { x: padL, y: y(T.okMax), width: W - padL - padR, height: y(T.okMin) - y(T.okMax), fill: 'rgba(52,199,89,0.14)' });
+  for (const v of [T.okMin, T.okMax]) {
+    const t = el('text', { x: padL - 4, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#8e8e93' });
+    t.textContent = v.toFixed(1);
+  }
+  el('polyline', { points: rows.map((r, i) => `${x(i)},${y(r.ph)}`).join(' '), fill: 'none', stroke: '#ec4899', 'stroke-width': 2, 'stroke-linejoin': 'round' });
+  rows.forEach((r, i) => el('circle', { cx: x(i), cy: y(r.ph), r: 3, fill: '#ec4899' }));
 }
 
 // ===== グラフに重ねる「作業の印」 =====
@@ -4647,6 +4738,7 @@ function refreshAll() {
   fetchWeather();
   fetchChartEvents();
   fetchHumidRuns();
+  fetchPhMorning();
 }
 
 // 画面を閉じて開き直したとき: 前に見ていた高さのまま古いデータが出ないよう、
