@@ -605,6 +605,8 @@ small { font-size: 0.8rem; }
 .light-headline-title { font-size: 1.15rem; font-weight: 700; }
 .light-headline-sub { font-size: 0.95rem; margin-top: 2px; opacity: 0.85; }
 .light-headline-sub:empty { display: none; }
+/* 光と環境の評価は単独の枠。PC では評価の行を2列に並べて縦を短くする */
+@media (min-width: 768px) { .light-rows { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; } }
 .light-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border, rgba(0,0,0,0.06)); }
 .light-row:last-child { border-bottom: none; }
 .light-row-label { font-size: 1rem; color: var(--text-secondary); }
@@ -1054,57 +1056,6 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       </div>
       <div class="metric-status status-normal today-status" id="todayMaxCo2Status">--</div>
     </div>
-    <!-- ☀️ 光の活かし方 (日射 esp32_05 XM8580 × 気温・湿度・CO2)。データが届くまでは出さない -->
-    <!-- 評価を主役にし、数字は「くわしく」を開いたときだけ出す -->
-    <div class="metric-card solar" id="solarCard" style="--metric-accent:#f59e0b; display:none;">
-      <div class="metric-head"><span class="metric-icon">☀️</span><span class="metric-label">光と環境の評価</span></div>
-      <div class="light-headline status-normal" id="lightHeadline">
-        <div class="light-headline-title" id="lightHeadlineTitle">--</div>
-        <div class="light-headline-sub" id="lightHeadlineSub"></div>
-      </div>
-      <div class="light-rows">
-        <div class="light-row"><span class="light-row-label">温度<small class="light-row-sub">昼の高温・夜温・天気</small></span><span class="metric-status status-normal" id="lightRowTemp">--</span></div>
-        <div class="light-row"><span class="light-row-label">水の消費<small class="light-row-sub">日射の量</small></span><span class="metric-status status-normal" id="lightRowWater">--</span></div>
-        <div class="light-row"><span class="light-row-label">CO2<small class="light-row-sub">日中 × CO2</small></span><span class="metric-status status-normal" id="lightRowCo2">--</span></div>
-        <div class="light-row"><span class="light-row-label">葉の濡れ・乾燥<small class="light-row-sub">気温 × 湿度 × 朝の昇温</small></span><span class="metric-status status-normal" id="lightRowLeaf">--</span></div>
-      </div>
-      <details class="light-details">
-        <summary>くわしく（数字と評価のしかた）</summary>
-        <div class="light-detail-list" id="lightDetails"></div>
-        <div class="light-how">
-          <p><b>温度（昼の高温・夜温・天気）</b><br>
-          ・日中 30℃以上で「高温」、35℃以上で「高温・危険」。<br>
-          ・前の夜の最低気温が 18℃以上で「夜温が下がっていない」。午後3時以降、その日の最高気温が 26℃以下なら「昇温不足」。<br>
-          ・曇りや雨の日は、夕方以降に「今夜は夜温を1〜2℃下げる日」と出します。
-          <span class="light-effect good">適温のとき：昼 25〜30℃、夜 15〜20℃ がピーマンの生育適温（岡山県「野菜の生育適温および限界温度」）。</span>
-          <span class="light-effect bad">30℃以上：樹勢低下・受精不良。35℃以上：着果しにくく、変形果が増える。夜温が下がらない夜：病気が出やすい条件。</span></p>
-          <p><b>水の消費（日射の量）</b><br>ピーマンが使う水は日射の量に比例するので、直近24時間の日射の量を、このハウスの過去の日と比べます。多いほうから1/3なら「よく使う日」、少ないほうから1/3なら「あまり使わない日」。1/3 の区切りは比べるための目安で、決まった基準値ではありません。日射が1日分そろった日が7日たまるまでは「データ集め中」です。
-          <span class="light-effect good">日射に合わせた灌水：岩手県の試験では尻腐れ果が 21.3% → 4.8% に減り、収量が 24〜39% 増えた。</span>
-          <span class="light-effect bad">水不足：樹勢が落ち、尻腐れ果の原因の一つになる。排水の悪い畑での多かん水：根傷み。生育初期の多かん水：軟弱徒長。</span></p>
-          <p><b>CO2（日中 × CO2）</b><br>日の出1時間後〜日没1時間前だけ見ます。外気（約 400ppm）より低いと「不足」。閉めきったハウスでは、晴れた日中に 250〜300ppm まで下がった記録があります。夜は評価しません。
-          <span class="light-effect good">外気並み以上を保つと：収量が 11〜17% 増え（宮崎県・岩手県）、石果・奇形果が減って A品率が上がった（宮崎県）。</span>
-          <span class="light-effect bad">外気より低いと：光が当たっていても光合成が十分にできず、その分の収量を取りこぼす。</span></p>
-          <p><b>葉の濡れ・乾燥（気温 × 湿度 × 朝の昇温）</b><br>
-          ・灰色かび病：直近48時間で「気温と露点の差が 1.6℃未満（湿度約90%以上）」だった時間を、その温度での菌の伸びやすさで重みづけして足します（感染有効積算時間）。15時間以上で「注意」、20時間以上で「危険」。<br>
-          ・朝の結露：日の出から3時間のあいだに 1時間で 2℃を超えて気温が上がると「結露しやすい」。日が当たると、気温より実や葉の温まりが遅れて結露します。<br>
-          ・乾燥しすぎ：飽差が 6 g/m³ を超えると「乾燥しすぎ」。
-          <span class="light-effect good">ふつう：飽差 3〜6 g/m³ が植物に無理のない範囲。</span>
-          <span class="light-effect bad">湿りすぎ・結露：灰色かび病・菌核病・斑点病が出やすい。乾燥しすぎ：気孔が閉じて光合成が落ち、うどんこ病が出やすい。</span></p>
-          <p class="light-src"><b>出典</b><br>
-          宮崎県・JAファームみやざき中央「大規模施設園芸対応型導入マニュアル（キュウリ、ピーマン）」2020（夜温18℃・昇温26℃・かん水量）／
-          こうち農業ネット「ピーマンの栽培方法－定植後の管理－」2014（昼温・30℃・曇雨天は1〜2℃下げる・かん水の注意）／
-          熊本県 耕種基準 促成ピーマン（35℃で着果阻害・変形果）／
-          岩手県農業研究センター 成果書 R4・R5（日射比例かん水と尻腐れ・CO2 外気並み施用の増収・CO2 の低下）／
-          農研機構 九州沖縄 成果情報 2009・農林水産省 宮崎県の普及事例（CO2 施用の増収・石果減）／
-          渡辺ら 2021 関西病虫研報 63:59-65・静岡県農林技研 成果情報「緑の病害チェッカー」（灰色かび病の感染有効積算時間）／
-          兵庫県「環境制御技術導入のための指導者向けマニュアル」・大分県「温泉パプリカ生産管理マニュアル」2020（朝の昇温と結露・飽差 3〜6）／
-          宮崎県病害虫防除・肥料検査センター 発生予報 R4 第9号（多湿の病害・うどんこ病は乾燥で）<br>
-          ※ 灰色かび病の計算はトマトで確かめられた方法で、論文はほかの作物にも使えるとしています。センサーは作物の群落の中に置くのが前提です。<br>
-          ※ 京鈴・グランバギーに限った数値は見つかっていません。
-          </p>
-        </div>
-      </details>
-    </div>
   </div>
 
   <!-- 🌱 土壌モニター (SEN0604 4in1) -->
@@ -1150,6 +1101,58 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="soil-item-status status-normal" id="soilPhStatus">--</div>
       </div>
     </div>
+  </div>
+
+  <!-- ☀️ 光と環境の評価: 土壌モニターの下に単独の枠で出す（2列の中だと縦に長くなるため）。光の活かし方 (日射 esp32_05 XM8580 × 気温・湿度・CO2)。データが届くまでは出さない -->
+  <!-- 評価を主役にし、数字は「くわしく」を開いたときだけ出す -->
+  <div class="metric-card solar" id="solarCard" style="--metric-accent:#f59e0b; display:none;">
+    <div class="metric-head"><span class="metric-icon">☀️</span><span class="metric-label">光と環境の評価</span></div>
+    <div class="light-headline status-normal" id="lightHeadline">
+      <div class="light-headline-title" id="lightHeadlineTitle">--</div>
+      <div class="light-headline-sub" id="lightHeadlineSub"></div>
+    </div>
+    <div class="light-rows">
+      <div class="light-row"><span class="light-row-label">温度<small class="light-row-sub">昼の高温・夜温・天気</small></span><span class="metric-status status-normal" id="lightRowTemp">--</span></div>
+      <div class="light-row"><span class="light-row-label">水の消費<small class="light-row-sub">日射の量</small></span><span class="metric-status status-normal" id="lightRowWater">--</span></div>
+      <div class="light-row"><span class="light-row-label">CO2<small class="light-row-sub">日中 × CO2</small></span><span class="metric-status status-normal" id="lightRowCo2">--</span></div>
+      <div class="light-row"><span class="light-row-label">葉の濡れ・乾燥<small class="light-row-sub">気温 × 湿度 × 朝の昇温</small></span><span class="metric-status status-normal" id="lightRowLeaf">--</span></div>
+    </div>
+    <details class="light-details">
+      <summary>くわしく（数字と評価のしかた）</summary>
+      <div class="light-detail-list" id="lightDetails"></div>
+      <div class="light-how">
+        <p><b>温度（昼の高温・夜温・天気）</b><br>
+        ・日中 30℃以上で「高温」、35℃以上で「高温・危険」。<br>
+        ・前の夜の最低気温が 18℃以上で「夜温が下がっていない」。午後3時以降、その日の最高気温が 26℃以下なら「昇温不足」。<br>
+        ・曇りや雨の日は、夕方以降に「今夜は夜温を1〜2℃下げる日」と出します。
+        <span class="light-effect good">適温のとき：昼 25〜30℃、夜 15〜20℃ がピーマンの生育適温（岡山県「野菜の生育適温および限界温度」）。</span>
+        <span class="light-effect bad">30℃以上：樹勢低下・受精不良。35℃以上：着果しにくく、変形果が増える。夜温が下がらない夜：病気が出やすい条件。</span></p>
+        <p><b>水の消費（日射の量）</b><br>ピーマンが使う水は日射の量に比例するので、直近24時間の日射の量を、このハウスの過去の日と比べます。多いほうから1/3なら「よく使う日」、少ないほうから1/3なら「あまり使わない日」。1/3 の区切りは比べるための目安で、決まった基準値ではありません。日射が1日分そろった日が7日たまるまでは「データ集め中」です。
+        <span class="light-effect good">日射に合わせた灌水：岩手県の試験では尻腐れ果が 21.3% → 4.8% に減り、収量が 24〜39% 増えた。</span>
+        <span class="light-effect bad">水不足：樹勢が落ち、尻腐れ果の原因の一つになる。排水の悪い畑での多かん水：根傷み。生育初期の多かん水：軟弱徒長。</span></p>
+        <p><b>CO2（日中 × CO2）</b><br>日の出1時間後〜日没1時間前だけ見ます。外気（約 400ppm）より低いと「不足」。閉めきったハウスでは、晴れた日中に 250〜300ppm まで下がった記録があります。夜は評価しません。
+        <span class="light-effect good">外気並み以上を保つと：収量が 11〜17% 増え（宮崎県・岩手県）、石果・奇形果が減って A品率が上がった（宮崎県）。</span>
+        <span class="light-effect bad">外気より低いと：光が当たっていても光合成が十分にできず、その分の収量を取りこぼす。</span></p>
+        <p><b>葉の濡れ・乾燥（気温 × 湿度 × 朝の昇温）</b><br>
+        ・灰色かび病：直近48時間で「気温と露点の差が 1.6℃未満（湿度約90%以上）」だった時間を、その温度での菌の伸びやすさで重みづけして足します（感染有効積算時間）。15時間以上で「注意」、20時間以上で「危険」。<br>
+        ・朝の結露：日の出から3時間のあいだに 1時間で 2℃を超えて気温が上がると「結露しやすい」。日が当たると、気温より実や葉の温まりが遅れて結露します。<br>
+        ・乾燥しすぎ：飽差が 6 g/m³ を超えると「乾燥しすぎ」。
+        <span class="light-effect good">ふつう：飽差 3〜6 g/m³ が植物に無理のない範囲。</span>
+        <span class="light-effect bad">湿りすぎ・結露：灰色かび病・菌核病・斑点病が出やすい。乾燥しすぎ：気孔が閉じて光合成が落ち、うどんこ病が出やすい。</span></p>
+        <p class="light-src"><b>出典</b><br>
+        宮崎県・JAファームみやざき中央「大規模施設園芸対応型導入マニュアル（キュウリ、ピーマン）」2020（夜温18℃・昇温26℃・かん水量）／
+        こうち農業ネット「ピーマンの栽培方法－定植後の管理－」2014（昼温・30℃・曇雨天は1〜2℃下げる・かん水の注意）／
+        熊本県 耕種基準 促成ピーマン（35℃で着果阻害・変形果）／
+        岩手県農業研究センター 成果書 R4・R5（日射比例かん水と尻腐れ・CO2 外気並み施用の増収・CO2 の低下）／
+        農研機構 九州沖縄 成果情報 2009・農林水産省 宮崎県の普及事例（CO2 施用の増収・石果減）／
+        渡辺ら 2021 関西病虫研報 63:59-65・静岡県農林技研 成果情報「緑の病害チェッカー」（灰色かび病の感染有効積算時間）／
+        兵庫県「環境制御技術導入のための指導者向けマニュアル」・大分県「温泉パプリカ生産管理マニュアル」2020（朝の昇温と結露・飽差 3〜6）／
+        宮崎県病害虫防除・肥料検査センター 発生予報 R4 第9号（多湿の病害・うどんこ病は乾燥で）<br>
+        ※ 灰色かび病の計算はトマトで確かめられた方法で、論文はほかの作物にも使えるとしています。センサーは作物の群落の中に置くのが前提です。<br>
+        ※ 京鈴・グランバギーに限った数値は見つかっていません。
+        </p>
+      </div>
+    </details>
   </div>
 
   <!-- グラフ -->
