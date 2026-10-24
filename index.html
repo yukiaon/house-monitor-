@@ -1531,6 +1531,9 @@ let notifiedLevels = { unit1: 0, unit2: 0, soil: 0, co2: 0 };
 //   同じ値: pepper-advisor env-targets.ts / 0020系 SQL / kishaku-calc app.js / pest-map index.html
 const SOUTH_HUM_OFFSET = 5;
 const SOUTH_HUM_OFFSET_UNTIL = '2026-10-17T07:50:00+09:00';   // 2026-10-17 入れ替え（BME280 最終 07:46:12 / SHT35 ハウスで送信開始 07:51:30）
+// 日射センサー (esp32_05) はこの時刻からハウスで測る。それより前は自宅の机での動作確認なので使わない（画面は --）
+const SOLAR_VALID_FROM = '2026-10-25T08:00:00+09:00';
+const SOLAR_VALID_FROM_MS = new Date(SOLAR_VALID_FROM).getTime();
 function southHumOffset(recordedAt) {
   if (SOUTH_HUM_OFFSET_UNTIL == null) return SOUTH_HUM_OFFSET;
   return new Date(recordedAt) < new Date(SOUTH_HUM_OFFSET_UNTIL) ? SOUTH_HUM_OFFSET : 0;
@@ -3847,7 +3850,11 @@ async function rpcPost(fn, body) {
   if (!res.ok) throw new Error(fn + ': HTTP ' + res.status);
   return res.json();
 }
-async function fetchSolarDaily() { return rpcPost('get_solar_daily', { p_days: 30 }); }
+async function fetchSolarDaily() {
+  const rows = await rpcPost('get_solar_daily', { p_days: 30 });
+  // 測り始めの日（途中から）とそれより前の日は使わない
+  return rows.filter(r => new Date(r.date + 'T00:00:00+09:00').getTime() >= SOLAR_VALID_FROM_MS);
+}
 async function fetchWeatherToday() {
   const rows = await rpcPost('get_weather_recent', { p_days: 1 });
   return rows.find(r => r.date === solarJstDate(new Date())) || null;
@@ -3875,9 +3882,9 @@ async function renderSolar(rows) {
   if (!card) return;
   rows = rows || [];
   const solarRows = rows.filter(r => r.d8 !== undefined && r.d8 !== null && !isNaN(parseFloat(r.d8)));
-  let solarDaily = [], weather = null;
-  try { solarDaily = await fetchSolarDaily(); } catch (e) { /* 0024 未適用・通信失敗 */ }
-  if (solarRows.length === 0 && solarDaily.length === 0) {
+  let solarDaily = [], weather = null, solarReady = false;
+  try { solarDaily = await fetchSolarDaily(); solarReady = true; } catch (e) { /* 0024 未適用・通信失敗 */ }
+  if (!solarReady && solarRows.length === 0) {
     card.style.display = 'none';
     if (tab) tab.style.display = 'none';
     return;
@@ -3995,6 +4002,7 @@ async function renderSolar(rows) {
   const hm = (ms) => { const j = new Date(ms + 9 * 3600000); return String(j.getUTCHours()).padStart(2, '0') + ':' + String(j.getUTCMinutes()).padStart(2, '0'); };
   const lines = [
     ['今の日射', f(solarNow, 0, ' W/m²')],
+    ...(now < SOLAR_VALID_FROM_MS ? [['日射の測定開始', '10/25 8:00 から（それまでは --）']] : []),
     ['今日の日射（ここまで）', f(mjToday, 1, ' MJ/m²')],
     ['直近24時間の日射', f(mj24, 1, ' MJ/m²')],
     ['今の気温（高いほう）', f(tNowMax, 1, '℃')],
@@ -4147,7 +4155,7 @@ async function fetchSupabaseRecent(hours) {
     } else if (r.device_id === 'esp32_04') {
       if (r.co2_ppm != null) env.push({ created, d7: num(r.co2_ppm) });
     } else if (r.device_id === 'esp32_05') {
-      if (r.solar_wm2 != null) env.push({ created, d8: num(r.solar_wm2) });
+      if (r.solar_wm2 != null && new Date(created).getTime() >= SOLAR_VALID_FROM_MS) env.push({ created, d8: num(r.solar_wm2) });
     } else if (r.device_id === 'esp32_03') {
       const o = { created };
       if (r.soil_temp_c       != null) o.d1 = num(r.soil_temp_c);
