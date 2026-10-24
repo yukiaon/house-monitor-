@@ -1136,7 +1136,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <span class="light-effect good">外気並み以上を保つと：収量が 11〜17% 増え（宮崎県・岩手県）、石果・奇形果が減って A品率が上がった（宮崎県）。</span>
         <span class="light-effect bad">外気より低いと：光が当たっていても光合成が十分にできず、その分の収量を取りこぼす。</span></p>
         <p><b>葉の濡れ・乾燥（気温 × 湿度 × 朝の昇温）</b><br>
-        ・灰色かび病：直近48時間で「気温と露点の差が 1.6℃未満（湿度約90%以上）」だった時間を、その温度での菌の伸びやすさで重みづけして足します（感染有効積算時間）。15時間以上で「注意」、20時間以上で「危険」。<br>
+        ・灰色かび病：直近48時間で「気温と露点の差が 1.6℃未満（湿度約90%以上）」だった時間を、その温度での菌の伸びやすさで重みづけして足します（感染有効積算時間）。15時間以上で「注意」、20時間以上で「出やすい」（資料の「危険」の区切り）。<br>
         ・朝の結露：日の出から3時間のあいだに 1時間で 2℃を超えて気温が上がると「結露しやすい」。日が当たると、気温より実や葉の温まりが遅れて結露します。<br>
         ・乾燥しすぎ：飽差が 6 g/m³ を超えると「乾燥しすぎ」。
         <span class="light-effect good">ふつう：飽差 3〜6 g/m³ が植物に無理のない範囲。</span>
@@ -4020,14 +4020,15 @@ async function renderSolar(rows) {
   const hd = (tNowAvg != null && hNow != null) ? hdGm3(tNowAvg, hNow) : null;
   if (hNow == null) setChip('lightRowLeaf', '--', 'status-wait');
   else if (iat >= 20) {
-    setChip('lightRowLeaf', '灰色かび 危険', 'status-danger');
-    issues.push([5, '灰色かび病の感染リスクが「危険」です', '直近48時間の高湿度が続いています。換気・送風・除湿暖房を']);
+    // 資料の「危険」(20時間)。区切りはそのまま、表示は赤にせず一段落ち着かせる (2026-10-24 オーナー「強調されすぎ」)
+    setChip('lightRowLeaf', '灰色かび 出やすい', 'status-warn');
+    issues.push([3, '灰色かび病が出やすい状態です', '直近48時間の高湿度が続いています。換気・送風・除湿暖房を']);
   } else if (morning && riseRate != null && riseRate > 2) {
     setChip('lightRowLeaf', '結露しやすい（急な昇温）', 'status-warn');
     issues.push([3, '朝の気温の上がり方が急です', '1時間に1〜2℃までにすると実や葉が結露しにくい（兵庫県・大分県）']);
   } else if (iat >= 15) {
     setChip('lightRowLeaf', '灰色かび 注意', 'status-warn');
-    issues.push([3, '灰色かび病の感染リスクが「注意」です', '湿度の高い時間が積み重なっています']);
+    issues.push([2, '灰色かび病に注意', '湿度の高い時間が積み重なっています']);
   } else if (hd != null && hd > 6) {
     setChip('lightRowLeaf', '乾燥しすぎ', 'status-warn');
     issues.push([2, 'ハウス内が乾燥しすぎています', '気孔が閉じて光合成が落ち、うどんこ病も出やすくなります']);
