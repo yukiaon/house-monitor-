@@ -1125,7 +1125,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <p><b>温度（昼の高温・夜温・天気）</b><br>
         ・日中 30℃以上で「高温」、35℃以上で「高温・危険」。<br>
         ・前の夜の最低気温が 18℃以上で「夜温が下がっていない」。午後3時以降、その日の最高気温が 26℃以下なら「昇温不足」。<br>
-        ・曇りや雨の日は、夕方以降に「今夜は夜温を1〜2℃下げる日」と出します。
+        ・曇りや雨の日は、夕方（16時）以降に「今夜は夜温を1〜2℃下げる日」と出します。曇りや雨の日かは、気象庁 宮崎（約13km先）が毎正時に観測している天気で決めます。昼（7〜18時）の観測のうち「晴」が半分以下なら曇雨天の日です（気象庁の用語で「時々」は期間の半分未満なので、晴が半分以下ならその日の主な天気は晴ではない）。
         <span class="light-effect good">適温のとき：昼 25〜30℃、夜 15〜20℃ がピーマンの生育適温（岡山県「野菜の生育適温および限界温度」）。</span>
         <span class="light-effect bad">30℃以上：樹勢低下・受精不良。35℃以上：着果しにくく、変形果が増える。夜温が下がらない夜：病気が出やすい条件。</span></p>
         <p><b>水の消費（日射の量）</b><br>ピーマンが使う水は日射の量に比例するので、直近24時間の日射の量を、このハウスの過去の日と比べます。多いほうから1/3なら「よく使う日」、少ないほうから1/3なら「あまり使わない日」。1/3 の区切りは比べるための目安で、決まった基準値ではありません。日射が1日分そろった日が7日たまるまでは「データ集め中」です。
@@ -1147,6 +1147,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <span class="light-effect bad">日照不足：遮光した試験では結実歩合が急に下がり、開花数も減った（加藤・田中 1971）。曇雨天の続いた後の急な晴れは、葉やけ・しおれに注意（宮崎県）。</span></p>
         <p class="light-src"><b>出典</b><br>
         宮崎県・JAファームみやざき中央「大規模施設園芸対応型導入マニュアル（キュウリ、ピーマン）」2020（夜温18℃・昇温26℃・かん水量）／
+        気象庁ホームページ アメダス 宮崎（自動観測による天気：配信資料に関する技術情報（気象編）第273号）・気象庁 予報用語「時々」（曇雨天の日）／
         こうち農業ネット「ピーマンの栽培方法－定植後の管理－」2014（昼温・30℃・曇雨天は1〜2℃下げる・かん水の注意）／
         熊本県 耕種基準 促成ピーマン（35℃で着果阻害・変形果）／
         岩手県農業研究センター 成果書 R4・R5（日射比例かん水と尻腐れ・CO2 外気並み施用の増収・CO2 の低下）／
@@ -3879,9 +3880,9 @@ async function fetchSolarDaily() {
   // 測り始めの日（途中から）とそれより前の日は使わない
   return rows.filter(r => new Date(r.date + 'T00:00:00+09:00').getTime() >= SOLAR_VALID_FROM_MS);
 }
-async function fetchWeatherToday() {
-  const rows = await rpcPost('get_weather_recent', { p_days: 1 });
-  return rows.find(r => r.date === solarJstDate(new Date())) || null;
+// 気象庁 宮崎の観測した天気 (参謀 0029)。1行 = 1日: 昼 (07〜18時の毎正時) の晴の回数と、曇雨天の日か (晴が半分以下)
+async function fetchJmaDays() {
+  return rpcPost('get_jma_daily_weather', { p_days: 2 });
 }
 
 // 水の消費: 直近24時間の日射を、このハウスの過去の日 (1日分そろった日) と比べる
@@ -3906,7 +3907,7 @@ async function renderSolar(rows) {
   if (!card) return;
   rows = rows || [];
   const solarRows = rows.filter(r => r.d8 !== undefined && r.d8 !== null && !isNaN(parseFloat(r.d8)));
-  let solarDaily = [], weather = null, solarReady = false;
+  let solarDaily = [], jmaDays = [], solarReady = false;
   try { solarDaily = await fetchSolarDaily(); solarReady = true; } catch (e) { /* 0024 未適用・通信失敗 */ }
   if (!solarReady && solarRows.length === 0) {
     card.style.display = 'none';
@@ -3915,7 +3916,7 @@ async function renderSolar(rows) {
   }
   card.style.display = '';
   if (tab) tab.style.display = '';
-  try { weather = await fetchWeatherToday(); } catch (e) { /* 天気が無くても他は出す */ }
+  try { jmaDays = await fetchJmaDays(); } catch (e) { /* 0029 未適用・通信失敗: 曇雨天の判定を出さない */ }
 
   const now = Date.now();
   const jstHour = new Date(now + 9 * 3600000).getUTCHours();
@@ -3939,7 +3940,11 @@ async function renderSolar(rows) {
   const todayMax = todayBins.length ? Math.max(...todayBins.map(x => x.t)) : null;
   const prevNight = both.filter(x => x.b >= todayStart - 6 * 3600000 && x.b < todayStart + 7 * 3600000);   // 前夜 18時〜今朝 7時
   const prevNightMin = prevNight.length ? Math.min(...prevNight.map(x => x.t)) : null;
-  const cloudy = weather && weather.weather_code != null && Number(weather.weather_code) >= 3;
+  // 曇雨天の日か: 16時以降は今日のここまでの観測、0〜6時は昨日の観測 (今夜 = 昨日の夜)。それ以外の時間は出さない
+  // Open-Meteo の天気コード 3 は晴れの日にも付くので使わない (2026-10 に確認)
+  const jmaDay = jstHour < 6 ? jmaDays.find(r => r.date === solarJstDate(new Date(now - 86400000)))
+                             : jmaDays.find(r => r.date === solarJstDate(new Date(now)));
+  const cloudy = jmaDay && jmaDay.cloudy_rainy === true;
   const daytime = now >= sun.rise && now <= sun.set;
   if (tNowMax == null) setChip('lightRowTemp', '--', 'status-wait');
   else if (daytime && tNowMax >= 35) {
@@ -4042,7 +4047,8 @@ async function renderSolar(rows) {
     ['今の気温（高いほう）', f(tNowMax, 1, '℃')],
     ['昨夜の最低気温', f(prevNightMin, 1, '℃')],
     ['今日の最高気温', f(todayMax, 1, '℃')],
-    ['今日の天気', weather ? (cloudy ? '曇り・雨' : '晴れ') : '--'],
+    [jstHour < 6 ? '昨日の天気（気象庁 宮崎）' : '今日の天気（気象庁 宮崎）', jmaDay && jmaDay.cloudy_rainy != null
+      ? `${jmaDay.cloudy_rainy ? '曇雨天' : '晴れ'}（昼の晴 ${jmaDay.clear_hours}/${jmaDay.obs_hours}回）` : '--'],
     ['今のCO2', f(co2Now, 0, ' ppm')],
     ['今の湿度', f(hNow, 0, '%')],
     ['今の飽差', f(hd, 1, ' g/m³')],
