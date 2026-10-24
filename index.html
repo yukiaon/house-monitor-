@@ -600,6 +600,29 @@ small { font-size: 0.8rem; }
 .chart-tab.active.soilph   { background: rgba(236,72,153,0.14); color: #ec4899; }
 .chart-tab.active.vpd  { background: rgba(175,82,222,0.12); color: var(--accent-vpd); }
 .chart-tab.active.co2  { background: rgba(90,200,250,0.15); color: #0a84d6; }
+.chart-tab.active.solar { background: rgba(245,158,11,0.15); color: #d97706; }
+.light-headline { border-radius: 10px; padding: 10px 12px; margin: 6px 0 10px; }
+.light-headline-title { font-size: 1.15rem; font-weight: 700; }
+.light-headline-sub { font-size: 0.95rem; margin-top: 2px; opacity: 0.85; }
+.light-headline-sub:empty { display: none; }
+/* 光と環境の評価は単独の枠。PC では評価の行を2列に並べて縦を短くする */
+@media (min-width: 768px) { .light-rows { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; } }
+.light-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border, rgba(0,0,0,0.06)); }
+.light-row:last-child { border-bottom: none; }
+.light-row-label { font-size: 1rem; color: var(--text-secondary); }
+.light-row-sub { display: block; font-size: 0.78rem; color: var(--text-secondary); opacity: 0.75; margin-top: 1px; }
+.light-how { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border, rgba(0,0,0,0.06)); }
+.light-how p { margin: 6px 0; line-height: 1.5; }
+.light-how b { font-family: inherit; }
+.light-src { font-size: 0.82rem; line-height: 1.6; }
+.light-effect { display: block; margin-top: 4px; padding: 4px 8px; border-radius: 6px; font-size: 0.88rem; }
+.light-effect.good { background: rgba(52,199,89,0.10); color: #1f7a3a; }
+.light-effect.bad  { background: rgba(255,149,0,0.10); color: #a35a00; }
+.light-details { margin-top: 8px; font-size: 0.92rem; color: var(--text-secondary); }
+.light-details summary { cursor: pointer; padding: 4px 0; }
+.light-detail-list div { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; }
+.light-detail-list b { font-family: 'DM Mono', monospace; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+.status-wait   { background: rgba(142,142,147,0.14); color: #6e6e73; }
 .chart-wrap {
   padding: 0 20px 0 12px;
   position: relative;
@@ -1080,6 +1103,72 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     </div>
   </div>
 
+  <!-- ☀️ 光と環境の評価: 土壌モニターの下に単独の枠で出す（2列の中だと縦に長くなるため）。光の活かし方 (日射 esp32_05 XM8580 × 気温・湿度・CO2)。データが届くまでは出さない -->
+  <!-- 評価を主役にし、数字は「くわしく」を開いたときだけ出す -->
+  <div class="metric-card solar" id="solarCard" style="--metric-accent:#f59e0b; display:none;">
+    <div class="metric-head"><span class="metric-icon">☀️</span><span class="metric-label">光と環境の評価</span></div>
+    <div class="light-headline status-normal" id="lightHeadline">
+      <div class="light-headline-title" id="lightHeadlineTitle">--</div>
+      <div class="light-headline-sub" id="lightHeadlineSub"></div>
+    </div>
+    <div class="light-rows">
+      <div class="light-row"><span class="light-row-label">温度<small class="light-row-sub">昼の高温・夜温・天気</small></span><span class="metric-status status-normal" id="lightRowTemp">--</span></div>
+      <div class="light-row"><span class="light-row-label">水の消費<small class="light-row-sub">日射の量</small></span><span class="metric-status status-normal" id="lightRowWater">--</span></div>
+      <div class="light-row"><span class="light-row-label">CO2<small class="light-row-sub">日中 × CO2</small></span><span class="metric-status status-normal" id="lightRowCo2">--</span></div>
+      <div class="light-row"><span class="light-row-label">葉の濡れ・乾燥<small class="light-row-sub">気温 × 湿度 × 朝の昇温</small></span><span class="metric-status status-normal" id="lightRowLeaf">--</span></div>
+      <div class="light-row"><span class="light-row-label">光の強さ<small class="light-row-sub">日射 × 光飽和点の目安</small></span><span class="metric-status status-normal" id="lightRowSun">--</span></div>
+      <div class="light-row"><span class="light-row-label">光の通り<small class="light-row-sub">ハウス内 ÷ 外の日射（昨日）</small></span><span class="metric-status status-normal" id="lightRowTrans">--</span></div>
+    </div>
+    <details class="light-details">
+      <summary>くわしく（数字と評価のしかた）</summary>
+      <div class="light-detail-list" id="lightDetails"></div>
+      <div class="light-how">
+        <p><b>温度（昼の高温・夜温・天気）</b><br>
+        ・日中 30℃以上で「高温」、35℃以上で「高温・危険」。<br>
+        ・前の夜の最低気温が 18℃以上で「夜温が下がっていない」。午後3時以降、その日の最高気温が 26℃以下なら「昇温不足」。<br>
+        ・曇りや雨の日は、夕方以降に「今夜は夜温を1〜2℃下げる日」と出します。
+        <span class="light-effect good">適温のとき：昼 25〜30℃、夜 15〜20℃ がピーマンの生育適温（岡山県「野菜の生育適温および限界温度」）。</span>
+        <span class="light-effect bad">30℃以上：樹勢低下・受精不良。35℃以上：着果しにくく、変形果が増える。夜温が下がらない夜：病気が出やすい条件。</span></p>
+        <p><b>水の消費（日射の量）</b><br>ピーマンが使う水は日射の量に比例するので、直近24時間の日射の量を、このハウスの過去の日と比べます。多いほうから1/3なら「よく使う日」、少ないほうから1/3なら「あまり使わない日」。1/3 の区切りは比べるための目安で、決まった基準値ではありません。日射が1日分そろった日が7日たまるまでは「データ集め中」です。
+        <span class="light-effect good">日射に合わせた灌水：岩手県の試験では尻腐れ果が 21.3% → 4.8% に減り、収量が 24〜39% 増えた。</span>
+        <span class="light-effect bad">水不足：樹勢が落ち、尻腐れ果の原因の一つになる。排水の悪い畑での多かん水：根傷み。生育初期の多かん水：軟弱徒長。</span></p>
+        <p><b>CO2（日中 × CO2）</b><br>日の出1時間後〜日没1時間前だけ見ます。外気（約 400ppm）より低いと「不足」。閉めきったハウスでは、晴れた日中に 250〜300ppm まで下がった記録があります。夜は評価しません。
+        <span class="light-effect good">外気並み以上を保つと：収量が 11〜17% 増え（宮崎県・岩手県）、石果・奇形果が減って A品率が上がった（宮崎県）。</span>
+        <span class="light-effect bad">外気より低いと：光が当たっていても光合成が十分にできず、その分の収量を取りこぼす。</span></p>
+        <p><b>葉の濡れ・乾燥（気温 × 湿度 × 朝の昇温）</b><br>
+        ・灰色かび病：直近48時間で「気温と露点の差が 1.6℃未満（湿度約90%以上）」だった時間を、その温度での菌の伸びやすさで重みづけして足します（感染有効積算時間）。15時間以上で「注意」、20時間以上で「危険」。<br>
+        ・朝の結露：日の出から3時間のあいだに 1時間で 2℃を超えて気温が上がると「結露しやすい」。日が当たると、気温より実や葉の温まりが遅れて結露します。<br>
+        ・乾燥しすぎ：飽差が 6 g/m³ を超えると「乾燥しすぎ」。
+        <span class="light-effect good">ふつう：飽差 3〜6 g/m³ が植物に無理のない範囲。</span>
+        <span class="light-effect bad">湿りすぎ・結露：灰色かび病・菌核病・斑点病が出やすい。乾燥しすぎ：気孔が閉じて光合成が落ち、うどんこ病が出やすい。</span></p>
+        <p><b>光の強さ（日射 × 光飽和点の目安）</b><br>ピーマンの光飽和点は資料によって 3万〜4万lx（熊本県 3万／宮崎県 4万／高知県 3〜4万）。センサーの W/m² に直すと約 220〜360 W/m² です（換算なので幅があります）。今の日射がこの帯より下か、帯の中か、上かを出します。良い・悪いの判定ではありません。グラフの「日射」にも同じ帯を出します。<br>
+        ・帯は「これ以上はいらない」線ではありません。宮崎県・茨城県の測定では、ピーマンの葉の光合成は 1,500 µmol/m²/s（帯の上の約2倍）まで増え続けています。<br>
+        ・光補償点や「1日に何 MJ 必要」という値は、ピーマンでは出典が見つからないので出しません。
+        <span class="light-effect good">光が足りると：日照不足で起きる草勢の低下・白果・落果・尻ぐされを防ぐ（宮崎県 長雨・日照不足対策）。</span>
+        <span class="light-effect bad">日照不足：遮光した試験では結実歩合が急に下がり、開花数も減った（加藤・田中 1971）。曇雨天の続いた後の急な晴れは、葉やけ・しおれに注意（宮崎県）。</span></p>
+        <p><b>光の通り（ハウス内 ÷ 外の日射、昨日）</b><br>昨日1日のハウス内の日射量を、外の日射量（天気）で割った値です。80% 以上で「よく通っている」、60% 未満で「低い」。外の値は天気モデルの推定値なので、晴れた日の値で見るのが確実です。60% は交換の基準ではありません（交換・洗浄の数値基準は見つかっていません）。
+        <span class="light-effect good">よく通っている：フッ素フィルム（梨地）のハウスの実測が 80%（高知県）。張り替え・洗浄で収量が上がった例がある（宮崎県マニュアル）。</span>
+        <span class="light-effect bad">低い：骨材とフィルムだけで約 60% まで下がり、汚れや結露でさらに下がる（兵庫県）。フィルムの汚れ・劣化・結露を確認。</span></p>
+        <p class="light-src"><b>出典</b><br>
+        宮崎県・JAファームみやざき中央「大規模施設園芸対応型導入マニュアル（キュウリ、ピーマン）」2020（夜温18℃・昇温26℃・かん水量）／
+        こうち農業ネット「ピーマンの栽培方法－定植後の管理－」2014（昼温・30℃・曇雨天は1〜2℃下げる・かん水の注意）／
+        熊本県 耕種基準 促成ピーマン（35℃で着果阻害・変形果）／
+        岩手県農業研究センター 成果書 R4・R5（日射比例かん水と尻腐れ・CO2 外気並み施用の増収・CO2 の低下）／
+        農研機構 九州沖縄 成果情報 2009・農林水産省 宮崎県の普及事例（CO2 施用の増収・石果減）／
+        渡辺ら 2021 関西病虫研報 63:59-65・静岡県農林技研 成果情報「緑の病害チェッカー」（灰色かび病の感染有効積算時間）／
+        兵庫県「環境制御技術導入のための指導者向けマニュアル」・大分県「温泉パプリカ生産管理マニュアル」2020（朝の昇温と結露・飽差 3〜6）／
+        宮崎県病害虫防除・肥料検査センター 発生予報 R4 第9号（多湿の病害・うどんこ病は乾燥で）／
+        宮崎県「新燃岳噴火に伴う春夏作野菜の作付に関する指針」2011・「【野菜】の【降灰】対策について」2023・総合農業試験場 研究レジュメ 2019（光飽和点 4万lx・672 µmol）／
+        熊本県野菜振興協会 耕種基準 ピーマン（促成）（光飽和点 3万lx）／高知県 こうち農業ネット 2014（3〜4万lx）／
+        Thimijan & Heins 1983 HortScience 18（1 klx = 4.05 W/m²）・兵庫県マニュアル 表1・表2（PAR は日射の 45〜50%、透過率 概ね60%）／
+        高知県農業技術センター研究報告 35（2026）篠田ほか（透過率 0.8）／宮崎県「【野菜】の【長雨・日照不足】対策について」2023／加藤・田中 1971 園芸学会雑誌 40(4)（遮光と結実）<br>
+        ※ 灰色かび病の計算はトマトで確かめられた方法で、論文はほかの作物にも使えるとしています。センサーは作物の群落の中に置くのが前提です。<br>
+        ※ 京鈴・グランバギーに限った数値は見つかっていません。
+        </p>
+      </div>
+    </details>
+  </div>
+
   <!-- グラフ -->
   <div class="card chart-card">
     <div class="chart-header">
@@ -1092,6 +1181,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <button class="chart-tab hum" onclick="switchChart('hum')">湿度</button>
         <button class="chart-tab vpd" onclick="switchChart('vpd')">飽差</button>
         <button class="chart-tab co2" onclick="switchChart('co2')">CO2</button>
+        <button class="chart-tab solar" id="chartTabSolar" style="display:none;" onclick="switchChart('solar')">日射</button>
       </div>
       <div class="chart-tabs">
         <button class="chart-tab soiltemp" onclick="switchChart('soiltemp')">地温</button>
@@ -1391,6 +1481,7 @@ let soilEcHistory = [];     // EC(SEN0604 d3)
 let soilPhHistory = [];     // pH(SEN0604 d4)
 let vpdHistory = [];
 let co2History = [];
+let solarHistory = [];   // 日射 W/m² (esp32_05)
 let timeLabels = [];
 let soilTimeLabels = [];    // 土壌は別チャンネルなので独立した時間軸
 
@@ -1457,6 +1548,9 @@ let notifiedLevels = { unit1: 0, unit2: 0, soil: 0, co2: 0 };
 //   同じ値: pepper-advisor env-targets.ts / 0020系 SQL / kishaku-calc app.js / pest-map index.html
 const SOUTH_HUM_OFFSET = 5;
 const SOUTH_HUM_OFFSET_UNTIL = '2026-10-17T07:50:00+09:00';   // 2026-10-17 入れ替え（BME280 最終 07:46:12 / SHT35 ハウスで送信開始 07:51:30）
+// 日射センサー (esp32_05) はこの時刻からハウスで測る。それより前は自宅の机での動作確認なので使わない（画面は --）
+const SOLAR_VALID_FROM = '2026-10-25T08:00:00+09:00';
+const SOLAR_VALID_FROM_MS = new Date(SOLAR_VALID_FROM).getTime();
 function southHumOffset(recordedAt) {
   if (SOUTH_HUM_OFFSET_UNTIL == null) return SOUTH_HUM_OFFSET;
   return new Date(recordedAt) < new Date(SOUTH_HUM_OFFSET_UNTIL) ? SOUTH_HUM_OFFSET : 0;
@@ -1521,6 +1615,14 @@ const PEPPER_TARGETS = {
   soilTemp: { okMin: 22, okMax: 25 },
   soilEc: { okMin: 300, okMax: 700, high: 1000 },   // μS/cm（1 mS/cm = 1000 μS/cm）
   soilPh: { okMin: 5.5, okMax: 6.5, acid: 5.0, alkali: 7.0 },
+  // 光飽和点の目安 3万〜4万lx（熊本県 耕種基準 促成ピーマン 3万／宮崎県 降灰対策・研究レジュメ 4万、高知県 3〜4万）を
+  // 全天日射 W/m² に換算した帯。1 klx = 4.05 W/m²(PAR)（Thimijan & Heins 1983、兵庫県マニュアル 表2）、PAR = 日射の 45〜50%（同 表1）
+  // 30klx → 243〜270、40klx → 324〜360。熊本の 30klx≒500µmol・宮崎の 672µmol から出すと 218〜326 → 合わせて 220〜360
+  // 「ここで頭打ち」ではない（宮崎・茨城の測定では 1,500 µmol まで光合成が増える）。判定はせず目安として見せる
+  solarSat: { min: 220, max: 360 },
+  // ハウスの光の透過率（中 ÷ 外）: 80% = 高知県農技セ研報35(2026) フッ素フィルム梨地の実測、
+  // 60% = 兵庫県マニュアル「骨材・フィルムで概ね60%程度まで減少」。60% 未満は交換の基準ではなく「汚れ・劣化を確認」の目安
+  transGood: 0.8, transLow: 0.6,
 };
 // 昼 = 日の出〜日の入り、夜 = 日の入り〜翌日の日の出（農園の緯度経度で毎日計算）
 // 同じ区切り: 参謀 src/config/env-targets.ts isDaytimeAt
@@ -1660,6 +1762,7 @@ function drawChart(data, color, unit, retry = 0) {
   let pad_range;
   if (chartMode === 'vpd') pad_range = 1;
   else if (chartMode === 'co2') pad_range = 50;
+  else if (chartMode === 'solar') pad_range = 20;
   else if (chartMode === 'soilec') pad_range = 100;
   else if (chartMode === 'soilph') pad_range = 0.3;
   else pad_range = 1;
@@ -1699,6 +1802,9 @@ function drawChart(data, color, unit, retry = 0) {
     min = Math.min(min, PEPPER_TARGETS.co2Min - 50);   // 400ppm の線が見えるように
     max = Math.max(max, PEPPER_TARGETS.co2Min + 100);
     if (min < 0) min = 0;
+  } else if (chartMode === 'solar') {
+    min = 0;                    // 夜は 0
+    max = Math.max(max, PEPPER_TARGETS.solarSat.max + 40);   // 光飽和点の目安の帯が見えるように
   }
   const range = max - min || 1;
   const xStep = cw / (data.length - 1);
@@ -1722,7 +1828,8 @@ function drawChart(data, color, unit, retry = 0) {
     soilec:   { min: T.soilEc.okMin, max: T.soilEc.okMax, color: '88, 86, 214', label: `目安 ${T.soilEc.okMin}-${T.soilEc.okMax} μS/cm` }, // EC
     soilph:   { min: T.soilPh.okMin, max: T.soilPh.okMax, color: '236, 72, 153', label: `目安 pH ${T.soilPh.okMin}-${T.soilPh.okMax}` }, // pH
     vpd:  { min: T.hdMin, max: T.hdMax, color: '52, 199, 89', label: `ふつう ${T.hdMin}-${T.hdMax} g/m³` },   // グリーン
-    co2:  { min: T.co2Min, max: Math.max(max, T.co2Min + 1), color: '52, 199, 89', label: `外気並み ${T.co2Min}ppm 以上` }  // グリーン
+    co2:  { min: T.co2Min, max: Math.max(max, T.co2Min + 1), color: '52, 199, 89', label: `外気並み ${T.co2Min}ppm 以上` },  // グリーン
+    solar: { min: T.solarSat.min, max: T.solarSat.max, color: '245, 158, 11', label: `光飽和点の目安 3〜4万lx（約${T.solarSat.min}〜${T.solarSat.max} W/m²）` }
   };
   // 気温は夜の適温も帯で出す（昼 25〜30 / 夜 15〜20）
   const zones = [OPT_ZONES[chartMode]];
@@ -1854,7 +1961,7 @@ function drawChart(data, color, unit, retry = 0) {
   }
 
   // ツールチップ用に、今描いたグラフの座標系と系列を控えておく
-  const SINGLE_NAMES = { soiltemp: '地温', soil: '土壌水分', soilec: 'EC', soilph: 'pH', vpd: '飽差', co2: 'CO2' };
+  const SINGLE_NAMES = { soiltemp: '地温', soil: '土壌水分', soilec: 'EC', soilph: 'pH', vpd: '飽差', co2: 'CO2', solar: '日射' };
   let tipSeries;
   if (chartMode === 'temp') {
     tipSeries = [{ name: '北側', arr: temp1History, color: '#007aff' }, { name: '南側', arr: temp2History, color: '#ff6b35' }];
@@ -1865,7 +1972,7 @@ function drawChart(data, color, unit, retry = 0) {
   }
   let tipDigits = 1;
   if (chartMode === 'vpd') tipDigits = 1;
-  else if (chartMode === 'co2' || chartMode === 'soilec') tipDigits = 0;
+  else if (chartMode === 'co2' || chartMode === 'soilec' || chartMode === 'solar') tipDigits = 0;
   if (isFinite(xStep) && xStep > 0) {
     chartGeom = {
       mode: chartMode, w, h, pad, cw, ch, min, range, xStep,
@@ -2346,6 +2453,7 @@ function updateChart() {
   else if (chartMode === 'soilph') { data = soilPhHistory; color = '#ec4899'; unit = ''; }
   else if (chartMode === 'vpd')  { data = vpdHistory;  color = '#af52de'; unit = 'g/m³'; }
   else if (chartMode === 'co2')  { data = co2History;  color = '#0a84d6'; unit = 'ppm'; }
+  else if (chartMode === 'solar') { data = solarHistory; color = '#f59e0b'; unit = 'W/m²'; }
 
   // 凡例の表示切替（気温・湿度のみ表示）
   const legend = document.getElementById('chartLegend');
@@ -2391,7 +2499,7 @@ function updateChart() {
   if (statsArr.length > 0) {
     let digits;
     if (chartMode === 'vpd' || chartMode === 'soilph') digits = 1;
-    else if (chartMode === 'co2' || chartMode === 'soilec') digits = 0;
+    else if (chartMode === 'co2' || chartMode === 'soilec' || chartMode === 'solar') digits = 0;
     else digits = 1;
     const max = Math.max(...statsArr).toFixed(digits);
     const min = Math.min(...statsArr).toFixed(digits);
@@ -3671,6 +3779,295 @@ async function fetchTodayData() {
   }
 }
 
+// ===== ☀️ 日射 (esp32_05 XM8580、中央の棟・作物の上) =====
+// ビニールを通ってピーマンに届く光。今の値・今日の積算 (ここまで)・昨日の積算と、
+// 外の日射量 (天気) に対する割合 = フィルムの透過率を出す。
+// データが一度も届いていない間はカードもグラフのタブも出さない。
+// JST の日付 'YYYY-MM-DD'
+function solarJstDate(t) {
+  const j = new Date(t.getTime() + 9 * 60 * 60000);
+  return j.toISOString().slice(0, 10);
+}
+
+// ---- 評価のしくみ ----
+// どの基準も出典のある値だけを使う (出典はカードの「くわしく」に記載)。
+//   温度   : 高知県・熊本県の促成ピーマン基準 (30℃・35℃、曇雨天は夜温1〜2℃下げる)、
+//            宮崎県マニュアルの警告基準 (前夜の最低 18℃以上 / 当日最高 26℃以下)
+//   水     : 日射比例かん水 (岩手県・宮崎県マニュアル)。基準値が無いので、このハウスの過去の日と比べる
+//   CO2    : 外気並み 400ppm 以上を保つ (岩手県)。日の出1時間後〜日没1時間前 (岩手県の施用時間)
+//   葉     : 灰色かび病の感染有効積算時間 IAT (渡辺ら 2021、静岡県の 1.6℃ 版)、
+//            朝の昇温 1〜2℃/h (兵庫県・大分県)、飽差 3〜6 g/m³ (大分県・兵庫県)
+const LIGHT_LEARN_DAYS = 7;
+const LIGHT_DAY_MIN_SAMPLES = 130;   // 10分枠 144 のうちこれ以上あれば「1日分そろった」
+
+// 10分ごとに平均して W/m² × 600秒 を足す (Supabase の get_solar_daily と同じ計算)
+function solarMj(rows, fromMs, toMs) {
+  const bins = new Map();
+  for (const r of rows) {
+    const w = parseFloat(r.d8);
+    if (isNaN(w) || !r.created) continue;
+    const t = new Date(r.created).getTime();
+    if (t < fromMs || t > toMs) continue;
+    const b = Math.floor(t / 600000);
+    if (!bins.has(b)) bins.set(b, []);
+    bins.get(b).push(w);
+  }
+  if (bins.size === 0) return { mj: null, bins: 0 };
+  let sum = 0;
+  for (const ws of bins.values()) sum += ws.reduce((a, v) => a + v, 0) / ws.length;
+  return { mj: sum * 600 / 1e6, bins: bins.size };
+}
+
+function latestOf(rows, key, maxAgeMin) {
+  const r = rows.find(d => d[key] !== undefined && d[key] !== null && !isNaN(parseFloat(d[key])));
+  if (!r || Date.now() - new Date(r.created).getTime() > maxAgeMin * 60000) return null;
+  return parseFloat(r[key]);
+}
+
+// 北・南それぞれの (時刻, 気温, 湿度) を10分枠にまとめる
+function airBins(rows, tKey, hKey) {
+  const m = new Map();
+  for (const r of rows) {
+    if (!r.created) continue;
+    const t = parseFloat(r[tKey]), h = parseFloat(r[hKey]);
+    if (isNaN(t) || isNaN(h)) continue;
+    const b = Math.floor(new Date(r.created).getTime() / 600000) * 600000;
+    if (!m.has(b)) m.set(b, { ts: [], hs: [] });
+    m.get(b).ts.push(t); m.get(b).hs.push(h);
+  }
+  const avg = (a) => a.reduce((x, v) => x + v, 0) / a.length;
+  return [...m.entries()].sort((a, b) => a[0] - b[0]).map(([b, v]) => ({ b, t: avg(v.ts), h: avg(v.hs) }));
+}
+
+// 露点 (渡辺ら 2021 の式 1〜3)
+function dewPoint(t, rh) {
+  const es = 6.1078 * Math.exp(17.2693882 * t / (t + 237.3));
+  const e = es * rh / 100;
+  return 237.3 * Math.log(e / 6.1078) / (17.2693882 - Math.log(e / 6.1078));
+}
+// 灰色かび病菌の菌糸伸長比 (22.5℃ = 1.0、渡辺ら 2021 の式 5)。範囲外は 0〜1 に収める
+function grayMoldY(t) {
+  const y = 0.00000013611 * t ** 6 - 0.00001325037 * t ** 5 + 0.00049243766 * t ** 4
+          - 0.00900511846 * t ** 3 + 0.083895 * t ** 2 - 0.3035 * t + 0.436;
+  if (t >= 30 || t < 2) return 0;   // 論文: 30℃では湿度94%以上でも菌糸が伸びない / 生育は2〜31℃
+  return Math.max(0, Math.min(1, y));
+}
+// 感染有効積算時間 IAT (直近48時間)。静岡県版: 気温 − 露点 < 1.6℃ の時間 × Y
+function grayMoldIAT(bins, nowMs) {
+  let iat = 0;
+  for (const x of bins) {
+    if (x.b < nowMs - 48 * 3600000) continue;
+    if (x.t - dewPoint(x.t, Math.min(x.h, 100)) < 1.6) iat += grayMoldY(x.t) * (10 / 60);
+  }
+  return iat;
+}
+// 飽差 g/m³
+function hdGm3(t, rh) {
+  const es = 6.1078 * Math.pow(10, 7.5 * t / (t + 237.3));
+  return 217 * es / (t + 273.15) * (1 - rh / 100);
+}
+
+async function rpcPost(fn, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(fn + ': HTTP ' + res.status);
+  return res.json();
+}
+async function fetchSolarDaily() {
+  const rows = await rpcPost('get_solar_daily', { p_days: 30 });
+  // 測り始めの日（途中から）とそれより前の日は使わない
+  return rows.filter(r => new Date(r.date + 'T00:00:00+09:00').getTime() >= SOLAR_VALID_FROM_MS);
+}
+async function fetchWeatherToday() {
+  const rows = await rpcPost('get_weather_recent', { p_days: 1 });
+  return rows.find(r => r.date === solarJstDate(new Date())) || null;
+}
+
+// 水の消費: 直近24時間の日射を、このハウスの過去の日 (1日分そろった日) と比べる
+function judgeWater(solarDaily, mj24) {
+  const today = solarJstDate(new Date());
+  const days = solarDaily.filter(r => r.date !== today && r.inside_mj != null && (r.sample_count ?? 0) >= LIGHT_DAY_MIN_SAMPLES).map(r => Number(r.inside_mj));
+  if (days.length < LIGHT_LEARN_DAYS) return { wait: LIGHT_LEARN_DAYS - days.length, n: days.length };
+  if (mj24 == null) return { none: true, n: days.length };
+  const rank = days.filter(v => v <= mj24).length / days.length;
+  return { level: rank >= 2 / 3 ? 'high' : rank <= 1 / 3 ? 'low' : 'mid', n: days.length };
+}
+
+function setChip(id, text, cls) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'metric-status ' + cls;
+}
+
+async function renderSolar(rows) {
+  const card = document.getElementById('solarCard');
+  const tab  = document.getElementById('chartTabSolar');
+  if (!card) return;
+  rows = rows || [];
+  const solarRows = rows.filter(r => r.d8 !== undefined && r.d8 !== null && !isNaN(parseFloat(r.d8)));
+  let solarDaily = [], weather = null, solarReady = false;
+  try { solarDaily = await fetchSolarDaily(); solarReady = true; } catch (e) { /* 0024 未適用・通信失敗 */ }
+  if (!solarReady && solarRows.length === 0) {
+    card.style.display = 'none';
+    if (tab) tab.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+  if (tab) tab.style.display = '';
+  try { weather = await fetchWeatherToday(); } catch (e) { /* 天気が無くても他は出す */ }
+
+  const now = Date.now();
+  const jstHour = new Date(now + 9 * 3600000).getUTCHours();
+  const sun = sunTimesOf(now);   // 日の出・日の入り (上の sunTimesJst と同じ計算)
+  const { mj: mj24, bins: bins24 } = solarMj(solarRows, now - 24 * 3600000, now);
+  const todayStart = new Date(solarJstDate(new Date()) + 'T00:00:00+09:00').getTime();
+  const { mj: mjToday } = solarMj(solarRows, todayStart, now);
+  const solarNow = latestOf(solarRows, 'd8', 40);
+  const co2Now = latestOf(rows, 'd7', 40);
+  const north = airBins(rows, 'd1', 'd2'), south = airBins(rows, 'd4', 'd5');
+  const both = [...north, ...south];
+  const recent = (arr) => arr.filter(x => x.b >= now - 40 * 60000);
+  const tNowMax = (() => { const r = recent(both); return r.length ? Math.max(...r.map(x => x.t)) : null; })();
+  const hNow = (() => { const r = recent(both); return r.length ? r.reduce((a, x) => a + x.h, 0) / r.length : null; })();
+  const tNowAvg = (() => { const r = recent(both); return r.length ? r.reduce((a, x) => a + x.t, 0) / r.length : null; })();
+
+  const issues = [];   // [重さ, 見出し, 補足]
+
+  // ---- 温度 ----
+  const todayBins = both.filter(x => x.b >= todayStart);
+  const todayMax = todayBins.length ? Math.max(...todayBins.map(x => x.t)) : null;
+  const prevNight = both.filter(x => x.b >= todayStart - 6 * 3600000 && x.b < todayStart + 7 * 3600000);   // 前夜 18時〜今朝 7時
+  const prevNightMin = prevNight.length ? Math.min(...prevNight.map(x => x.t)) : null;
+  const cloudy = weather && weather.weather_code != null && Number(weather.weather_code) >= 3;
+  const daytime = now >= sun.rise && now <= sun.set;
+  if (tNowMax == null) setChip('lightRowTemp', '--', 'status-wait');
+  else if (daytime && tNowMax >= 35) {
+    setChip('lightRowTemp', '高温・危険（35℃以上）', 'status-danger');
+    issues.push([6, 'ハウス内が35℃を超えています', '着果しにくく、変形果が増える温度です（熊本県 耕種基準）']);
+  } else if (daytime && tNowMax >= 30) {
+    setChip('lightRowTemp', '高温（30℃以上）', 'status-warn');
+    issues.push([4, 'ハウス内が30℃を超えています', '樹勢低下・受精不良につながります。28℃を超えないように（高知県）']);
+  } else if (jstHour >= 7 && jstHour < 18 && prevNightMin != null && prevNightMin >= 18) {
+    setChip('lightRowTemp', '夜温が下がっていない', 'status-warn');
+    issues.push([3, '昨夜の最低気温が18℃以上でした', '夜温が下がらないと病気が出やすい条件です（宮崎県マニュアル）']);
+  } else if (jstHour >= 15 && jstHour < 18 && todayMax != null && todayMax <= 26) {
+    setChip('lightRowTemp', '昇温不足', 'status-warn');
+    issues.push([2, '今日は最高気温が26℃以下でした', '昇温不足の目安です（宮崎県マニュアル）']);
+  } else if (cloudy && (jstHour >= 16 || jstHour < 6)) {
+    setChip('lightRowTemp', '今夜は夜温1〜2℃下げる日', 'status-normal');
+  } else setChip('lightRowTemp', '適温', 'status-normal');
+
+  // ---- 水の消費 ----
+  const lightOk = bins24 >= LIGHT_DAY_MIN_SAMPLES;
+  const wj = lightOk ? judgeWater(solarDaily, mj24) : { none: true, n: 0 };
+  if (wj.wait) setChip('lightRowWater', `データ集め中（あと${wj.wait}日）`, 'status-wait');
+  else if (wj.none) setChip('lightRowWater', 'データ集め中', 'status-wait');
+  else if (wj.level === 'high') {
+    setChip('lightRowWater', 'よく使う日', 'status-warn');
+    issues.push([1, '今日は水をよく使う日です', '日射が多い日。土壌水分の下がり方を見てください']);
+  } else if (wj.level === 'low') setChip('lightRowWater', 'あまり使わない日', 'status-normal');
+  else setChip('lightRowWater', 'ふつう', 'status-normal');
+
+  // ---- CO2 (日の出1時間後〜日没1時間前) ----
+  const co2Window = now >= sun.rise + 3600000 && now <= sun.set - 3600000;
+  if (!co2Window) setChip('lightRowCo2', '夜・朝夕（評価しない）', 'status-wait');
+  else if (co2Now == null) setChip('lightRowCo2', '--', 'status-wait');
+  else if (co2Now < 400) {
+    setChip('lightRowCo2', '外気より低い（不足）', 'status-warn');
+    issues.push([4, '日中のCO2が外気より低くなっています', '外気並み（400ppm）以上を保つと増収した記録があります（岩手県・宮崎県）']);
+  } else setChip('lightRowCo2', '外気並み以上', 'status-normal');
+
+  // ---- 光の強さ (光飽和点の目安 3〜4万lx ≒ 220〜360 W/m²。判定ではなく目安との位置) ----
+  const SAT = PEPPER_TARGETS.solarSat;
+  if (!daytime) setChip('lightRowSun', '夜（評価しない）', 'status-wait');
+  else if (solarNow == null) setChip('lightRowSun', '--', 'status-wait');
+  else if (solarNow < SAT.min) setChip('lightRowSun', `目安より弱い（${Math.round(solarNow)} W/m²）`, 'status-wait');
+  else if (solarNow <= SAT.max) setChip('lightRowSun', `目安の範囲（${Math.round(solarNow)} W/m²）`, 'status-normal');
+  else setChip('lightRowSun', `目安より強い（${Math.round(solarNow)} W/m²）`, 'status-normal');
+
+  // ---- 光の通り (昨日のハウス内 ÷ 外。80% 高知県 / 60% 兵庫県) ----
+  const yDay = solarDaily.find(r => r.date === solarJstDate(new Date(now - 86400000)));
+  const trans = yDay && yDay.transmission != null ? Number(yDay.transmission) : null;
+  if (trans == null) setChip('lightRowTrans', 'データ集め中', 'status-wait');
+  else if (trans >= PEPPER_TARGETS.transGood) setChip('lightRowTrans', `よく通っている（${Math.round(trans * 100)}%）`, 'status-normal');
+  else if (trans >= PEPPER_TARGETS.transLow) setChip('lightRowTrans', `ふつう（${Math.round(trans * 100)}%）`, 'status-normal');
+  else {
+    setChip('lightRowTrans', `低い（${Math.round(trans * 100)}%）`, 'status-warn');
+    issues.push([1, `昨日の光の透過率が ${Math.round(trans * 100)}% でした`, 'ハウスの骨材とフィルムだけで約60%（兵庫県）。フィルムの汚れ・劣化・結露を確認']);
+  }
+
+  // ---- 葉の濡れ・乾燥 ----
+  const iat = Math.max(grayMoldIAT(north, now), grayMoldIAT(south, now));
+  const morning = now >= sun.rise && now <= sun.rise + 3 * 3600000;
+  const riseRate = (() => {   // 直近1時間の昇温 ℃/h (北・南の大きいほう)
+    const rate = (arr) => {
+      const last = arr.filter(x => x.b >= now - 15 * 60000).pop();
+      const ago = arr.filter(x => x.b <= now - 55 * 60000 && x.b >= now - 75 * 60000).pop();
+      return last && ago ? (last.t - ago.t) / ((last.b - ago.b) / 3600000) : null;
+    };
+    const rs = [rate(north), rate(south)].filter(v => v != null);
+    return rs.length ? Math.max(...rs) : null;
+  })();
+  const hd = (tNowAvg != null && hNow != null) ? hdGm3(tNowAvg, hNow) : null;
+  if (hNow == null) setChip('lightRowLeaf', '--', 'status-wait');
+  else if (iat >= 20) {
+    setChip('lightRowLeaf', '灰色かび 危険', 'status-danger');
+    issues.push([5, '灰色かび病の感染リスクが「危険」です', '直近48時間の高湿度が続いています。換気・送風・除湿暖房を']);
+  } else if (morning && riseRate != null && riseRate > 2) {
+    setChip('lightRowLeaf', '結露しやすい（急な昇温）', 'status-warn');
+    issues.push([3, '朝の気温の上がり方が急です', '1時間に1〜2℃までにすると実や葉が結露しにくい（兵庫県・大分県）']);
+  } else if (iat >= 15) {
+    setChip('lightRowLeaf', '灰色かび 注意', 'status-warn');
+    issues.push([3, '灰色かび病の感染リスクが「注意」です', '湿度の高い時間が積み重なっています']);
+  } else if (hd != null && hd > 6) {
+    setChip('lightRowLeaf', '乾燥しすぎ', 'status-warn');
+    issues.push([2, 'ハウス内が乾燥しすぎています', '気孔が閉じて光合成が落ち、うどんこ病も出やすくなります']);
+  } else setChip('lightRowLeaf', 'ふつう', 'status-normal');
+
+  // ---- 見出し ----
+  const head = document.getElementById('lightHeadline');
+  issues.sort((a, b) => b[0] - a[0]);
+  if (issues.length) {
+    document.getElementById('lightHeadlineTitle').textContent = issues[0][1];
+    document.getElementById('lightHeadlineSub').textContent = issues[0][2];
+    head.className = 'light-headline ' + (issues[0][0] >= 5 ? 'status-danger' : 'status-warn');
+  } else {
+    document.getElementById('lightHeadlineTitle').textContent = daytime ? '問題は見つかりません' : '夜です。問題は見つかりません';
+    document.getElementById('lightHeadlineSub').textContent = '';
+    head.className = 'light-headline status-normal';
+  }
+
+  // ---- くわしく (数字) ----
+  const yesterday = solarJstDate(new Date(now - 86400000));
+  const y = solarDaily.find(r => r.date === yesterday);
+  const f = (v, d, u) => (v == null || isNaN(v)) ? '--' : v.toFixed(d) + u;
+  const hm = (ms) => { const j = new Date(ms + 9 * 3600000); return String(j.getUTCHours()).padStart(2, '0') + ':' + String(j.getUTCMinutes()).padStart(2, '0'); };
+  const lines = [
+    ['今の日射', f(solarNow, 0, ' W/m²')],
+    ...(now < SOLAR_VALID_FROM_MS ? [['日射の測定開始', '10/25 8:00 から（それまでは --）']] : []),
+    ['今日の日射（ここまで）', f(mjToday, 1, ' MJ/m²')],
+    ['直近24時間の日射', f(mj24, 1, ' MJ/m²')],
+    ['今の気温（高いほう）', f(tNowMax, 1, '℃')],
+    ['昨夜の最低気温', f(prevNightMin, 1, '℃')],
+    ['今日の最高気温', f(todayMax, 1, '℃')],
+    ['今日の天気', weather ? (cloudy ? '曇り・雨' : '晴れ') : '--'],
+    ['今のCO2', f(co2Now, 0, ' ppm')],
+    ['今の湿度', f(hNow, 0, '%')],
+    ['今の飽差', f(hd, 1, ' g/m³')],
+    ['灰色かび 感染有効積算時間', f(iat, 1, ' 時間')],
+    ['直近1時間の昇温', f(riseRate, 1, '℃/h')],
+    ['日の出・日没', hm(sun.rise) + '・' + hm(sun.set)],
+  ];
+  if (y && y.inside_mj != null) lines.push(['昨日の日射', f(Number(y.inside_mj), 1, ' MJ/m²')]);
+  if (y && y.transmission != null) lines.push(['昨日の透過率', Math.round(Number(y.transmission) * 100) + '%']);
+  lines.push(['水の比べる日の数', (wj.n ?? 0) + '日']);
+  document.getElementById('lightDetails').innerHTML =
+    lines.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+}
+
 // ===== センサーが止まった原因を診断ログから読み解く =====
 // ESP32 は起動のたびに「なぜ再起動したか」「前回どこで止まったか」「センサーは
 // 読めたか」を送っている (device_health_log)。その最後の1件を見れば、
@@ -3762,6 +4159,7 @@ function diagnoseSensor(key) {
 //     esp32_01 → env  {created, d1:気温, d2:湿度}   (北側)
 //     esp32_02 → env  {created, d4:気温, d5:湿度}   (南側)
 //     esp32_04 → env  {created, d7:CO2}
+//     esp32_05 → env  {created, d8:日射 W/m²}
 //     esp32_03 → soil {created, d1:地温, d2:水分, d3:EC, d4:pH}
 //   RPC は recorded_at desc で返すので、Ambient 同様「新しい順」のまま。
 async function fetchSupabaseRecent(hours) {
@@ -3801,6 +4199,8 @@ async function fetchSupabaseRecent(hours) {
       if (o.d4 !== undefined || o.d5 !== undefined) env.push(o);
     } else if (r.device_id === 'esp32_04') {
       if (r.co2_ppm != null) env.push({ created, d7: num(r.co2_ppm) });
+    } else if (r.device_id === 'esp32_05') {
+      if (r.solar_wm2 != null && new Date(created).getTime() >= SOLAR_VALID_FROM_MS) env.push({ created, d8: num(r.solar_wm2) });
     } else if (r.device_id === 'esp32_03') {
       const o = { created };
       if (r.soil_temp_c       != null) o.d1 = num(r.soil_temp_c);
@@ -3895,7 +4295,7 @@ async function fetchData() {
         buckets.set(bucketStart, {
           u1Temps: [], u2Temps: [],
           u1Hums:  [], u2Hums:  [],
-          co2s: [],
+          co2s: [], solars: [],
           time: new Date(bucketStart)
         });
       }
@@ -3910,6 +4310,8 @@ async function fetchData() {
       if (!isNaN(h1r)) b.u1Hums.push(h1r);
       if (!isNaN(h2r)) b.u2Hums.push(h2r);
       if (!isNaN(cr))  b.co2s.push(cr);
+      const sr  = parseFloat(d.d8);
+      if (!isNaN(sr))  b.solars.push(sr);
     });
 
     // バケットを時刻昇順で配列化
@@ -3932,6 +4334,7 @@ async function fetchData() {
       return all.length > 0 ? all.reduce((s, v) => s + v, 0) / all.length : null;
     });
     co2History  = sortedBuckets.map(b => avg(b.co2s));
+    solarHistory = sortedBuckets.map(b => avg(b.solars));
     // VPDはバケット平均の温度・湿度から計算
     vpdHistory  = sortedBuckets.map((b, i) => {
       const at = tempHistory[i], ah = humHistory[i];
@@ -4080,6 +4483,8 @@ async function fetchData() {
       document.getElementById('co2Status').textContent = '--';
       document.getElementById('co2Status').className = 'metric-status status-normal';
     }
+
+    renderSolar(data);   // ☀️ 日射 (データが届いていれば出す)
 
     // 最新状態を保存してアドバイス再生成
     latestState.temp = temp;  // 既にnull or 数値
