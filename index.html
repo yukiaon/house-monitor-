@@ -2050,8 +2050,12 @@ async function fetchHumidRuns() {
 // 埋め込み pH は水やりで上がり、1日かけて下がるのを繰り返す。上下ではなく、朝5〜7時の値が
 // 週を追って下がっていないかを見る。RPC が未適用・失敗ならカードごと出さない。
 const PH_TREND_STEP = 0.2; // センサーの刻み 0.1 の2つ分より大きく動いたら「上がった/下がった」と言う
+// 2026-10-24 オーナー「表示なしで、一旦データだけ集める。法則や危険な状況が見えたら表示」→ 今は出さない。
+// センサーの値は environment_log に溜まり続け、0030 get_soil_ph_morning でいつでも読める。出すときは true に。
+const PH_MORNING_SHOW = false;
 async function fetchPhMorning() {
   const card = document.getElementById('phMorningCard');
+  if (!PH_MORNING_SHOW) { card.style.display = 'none'; return; }
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_soil_ph_morning`, {
       method: 'POST',
