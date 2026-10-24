@@ -1117,7 +1117,6 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       <div class="light-row"><span class="light-row-label">CO2<small class="light-row-sub">日中 × CO2</small></span><span class="metric-status status-normal" id="lightRowCo2">--</span></div>
       <div class="light-row"><span class="light-row-label">葉の濡れ・乾燥<small class="light-row-sub">気温 × 湿度 × 朝の昇温</small></span><span class="metric-status status-normal" id="lightRowLeaf">--</span></div>
       <div class="light-row"><span class="light-row-label">光の強さ<small class="light-row-sub">日射 × 光飽和点の目安</small></span><span class="metric-status status-normal" id="lightRowSun">--</span></div>
-      <div class="light-row"><span class="light-row-label">光の通り<small class="light-row-sub">ハウス内 ÷ 外の日射（昨日）</small></span><span class="metric-status status-normal" id="lightRowTrans">--</span></div>
     </div>
     <details class="light-details">
       <summary>くわしく（数字と評価のしかた）</summary>
@@ -1146,9 +1145,6 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         ・光補償点や「1日に何 MJ 必要」という値は、ピーマンでは出典が見つからないので出しません。
         <span class="light-effect good">光が足りると：日照不足で起きる草勢の低下・白果・落果・尻ぐされを防ぐ（宮崎県 長雨・日照不足対策）。</span>
         <span class="light-effect bad">日照不足：遮光した試験では結実歩合が急に下がり、開花数も減った（加藤・田中 1971）。曇雨天の続いた後の急な晴れは、葉やけ・しおれに注意（宮崎県）。</span></p>
-        <p><b>光の通り（ハウス内 ÷ 外の日射、昨日）</b><br>昨日1日のハウス内の日射量を、外の日射量（天気）で割った値です。80% 以上で「よく通っている」、60% 未満で「低い」。外の値は天気モデルの推定値なので、晴れた日の値で見るのが確実です。60% は交換の基準ではありません（交換・洗浄の数値基準は見つかっていません）。
-        <span class="light-effect good">よく通っている：フッ素フィルム（梨地）のハウスの実測が 80%（高知県）。張り替え・洗浄で収量が上がった例がある（宮崎県マニュアル）。</span>
-        <span class="light-effect bad">低い：骨材とフィルムだけで約 60% まで下がり、汚れや結露でさらに下がる（兵庫県）。フィルムの汚れ・劣化・結露を確認。</span></p>
         <p class="light-src"><b>出典</b><br>
         宮崎県・JAファームみやざき中央「大規模施設園芸対応型導入マニュアル（キュウリ、ピーマン）」2020（夜温18℃・昇温26℃・かん水量）／
         こうち農業ネット「ピーマンの栽培方法－定植後の管理－」2014（昼温・30℃・曇雨天は1〜2℃下げる・かん水の注意）／
@@ -1160,8 +1156,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         宮崎県病害虫防除・肥料検査センター 発生予報 R4 第9号（多湿の病害・うどんこ病は乾燥で）／
         宮崎県「新燃岳噴火に伴う春夏作野菜の作付に関する指針」2011・「【野菜】の【降灰】対策について」2023・総合農業試験場 研究レジュメ 2019（光飽和点 4万lx・672 µmol）／
         熊本県野菜振興協会 耕種基準 ピーマン（促成）（光飽和点 3万lx）／高知県 こうち農業ネット 2014（3〜4万lx）／
-        Thimijan & Heins 1983 HortScience 18（1 klx = 4.05 W/m²）・兵庫県マニュアル 表1・表2（PAR は日射の 45〜50%、透過率 概ね60%）／
-        高知県農業技術センター研究報告 35（2026）篠田ほか（透過率 0.8）／宮崎県「【野菜】の【長雨・日照不足】対策について」2023／加藤・田中 1971 園芸学会雑誌 40(4)（遮光と結実）<br>
+        Thimijan & Heins 1983 HortScience 18（1 klx = 4.05 W/m²）・兵庫県マニュアル 表1・表2（PAR は日射の 45〜50%）／宮崎県「【野菜】の【長雨・日照不足】対策について」2023／加藤・田中 1971 園芸学会雑誌 40(4)（遮光と結実）<br>
         ※ 灰色かび病の計算はトマトで確かめられた方法で、論文はほかの作物にも使えるとしています。センサーは作物の群落の中に置くのが前提です。<br>
         ※ 京鈴・グランバギーに限った数値は見つかっていません。
         </p>
@@ -1620,9 +1615,6 @@ const PEPPER_TARGETS = {
   // 30klx → 243〜270、40klx → 324〜360。熊本の 30klx≒500µmol・宮崎の 672µmol から出すと 218〜326 → 合わせて 220〜360
   // 「ここで頭打ち」ではない（宮崎・茨城の測定では 1,500 µmol まで光合成が増える）。判定はせず目安として見せる
   solarSat: { min: 220, max: 360 },
-  // ハウスの光の透過率（中 ÷ 外）: 80% = 高知県農技セ研報35(2026) フッ素フィルム梨地の実測、
-  // 60% = 兵庫県マニュアル「骨材・フィルムで概ね60%程度まで減少」。60% 未満は交換の基準ではなく「汚れ・劣化を確認」の目安
-  transGood: 0.8, transLow: 0.6,
 };
 // 昼 = 日の出〜日の入り、夜 = 日の入り〜翌日の日の出（農園の緯度経度で毎日計算）
 // 同じ区切り: 参謀 src/config/env-targets.ts isDaytimeAt
@@ -3786,8 +3778,8 @@ async function fetchTodayData() {
 }
 
 // ===== ☀️ 日射 (esp32_05 XM8580、中央の棟・作物の上) =====
-// ビニールを通ってピーマンに届く光。今の値・今日の積算 (ここまで)・昨日の積算と、
-// 外の日射量 (天気) に対する割合 = フィルムの透過率を出す。
+// ビニールを通ってピーマンに届く光。今の値・今日の積算 (ここまで)・昨日の積算を出す。
+// 外の日射との比 (透過率) は画面に出さない (2026-10-24 オーナー「中と外の比較はいらない」)。
 // データが一度も届いていない間はカードもグラフのタブも出さない。
 // JST の日付 'YYYY-MM-DD'
 function solarJstDate(t) {
@@ -3994,16 +3986,6 @@ async function renderSolar(rows) {
   else if (solarNow <= SAT.max) setChip('lightRowSun', `目安の範囲（${Math.round(solarNow)} W/m²）`, 'status-normal');
   else setChip('lightRowSun', `目安より強い（${Math.round(solarNow)} W/m²）`, 'status-normal');
 
-  // ---- 光の通り (昨日のハウス内 ÷ 外。80% 高知県 / 60% 兵庫県) ----
-  const yDay = solarDaily.find(r => r.date === solarJstDate(new Date(now - 86400000)));
-  const trans = yDay && yDay.transmission != null ? Number(yDay.transmission) : null;
-  if (trans == null) setChip('lightRowTrans', 'データ集め中', 'status-wait');
-  else if (trans >= PEPPER_TARGETS.transGood) setChip('lightRowTrans', `よく通っている（${Math.round(trans * 100)}%）`, 'status-normal');
-  else if (trans >= PEPPER_TARGETS.transLow) setChip('lightRowTrans', `ふつう（${Math.round(trans * 100)}%）`, 'status-normal');
-  else {
-    setChip('lightRowTrans', `低い（${Math.round(trans * 100)}%）`, 'status-warn');
-    issues.push([1, `昨日の光の透過率が ${Math.round(trans * 100)}% でした`, 'ハウスの骨材とフィルムだけで約60%（兵庫県）。フィルムの汚れ・劣化・結露を確認']);
-  }
 
   // ---- 葉の濡れ・乾燥 ----
   const iat = Math.max(grayMoldIAT(north, now), grayMoldIAT(south, now));
@@ -4069,7 +4051,6 @@ async function renderSolar(rows) {
     ['日の出・日没', hm(sun.rise) + '・' + hm(sun.set)],
   ];
   if (y && y.inside_mj != null) lines.push(['昨日の日射', f(Number(y.inside_mj), 1, ' MJ/m²')]);
-  if (y && y.transmission != null) lines.push(['昨日の透過率', Math.round(Number(y.transmission) * 100) + '%']);
   lines.push(['水の比べる日の数', (wj.n ?? 0) + '日']);
   document.getElementById('lightDetails').innerHTML =
     lines.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
