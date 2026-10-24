@@ -2079,18 +2079,18 @@ async function fetchPhMorning() {
       list.appendChild(item);
     });
 
-    // 直近3日の平均と、いちばん古い3日 (最大2週間前) の平均をくらべる
+    // 30日の最初の1週間の平均と、直近1週間の平均をくらべる (朝の値も日ごとに 4.8〜6.4 とばらつくので週の平均で)
     const note = document.getElementById('phMorningNote');
-    const span = rows.slice(-14);
-    if (span.length < 7) {
-      note.textContent = `まだ${rows.length}日分です。1週間たまると、下がってきているかが分かります。`;
+    if (rows.length < 14) {
+      note.textContent = `まだ${rows.length}日分です。2週間たまると、下がってきているかが分かります。`;
       return;
     }
     const avg = (a) => a.reduce((s, r) => s + r.ph, 0) / a.length;
-    const recent = avg(span.slice(-3));
-    const before = avg(span.slice(0, 3));
+    const first = rows.slice(0, 7), last = rows.slice(-7);
+    const recent = avg(last);
+    const before = avg(first);
     const diff = recent - before;
-    const from = `${label(span[0].date)}ごろ ${before.toFixed(1)} → 最近 ${recent.toFixed(1)}`;
+    const from = `${label(first[0].date)}〜${label(first[6].date)} の平均 ${before.toFixed(1)} → 直近1週間 ${recent.toFixed(1)}`;
     note.textContent =
       diff <= -PH_TREND_STEP ? `⚠️ 朝の pH が下がってきています（${from}）。石灰を入れる前に、JA の土壌分析で確かめてください（埋め込みセンサーは肥料が多いと低めに出ます）。`
       : diff >= PH_TREND_STEP ? `朝の pH が上がってきています（${from}）。`
