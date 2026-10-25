@@ -328,7 +328,8 @@ small { font-size: 0.8rem; }
 .soil-item.temp .soil-item-val { color: #d97706; }
 .soil-item.hum  .soil-item-val { color: var(--accent-green); }
 .soil-item.ec   .soil-item-val { color: #5856d6; }
-.soil-item.ph   .soil-item-val { color: #ec4899; }
+.soil-item.ph   .soil-item-val { color: var(--text-secondary); }
+.status-ref { background: rgba(142,142,147,0.12); color: var(--text-secondary); }
 .soil-item-unit { font-size: 1.1rem; letter-spacing: 0; margin-left: 2px; font-weight: 400; opacity: 0.7; }
 .soil-item-status {
   font-size: 0.92rem; font-weight: 500;
@@ -947,11 +948,6 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
             <div class="axis-bar-track"><div class="axis-bar-fill" id="scoreBarSoilEc" style="background:#5856d6;"></div></div>
             <span class="axis-bar-val" id="scoreValSoilEc">--</span>
           </div>
-          <div class="axis-bar-row">
-            <span class="axis-bar-label">⚗️ pH</span>
-            <div class="axis-bar-track"><div class="axis-bar-fill" id="scoreBarSoilPh" style="background:#ec4899;"></div></div>
-            <span class="axis-bar-val" id="scoreValSoilPh">--</span>
-          </div>
         </div>
       </div>
     </div>
@@ -1097,7 +1093,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="soil-item-status status-normal" id="soilEcStatus">--</div>
       </div>
       <div class="soil-item ph" id="soilPhItem">
-        <div class="soil-item-head"><span class="soil-item-icon">⚗️</span><span>pH</span></div>
+        <div class="soil-item-head"><span class="soil-item-icon">⚗️</span><span>pH（参考）</span></div>
         <div class="soil-item-main">
           <div class="soil-item-val" id="soilPhVal">--</div>
           <div class="soil-item-trend" id="soilPhTrend">— <span class="soil-item-trend-label">30分前比</span></div>
@@ -1370,7 +1366,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       <div class="ref-section">
         <div class="ref-section-head">
           <span class="ref-title">⚗️ pH<span class="ref-title-note">酸度</span></span>
-          <span class="ref-current" id="refPhCur">--</span>
+          <span class="ref-current" id="refPhCur">土壌分析で見る</span>
         </div>
         <div class="ref-bar-wrap">
           <div class="ref-bar">
@@ -1391,7 +1387,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
           <span class="right" style="left:100%">9.0</span>
         </div>
         <div class="ref-desc">
-          <strong>目安 pH 5.5〜6.5</strong>（施設の果菜類 pH(H₂O)・鹿児島県 土壌管理指針）。5 以下の強酸性では生育が抑えられ、7 を超えると鉄・マンガン・ホウ素などが効きにくくなり濃度障害も起きやすい（同）。2026-05 の土壌診断は pH 5.83（JA の理想値 6.5）。<small style="color:var(--text-tertiary);">※ センサー値は土を採って測る pH(H₂O) と同じではない。灌水直後に大きく動くことがあるので、石灰などを入れる前に土壌診断で確かめる。</small>
+          <strong>目安 pH 5.5〜6.5</strong>（施設の果菜類 pH(H₂O)・鹿児島県 土壌管理指針）。5 以下の強酸性では生育が抑えられ、7 を超えると鉄・マンガン・ホウ素などが効きにくくなり濃度障害も起きやすい（同）。2026-05 の土壌診断は pH 5.83（JA の理想値 6.5）。<small style="color:var(--text-tertiary);">※ この帯は土壌分析の pH と比べるためのもの。土に刺したセンサーの pH は当てにならないので、画面では参考に動きを見るだけにして、判定・警告・スコアには使っていない。</small>
         </div>
       </div>
 
@@ -1800,8 +1796,6 @@ function drawChart(data, color, unit, retry = 0) {
     max = Math.max(max, PEPPER_TARGETS.soilEc.okMax + 100);
     if (min < 0) min = 0;
   } else if (chartMode === 'soilph') {
-    min = Math.min(min, PEPPER_TARGETS.soilPh.okMin - 0.3);
-    max = Math.max(max, PEPPER_TARGETS.soilPh.okMax + 0.3);
     if (min < 3) min = 3;
     if (max > 9) max = 9;
   } else if (chartMode === 'co2') {
@@ -1832,7 +1826,7 @@ function drawChart(data, color, unit, retry = 0) {
     soiltemp: { min: T.soilTemp.okMin, max: T.soilTemp.okMax, color: '217, 119, 6', label: `適正 ${T.soilTemp.okMin}-${T.soilTemp.okMax}℃` },  // 地温
     soil:     { min: 65, max: 90, color: '52, 199, 89', label: '適正 65-90%(SEN0604)' },        // 土壌水分
     soilec:   { min: T.soilEc.okMin, max: T.soilEc.okMax, color: '88, 86, 214', label: `目安 ${T.soilEc.okMin}-${T.soilEc.okMax} μS/cm` }, // EC
-    soilph:   { min: T.soilPh.okMin, max: T.soilPh.okMax, color: '236, 72, 153', label: `目安 pH ${T.soilPh.okMin}-${T.soilPh.okMax}` }, // pH
+    // pH は目安帯を出さない（センサーの値は土壌分析の pH と比べられない）
     vpd:  { min: T.hdMin, max: T.hdMax, color: '52, 199, 89', label: `ふつう ${T.hdMin}-${T.hdMax} g/m³` },   // グリーン
     co2:  { min: T.co2Min, max: Math.max(max, T.co2Min + 1), color: '52, 199, 89', label: `外気並み ${T.co2Min}ppm 以上` },  // グリーン
     solar: { min: T.solarSat.min, max: T.solarSat.max, color: '245, 158, 11', label: `光飽和点の目安 3〜4万lx（約${T.solarSat.min}〜${T.solarSat.max} W/m²）` }
@@ -2480,7 +2474,7 @@ function updateAllRefMarkers() {
   updateRefMarker('refTempMarker', 'refTempCur', latestState.soilTemp,    5,   40, '℃',     1);
   updateRefMarker('refHumMarker',  'refHumCur',  latestState.soil,        0,  100, '%',     1);
   updateRefMarker('refEcMarker',   'refEcCur',   latestState.soilEc,      0, 1500, 'μS/cm', 0);
-  updateRefMarker('refPhMarker',   'refPhCur',   latestState.soilPh,      4,    9, '',      1);
+  // pH はセンサーの値を目安の帯に当てない（土壌分析の値と比べるための目安として残す）
 }
 
 // 適正値ガイドの折りたたみ切替
@@ -2670,17 +2664,6 @@ function getSoilEcStatus(ec) {
   return ['📉 目安より低い', 'status-warn'];
 }
 
-// pH判定。5.5〜6.5 が目安、5.0 以下は強酸性、7.0 超はアルカリ（鹿児島県）
-function getSoilPhStatus(p) {
-  if (p === null || isNaN(p)) return ['--', 'status-normal'];
-  const g = PEPPER_TARGETS.soilPh;
-  if (p <= g.acid)   return ['🚨 強酸性(5.0以下)', 'status-danger'];
-  if (p < g.okMin)   return ['⚠️ やや酸性(5.5未満)', 'status-warn'];
-  if (p <= g.okMax)  return ['✅ 目安の範囲', 'status-normal'];
-  if (p <= g.alkali) return ['⚠️ やや高め(6.5超)', 'status-warn'];
-  return ['🚨 アルカリ性(7.0超)', 'status-danger'];
-}
-
 // 飽差判定（g/m³）。3〜6 がふつう（兵庫県・大分県）
 function getVpdStatus(v) {
   if (isNaN(v)) return ['--', 'status-normal'];
@@ -2703,8 +2686,9 @@ function getCo2Status(c) {
 // 【地上部スコア】光合成効率 = 気温 30 + VPD 40 + CO2 30 = 100点
 //   VPDが最重要（気孔開閉・蒸散・光合成効率に直結）
 //
-// 【根圏スコア】草勢の土台 = 地温 30 + 水分 30 + EC 25 + pH 15 = 100点
-//   地温と水分が根活性の核、ECは肥料管理、pHは長期的影響
+// 【根圏スコア】草勢の土台 = 地温 30 + 水分 30 + EC 25（重みで割るので 100点換算）
+//   地温と水分が根活性の核、ECは肥料管理
+//   pH は入れない: SEN0604 の pH は当てにならないと分かった（2026-10-26 オーナー）。表示だけ参考に残す
 //
 // 【総合】地上部と根圏の平均（両方ある場合）。片方のみは7割評価でペナルティ
 // 各要素は 0〜100 の小スコアを出してから加重合計
@@ -2748,8 +2732,6 @@ function calcAdvancedScore(temp, vpd, co2, soilTemp, soil, soilEc, soilPh) {
   }
   // ECスコア: 300〜700 μS/cm が満点。0点の線（0・1300）は目安
   function ecScore(ec) { return bandScore(ec, T.soilEc.okMin, T.soilEc.okMax, 0, 1300); }
-  // pHスコア: 5.5〜6.5 が満点。0点の線（4.5・7.5）は目安
-  function phScore(p) { return bandScore(p, T.soilPh.okMin, T.soilPh.okMax, 4.5, 7.5); }
 
   // ----- 各要素計算 -----
   const ts  = tempScore(temp);
@@ -2758,7 +2740,6 @@ function calcAdvancedScore(temp, vpd, co2, soilTemp, soil, soilEc, soilPh) {
   const sts = soilTempScore(soilTemp);
   const sws = soilMoistureScore(soil);
   const es  = ecScore(soilEc);
-  const ps  = phScore(soilPh);
 
   // 加重平均ヘルパー
   function weightedAvg(items) {
@@ -2779,7 +2760,6 @@ function calcAdvancedScore(temp, vpd, co2, soilTemp, soil, soilEc, soilPh) {
   if (sts !== null) rootItems.push({ score: sts, weight: 30 });
   if (sws !== null) rootItems.push({ score: sws, weight: 30 });
   if (es  !== null) rootItems.push({ score: es,  weight: 25 });
-  if (ps  !== null) rootItems.push({ score: ps,  weight: 15 });
   const rootScore = weightedAvg(rootItems);
 
   // ----- 総合スコア -----
@@ -2799,7 +2779,7 @@ function calcAdvancedScore(temp, vpd, co2, soilTemp, soil, soilEc, soilPh) {
     upper: upperScore === null ? null : Math.round(upperScore),
     root:  rootScore  === null ? null : Math.round(rootScore),
     temp: ts, vpd: vs, co2: cs,
-    soilTemp: sts, soilMoisture: sws, ec: es, ph: ps
+    soilTemp: sts, soilMoisture: sws, ec: es
   };
 }
 
@@ -3047,23 +3027,7 @@ function generateAdvice() {
     });
   }
 
-  // pH 極端（鹿児島県 土壌管理指針）。センサー値なので、土壌診断で確かめてから資材を入れる
-  if (s.soilPh !== null && s.soilPh <= T.soilPh.acid) {
-    advices.push({
-      level: 'danger',
-      icon: '🚨',
-      title: '土のpHが5.0以下（強酸性）',
-      body: `pH ${s.soilPh.toFixed(1)}。5以下の強酸性ではほとんどの作物の生育が抑えられる（鹿児島県）。目安は5.5〜6.5。センサー値なので、石灰などを入れる前に土壌診断で確かめてください。`
-    });
-  }
-  if (s.soilPh !== null && s.soilPh > T.soilPh.alkali) {
-    advices.push({
-      level: 'danger',
-      icon: '🚨',
-      title: '土のpHが7.0超（アルカリ性）',
-      body: `pH ${s.soilPh.toFixed(1)}。7を超えると鉄・マンガン・ホウ素などが効きにくくなり、塩基が集まって濃度障害が起きやすい（鹿児島県）。目安は5.5〜6.5。土壌診断で確かめてください。`
-    });
-  }
+  // pH の警告は出さない: SEN0604 の pH は当てにならないと分かった（2026-10-26 オーナー）。表示は参考のみ
 
   // CO2が極端に低い（センサー異常の疑い）
   if (s.co2 !== null && s.co2 < 200) {
@@ -3303,7 +3267,6 @@ function renderScore() {
   setBar('scoreBarSoilTemp', 'scoreValSoilTemp', result.soilTemp);
   setBar('scoreBarSoilHum',  'scoreValSoilHum',  result.soilMoisture);
   setBar('scoreBarSoilEc',   'scoreValSoilEc',   result.ec);
-  setBar('scoreBarSoilPh',   'scoreValSoilPh',   result.ph);
 
   // ----- 軸間バランス診断 -----
   const balanceMsg = buildBalanceDiagnosis(result);
@@ -3336,7 +3299,7 @@ function buildScoreDescription(result) {
   } else if (result.total >= 70) {
     if (diff < 10) return '両軸とも良好。安定した生育が期待できます。';
     return (u < r) ? '光合成の効率がやや低下中。気温・飽差・CO2を確認。'
-                   : '根圏の状態がやや低下中。地温・水分・EC・pHを確認。';
+                   : '根圏の状態がやや低下中。地温・水分・ECを確認。';
   } else if (result.total >= 50) {
     if (diff < 10) return '両軸とも改善余地あり。優先順位を決めて手を打ちましょう。';
     return (u < r) ? '光合成側に課題。葉の活動が低下しています。'
@@ -3359,8 +3322,7 @@ function buildBalanceDiagnosis(result) {
     { name: 'CO2',     score: result.co2,          axis: '地上部' },
     { name: '地温',    score: result.soilTemp,     axis: '根圏'   },
     { name: '水分',    score: result.soilMoisture, axis: '根圏'   },
-    { name: 'EC',      score: result.ec,           axis: '根圏'   },
-    { name: 'pH',      score: result.ph,           axis: '根圏'   }
+    { name: 'EC',      score: result.ec,           axis: '根圏'   }
   ].filter(x => x.score !== null);
   const weakest = items.slice().sort((a, b) => a.score - b.score)[0];
   const strongest = items.slice().sort((a, b) => b.score - a.score)[0];
@@ -4519,9 +4481,9 @@ async function fetchData() {
     // pH
     if (!isNaN(soilPh)) {
       document.getElementById('soilPhVal').innerHTML = soilPh.toFixed(1);
-      const [spLabel, spClass] = getSoilPhStatus(soilPh);
+      // 判定はしない（センサーの pH は当てにならない。土壌分析の値で判断する）
       const el = document.getElementById('soilPhStatus');
-      el.textContent = spLabel; el.className = 'soil-item-status ' + spClass;
+      el.textContent = '参考値・判定なし'; el.className = 'soil-item-status status-ref';
       document.getElementById('soilPhItem').classList.remove('soil-offline');
     } else {
       document.getElementById('soilPhVal').innerHTML = '──';
