@@ -209,6 +209,7 @@ small { font-size: 0.8rem; }
 .stat-tile-unit { font-size: 0.9rem; font-weight: 400; opacity: 0.7; letter-spacing: 0; }
 .metric-badges + .stat-tiles { margin-top: 12px; }
 .today-status { margin-top: 8px; }
+.metric-status.today-status { font-size: 0.8rem; padding: 3px 8px; } /* 本日 最高・最低の下の一言は今の値の判定より控えめに */
 .metric-trend.up    { color: var(--text-secondary); }
 .metric-trend.down  { color: var(--text-secondary); }
 .metric-trend.flat  { color: var(--text-tertiary); }
@@ -3844,7 +3845,7 @@ async function fetchTodayData() {
     document.getElementById('todayMin').innerHTML = todayMin + '<span class="stat-tile-unit">℃</span>';
     const [tmLabel, tmClass] = getTempStatus(parseFloat(todayMax), true);
     document.getElementById('todayMaxStatus').textContent = `最高 ${tmLabel}`;
-    document.getElementById('todayMaxStatus').className = 'metric-status ' + tmClass;
+    document.getElementById('todayMaxStatus').className = 'metric-status today-status ' + tmClass;
 
     // 本日最高・最低湿度（2センサー合算）
     if (hums.length > 0) {
@@ -3854,7 +3855,7 @@ async function fetchTodayData() {
       document.getElementById('todayMinHum').innerHTML = todayMinHum + '<span class="stat-tile-unit">%</span>';
       const [hmaxLabel, hmaxClass] = getHumStatus(parseFloat(todayMaxHum));
       document.getElementById('todayMaxHumStatus').textContent = `最高 ${hmaxLabel}`;
-      document.getElementById('todayMaxHumStatus').className = 'metric-status ' + hmaxClass;
+      document.getElementById('todayMaxHumStatus').className = 'metric-status today-status ' + hmaxClass;
     }
 
     // 本日最高・最低 VPD（各センサーごとに温湿度が揃ったレコードから算出）
@@ -3873,7 +3874,7 @@ async function fetchTodayData() {
       document.getElementById('todayMinVpd').innerHTML = todayMinVpd + '<span class="stat-tile-unit">g/m³</span>';
       const [vmaxLabel, vmaxClass] = getVpdStatus(parseFloat(todayMaxVpd));
       document.getElementById('todayMaxVpdStatus').textContent = `最高 ${vmaxLabel}`;
-      document.getElementById('todayMaxVpdStatus').className = 'metric-status ' + vmaxClass;
+      document.getElementById('todayMaxVpdStatus').className = 'metric-status today-status ' + vmaxClass;
     }
 
     // 本日最高・最低 CO2
@@ -3885,7 +3886,7 @@ async function fetchTodayData() {
       document.getElementById('todayMinCo2').innerHTML = todayMinCo2 + '<span class="stat-tile-unit">ppm</span>';
       const [cmaxLabel, cmaxClass] = getCo2Status(todayMaxCo2);
       document.getElementById('todayMaxCo2Status').textContent = `最高 ${cmaxLabel}`;
-      document.getElementById('todayMaxCo2Status').className = 'metric-status ' + cmaxClass;
+      document.getElementById('todayMaxCo2Status').className = 'metric-status today-status ' + cmaxClass;
     }
 
   } catch(e) {
