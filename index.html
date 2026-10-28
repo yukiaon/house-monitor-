@@ -664,6 +664,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
 .humid-run-val { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .humid-run-note { margin-top: 14px; font-size: 0.9rem; line-height: 1.6; color: var(--text-primary); }
 .humid-run-note:empty { display: none; }
+.midday-bar::after { display: none; } /* 日中の湿度は 0〜6時間の棒なので 8時間の目盛りは出さない */
 /* 毎朝の水やり前 pH (0030 get_soil_ph_morning) */
 .ph-morning-svg { width: 100%; height: 120px; display: block; }
 .ph-morning-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.9rem; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
@@ -1246,6 +1247,14 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <div class="humid-run-list" id="humidRunList"></div>
     <div class="humid-run-note" id="humidRunNote"></div>
     <div class="section-sub" id="humidRunUpdated" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- 日中の湿度: 9〜15時の最低湿度と 65% 未満だった時間 (0033)。65 はオーナーの目標（出典なし）。サイドの開け閉めの振り返り用 -->
+  <div class="card" id="middayHumCard" style="display:none;padding:20px;">
+    <div class="card-head-row"><span class="section-title">☀️ 日中の湿度</span></div>
+    <div class="section-sub" style="margin:4px 0 14px;">9〜15時の最低湿度と、65% を下回った時間（棒は 6時間で満タン）。目標は日中 65% 以上</div>
+    <div class="humid-run-list" id="middayHumList"></div>
+    <div class="humid-run-note" id="middayHumNote"></div>
   </div>
 
   <!-- 📚 ピーマン適正値ガイド -->
@@ -1995,7 +2004,9 @@ async function fetchHumidRuns() {
       body: JSON.stringify({ p_days: 7 }),
     });
     if (!res.ok) throw new Error('daily ' + res.status);
-    const rows = (await res.json()).filter(r => Number(r.sample_count) >= 36).slice(0, 7); // 6時間分以上ある日だけ
+    const all = await res.json();
+    renderMiddayHumidity(all);
+    const rows = all.filter(r => Number(r.sample_count) >= 36).slice(0, 7); // 6時間分以上ある日だけ
     if (rows.length === 0) { card.style.display = 'none'; return; }
     const list = document.getElementById('humidRunList');
     list.textContent = '';
@@ -2037,7 +2048,57 @@ async function fetchHumidRuns() {
     card.style.display = '';
   } catch (e) {
     card.style.display = 'none'; // 0020 が未適用のあいだは何も出さない
+    document.getElementById('middayHumCard').style.display = 'none';
   }
+}
+
+// ===== 日中の湿度 (0033 humidity_midday_min_pct / humidity_midday_low_hours) =====
+// 65 はオーナーの目標（出典なし）。同じ値: 参謀 env-targets.ts MIDDAY_HUMIDITY_MIN_PCT / 0033・0034 SQL
+// 65% 未満が30分続いたときのスマホ通知は 0034 (Supabase の cron) が出す。ここは振り返り用の表示だけ。
+const MIDDAY_HUMIDITY_MIN_PCT = 65;
+function renderMiddayHumidity(all) {
+  const card = document.getElementById('middayHumCard');
+  const rows = (all || []).filter(r => r.humidity_midday_min_pct !== undefined).slice(0, 7);
+  if (rows.length === 0) { card.style.display = 'none'; return; } // 0033 が未適用なら出さない
+  const list = document.getElementById('middayHumList');
+  list.textContent = '';
+  const WD = ['日', '月', '火', '水', '木', '金', '土'];
+  const nowJst = new Date(Date.now() + 9 * 3600000);
+  const todayJst = nowJst.toISOString().slice(0, 10);
+  const inMidday = nowJst.getUTCHours() >= 9 && nowJst.getUTCHours() < 15;
+  rows.forEach(r => {
+    const min = r.humidity_midday_min_pct == null ? null : Number(r.humidity_midday_min_pct);
+    const low = Number(r.humidity_midday_low_hours) || 0;
+    const d = new Date(r.date + 'T00:00:00');
+    const row = document.createElement('div');
+    row.className = 'humid-run-row';
+    const date = document.createElement('span');
+    date.className = 'humid-run-date';
+    date.textContent = r.date === todayJst ? (inMidday ? '今日（途中）' : '今日') : `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`;
+    const bar = document.createElement('div');
+    bar.className = 'humid-run-bar midday-bar';
+    const fill = document.createElement('div');
+    fill.className = 'humid-run-fill' + (low >= 3 ? ' danger' : low > 0 ? ' warn' : '');
+    fill.style.width = Math.min(100, (low / 6) * 100) + '%';
+    bar.appendChild(fill);
+    const val = document.createElement('span');
+    val.className = 'humid-run-val';
+    val.textContent = min == null ? 'まだ' : `${Math.round(min)}%・${low > 0 ? low.toFixed(1) + 'h' : 'なし'}`;
+    row.append(date, bar, val);
+    list.appendChild(row);
+  });
+  const done = rows.filter(r => r.date !== todayJst && r.humidity_midday_min_pct != null);
+  const lowDays = done.filter(r => Number(r.humidity_midday_low_hours) > 0);
+  let note = '';
+  if (done.length > 0) {
+    const worst = done.reduce((a, b) => Number(b.humidity_midday_min_pct) < Number(a.humidity_midday_min_pct) ? b : a);
+    const wd = new Date(worst.date + 'T00:00:00');
+    note = lowDays.length === 0
+      ? `きのうまでの${done.length}日は、日中も ${MIDDAY_HUMIDITY_MIN_PCT}% 以上を保てています。`
+      : `きのうまでの${done.length}日で ${MIDDAY_HUMIDITY_MIN_PCT}% を下回った日が${lowDays.length}日。いちばん低かったのは ${wd.getMonth() + 1}/${wd.getDate()} の ${Math.round(Number(worst.humidity_midday_min_pct))}%。`;
+  }
+  document.getElementById('middayHumNote').textContent = note;
+  card.style.display = '';
 }
 
 // ===== 毎朝の水やり前 pH (0030 get_soil_ph_morning) =====
