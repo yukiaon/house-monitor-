@@ -1198,7 +1198,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       </div>
     </div>
     <!-- 凡例（気温・湿度タブの時のみ表示） -->
-    <div id="chartLegend" style="display:none;padding:0 20px;margin:0 0 10px;gap:18px;font-size:0.95rem;align-items:center;">
+    <div id="chartLegend" style="display:none;flex-wrap:wrap;row-gap:4px;padding:0 20px;margin:0 0 10px;gap:18px;font-size:0.95rem;align-items:center;">
       <span style="display:inline-flex;align-items:center;gap:5px;">
         <span id="legendDot1" style="width:14px;height:3px;border-radius:2px;background:#007aff;display:inline-block;"></span>
         <span style="color:var(--text-secondary);">北側</span>
@@ -1206,6 +1206,11 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       <span style="display:inline-flex;align-items:center;gap:5px;">
         <span id="legendDot2" style="width:14px;height:3px;border-radius:2px;background:#ff6b35;display:inline-block;"></span>
         <span style="color:var(--text-secondary);">南側</span>
+      </span>
+      <!-- ボイラーの設定温度（参謀の日誌 0037）。気温タブで記録があるときだけ -->
+      <span id="legendBoiler" style="display:none;align-items:center;gap:5px;">
+        <span style="width:14px;height:0;border-top:2px dashed #c2410c;display:inline-block;"></span>
+        <span id="legendBoilerText" style="color:#c2410c;"></span>
       </span>
     </div>
     <div class="chart-wrap">
@@ -1772,6 +1777,10 @@ function drawChart(data, color, unit, retry = 0) {
   ctx.clearRect(0, 0, w, h);
 
   // min/max 計算: 気温・湿度の場合は両センサーの値も含める（描画範囲が線をはみ出さないように）
+  // ボイラーの設定温度（気温タブだけ）。点ごとに、その日の設定（炊いていない日は null）
+  const boilerLine = chartMode === 'temp' && boilerDays.length && timeLabels
+    ? data.map((_, i) => { const t = timeLabels[i]; const st = t ? boilerStatusOn(localDate(t)) : null; return st ? st.setC : null; })
+    : [];
   let mergedForRange = data;
   if (chartMode === 'temp') {
     mergedForRange = [...(temp1History || []), ...(temp2History || []), ...data];
@@ -1805,6 +1814,8 @@ function drawChart(data, color, unit, retry = 0) {
   } else if (chartMode === 'temp') {
     min = Math.min(min, PEPPER_TARGETS.night.okMin - 1);  // 夜の適温帯が見えるように
     max = Math.max(max, PEPPER_TARGETS.day.okMax + 1);
+    const bset = boilerLine.filter(v => v !== null);
+    if (bset.length) min = Math.min(min, Math.min(...bset) - 1);   // ボイラーの設定の線が見えるように
   } else if (chartMode === 'hum') {
     min = Math.min(min, PEPPER_TARGETS.mistMin - 5);
     max = Math.max(max, 100);
@@ -1973,6 +1984,31 @@ function drawChart(data, color, unit, retry = 0) {
       ctx.fillStyle = lineColor; ctx.fill();
       ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
     }
+  }
+
+  // ボイラーの設定温度: 点線（設定を変えた日は段がつく）。夜の気温がこの線まで下がっていればボイラーが効いている
+  if (boilerLine.some(v => v !== null)) {
+    ctx.strokeStyle = 'rgba(194, 65, 12, 0.85)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    let prev = null;
+    boilerLine.forEach((v, i) => {
+      const x = pad.left + i * xStep;
+      if (v === null) { prev = null; return; }
+      const y = pad.top + ch - ((v - min) / range) * ch;
+      if (prev === null) ctx.moveTo(x, y);
+      else { if (v !== prev) ctx.lineTo(x, pad.top + ch - ((prev - min) / range) * ch); ctx.lineTo(x, y); }
+      prev = v;
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const lastIdx = boilerLine.reduce((acc, v, i) => (v !== null ? i : acc), -1);
+    const lastV = boilerLine[lastIdx];
+    ctx.fillStyle = 'rgba(194, 65, 12, 0.9)';
+    ctx.font = 'bold 13px DM Sans, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`ボイラー設定 ${lastV}℃`, pad.left + lastIdx * xStep - 4, pad.top + ch - ((lastV - min) / range) * ch + 15);
   }
 
   // 気温・湿度は2センサーを別線で描画、それ以外は単一線
@@ -2277,6 +2313,47 @@ async function fetchIrrigationEvents() {
   } catch (e) {
     return [];
   }
+}
+
+// ボイラーの設定温度と炊き出し日 (参謀の日誌の公開 RPC: 0038 get_boiler_recent)。未適用・失敗なら空。
+// 考え方は参謀の src/lib/boiler.ts と同じ（変えるときは両方）: 最後の「停止」より後が今の炊き出し。
+// 炊き出しの印が無ければ、停止の後に初めて設定を書いた日。設定はその日までに最後に書いた値。
+let boilerDays = [];   // [{ date: 'YYYY-MM-DD', setC: number|null, event: 'start'|'stop'|null }] 日付順
+async function fetchBoiler() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_boiler_recent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ p_days: 240 }),
+    });
+    if (!res.ok) { boilerDays = []; return; }
+    boilerDays = (await res.json()).map(r => {
+      const c = Number(r.set_c);
+      return {
+        date: String(r.date).slice(0, 10),
+        setC: r.set_c !== null && Number.isFinite(c) && c >= 5 && c <= 30 ? Math.round(c * 10) / 10 : null,
+        event: r.event === 'start' || r.event === 'stop' ? r.event : null,
+      };
+    }).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.date)).sort((a, b) => a.date.localeCompare(b.date));
+  } catch (e) {
+    boilerDays = [];
+  }
+  updateChart();
+}
+
+// その日（'YYYY-MM-DD'）時点のボイラーの状態。炊いていなければ null
+function boilerStatusOn(day) {
+  const list = boilerDays.filter(d => d.date <= day);
+  if (list.length === 0) return null;
+  const last = list[list.length - 1];
+  if ((Date.parse(day) - Date.parse(last.date)) / 86400000 > 45) return null;
+  let from = 0;
+  for (let i = list.length - 1; i >= 0; i--) if (list[i].event === 'stop') { from = i + 1; break; }
+  const run = list.slice(from);
+  if (run.length === 0) return null;
+  const start = [...run].reverse().find(d => d.event === 'start') || run[0];
+  const set = [...run].reverse().find(d => d.setC !== null);
+  return { setC: set ? set.setC : null, since: start.date, days: Math.round((Date.parse(day) - Date.parse(start.date)) / 86400000) + 1 };
 }
 
 // 作業の一覧・印は直近48時間 (グラフと同じ長さ)
@@ -2646,6 +2723,18 @@ function updateChart() {
       if (d2) d2.style.background = '#34c759';  // 南側: 緑
     } else {
       legend.style.display = 'none';
+    }
+  }
+
+  // ボイラー（気温タブで炊いているときだけ）: 「ボイラー 14.5℃（10/27〜・3日目）」
+  const lb = document.getElementById('legendBoiler');
+  if (lb) {
+    const st = chartMode === 'temp' ? boilerStatusOn(localDate(new Date())) : null;
+    lb.style.display = st ? 'inline-flex' : 'none';
+    if (st) {
+      const md = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
+      document.getElementById('legendBoilerText').textContent =
+        `ボイラー ${st.setC !== null ? st.setC + '℃' : '設定未記入'}（${md(st.since)}〜・${st.days}日目）`;
     }
   }
 
@@ -4789,6 +4878,7 @@ function refreshAll() {
   fetchTodayData();
   fetchWeather();
   fetchChartEvents();
+  fetchBoiler();
   fetchHumidRuns();
   fetchPhMorning();
 }
