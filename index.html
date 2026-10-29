@@ -2315,7 +2315,7 @@ async function fetchIrrigationEvents() {
   }
 }
 
-// ボイラーの設定温度と炊き出し日 (参謀の日誌の公開 RPC: 0037 get_boiler_recent)。未適用・失敗なら空。
+// ボイラーの設定温度と炊き出し日 (参謀の日誌の公開 RPC: 0038 get_boiler_recent)。未適用・失敗なら空。
 // 考え方は参謀の src/lib/boiler.ts と同じ（変えるときは両方）: 最後の「停止」より後が今の炊き出し。
 // 炊き出しの印が無ければ、停止の後に初めて設定を書いた日。設定はその日までに最後に書いた値。
 let boilerDays = [];   // [{ date: 'YYYY-MM-DD', setC: number|null, event: 'start'|'stop'|null }] 日付順
