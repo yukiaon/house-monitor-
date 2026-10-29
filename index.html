@@ -1293,6 +1293,23 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         </table>
       </div>
 
+      <!-- 🎛️ 自動開閉装置 SF Neo+: 谷とサイドを温度で自動開閉している装置。どの指標がどの設定に対応するか -->
+      <div class="ref-section">
+        <div class="ref-section-head">
+          <span class="ref-title">🎛️ 自動開閉装置<span class="ref-title-note">SF Neo+（サンクールシステム）</span></span>
+        </div>
+        <div class="ref-desc">
+          谷とサイドは SF Neo+ が温度で自動開閉している（装置はネット未接続。このページの値は参謀の ESP32 センサー）。上の指標が崩れたとき、装置のどの設定を見るかの対応。詳しくは「SF Neo+ 使い方ガイド」（agri-apps/house-controller）。<br>
+          <strong>気温が高い</strong>：目標温度（実行プログラム PG 1〜4。午前 10〜3月 28℃・4〜9月 26℃、午後は 20℃へ）・開け幅制限の解除温度・高温警報（初期 38℃。35℃で着果阻害なので見直し候補）<br>
+          <strong>夜の高湿度</strong>：強制換気（決めた時刻に谷を少し開ける。下限温度未満と雨の時は開かない）・夕方の目標を 28℃ で高めに保って除湿<br>
+          <strong>日中の湿度が低い</strong>：通常開け幅補正（時間帯を決めて開け幅を狭める）・蒸込換気（段階的に広げる。終了を 15時に）<br>
+          <strong>朝の昇温が急</strong>：蒸込換気・半開解除（初回は半分で一旦止まる）・目標補間（初期 15分）<br>
+          <strong>雨の日の蒸れ</strong>：拡張雨制御「温度」（雨でも目標より高ければ少し開く。初期は「しない」）<br>
+          <strong>強風・雷・台風</strong>：手動（自動復帰 無）で風上側を絞る／雷はブレーカーとプラグ。収まったら自動復帰 有→自動（取説 p.76）<br>
+          <strong>目標どおりに動かない</strong>：制御盤の制御状態（雨制御中・蒸込制御中）と目標温度の記号（AH 高温警報・rn 雨制御・E3 時計異常）を先に見る。手動でも動かなければリレーボックスの「個別」とサーマルの赤ボタン
+        </div>
+      </div>
+
       <!-- 🌡️ 地温 -->
       <div class="ref-section">
         <div class="ref-section-head">
@@ -2038,8 +2055,8 @@ async function fetchHumidRuns() {
     });
     const recent = rows.slice(0, 3).filter(r => Number(r.humid_run_max_hours) >= 8).length;
     document.getElementById('humidRunNote').textContent =
-      recent >= 2 ? '⚠️ 直近3日で8時間以上の夜が' + recent + '回。灰色かび病が出やすい状態です。朝の換気を早めに、夕方は葉を濡らさない。'
-      : recent === 1 ? '8時間以上の夜が1回ありました。続くようなら朝の換気を早めに。'
+      recent >= 2 ? '⚠️ 直近3日で8時間以上の夜が' + recent + '回。灰色かび病が出やすい状態です。朝の換気を早めに、夕方は葉を濡らさない。' + CONTROLLER_HINT.nightHumid
+      : recent === 1 ? '8時間以上の夜が1回ありました。続くようなら朝の換気を早めに。' + CONTROLLER_HINT.nightHumid
       : '長く湿ったままの夜は続いていません。';
     const yesterday = rows[1]; // きのう = 1日分そろっている最新の日
     const dif = yesterday && yesterday.dif_c != null ? `きのうの昼夜の温度差 ${Number(yesterday.dif_c).toFixed(1)}℃` : '';
@@ -2057,6 +2074,12 @@ async function fetchHumidRuns() {
 // 65 はオーナーの目標（出典なし）。同じ値: 参謀 env-targets.ts MIDDAY_HUMIDITY_MIN_PCT / 0033・0034 SQL
 // 65% 未満が30分続いたときのスマホ通知は 0034 (Supabase の cron) が出す。ここは振り返り用の表示だけ。
 const MIDDAY_HUMIDITY_MIN_PCT = 65;
+// 自動開閉装置 SF Neo+（サンクールシステム・取説 Ver11.2）の設定のヒント。谷とサイドはこの装置が温度で自動開閉している。
+// 文言は参謀 src/config/house-controller.ts と同じ考え方（まとめ: agri-apps/house-controller/sfneo-plus-guide.pdf）
+const CONTROLLER_HINT = {
+  nightHumid: ' 開閉機なら「強制換気」で朝6:30ごろ谷を少し開けて湿気を抜ける（下限温度を設定。取説 p.39）。',
+  middayLow: ' 開閉機の「通常開け幅補正」で 9〜15時の開け幅を 50〜70% に絞るか、「蒸込換気」の終了を15時に（取説 p.43・p.38）。28℃を超えるなら絞らず水で。',
+};
 function renderMiddayHumidity(all) {
   const card = document.getElementById('middayHumCard');
   const rows = (all || []).filter(r => r.humidity_midday_min_pct !== undefined).slice(0, 7);
@@ -2096,7 +2119,8 @@ function renderMiddayHumidity(all) {
     const wd = new Date(worst.date + 'T00:00:00');
     note = lowDays.length === 0
       ? `きのうまでの${done.length}日は、日中も ${MIDDAY_HUMIDITY_MIN_PCT}% 以上を保てています。`
-      : `きのうまでの${done.length}日で ${MIDDAY_HUMIDITY_MIN_PCT}% を下回った日が${lowDays.length}日。いちばん低かったのは ${wd.getMonth() + 1}/${wd.getDate()} の ${Math.round(Number(worst.humidity_midday_min_pct))}%。`;
+      : `きのうまでの${done.length}日で ${MIDDAY_HUMIDITY_MIN_PCT}% を下回った日が${lowDays.length}日。いちばん低かったのは ${wd.getMonth() + 1}/${wd.getDate()} の ${Math.round(Number(worst.humidity_midday_min_pct))}%。`
+        + (lowDays.filter(r => Number(r.humidity_midday_low_hours) >= 3).length >= 2 ? CONTROLLER_HINT.middayLow : '');
   }
   document.getElementById('middayHumNote').textContent = note;
   card.style.display = '';
