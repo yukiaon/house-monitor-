@@ -3163,6 +3163,12 @@ function generateAdvice() {
   const heat = T.heatingByMonth[month];         // 宮崎県 表2-10 の暖房設定 [下, 上] or null
   const vent = T.ventByMonth[month];            // 同 午前の換気温度
   const heatText = heat ? (heat[0] === heat[1] ? `${heat[0]}℃` : `${heat[0]}〜${heat[1]}℃`) : null;
+  // 暖房の文: うちの設定は日誌のボイラー (get_boiler_recent) が正。設定は時期で変わるので県の目安は「参考」として添えるだけ (2026-11-06 オーナー)
+  const bst = boilerStatusOn(localDate(new Date()));
+  const bsetText = bst && bst.setC !== null ? `夜間${bst.setC}℃${bst.morningC !== null ? `・早朝${bst.morningC}℃` : ''}` : null;
+  const heatAdvice = bsetText
+    ? `ボイラーは日誌の設定 ${bsetText} で炊いています。設定より低ければボイラーの能力・ダクト・保温カーテンを確認。${heatText ? `（県の目安 ${heatText}・${month}月・参考）` : ''}`
+    : (heatText ? `暖房・保温を確認してください（県の目安 ${heatText}・${month}月・参考。設定は日誌に記録）。` : '暖房・保温を確認してください。');
   const rise = recentRiseRate();                // 直近1時間の昇温 ℃/h
   const nightMin = lastNightMin();              // 昨夜(日の入り〜日の出)の最低気温
 
@@ -3181,7 +3187,7 @@ function generateAdvice() {
       level: 'danger',
       icon: '🧊',
       title: 'ハウス内が限界の12℃以下',
-      body: `気温${s.temp.toFixed(1)}℃。ピーマンの夜温の最低限界は12℃です（岡山県）。${heatText ? `暖房を ${heatText} に設定してください（宮崎県の${month}月の目安）。` : '暖房・保温を確認してください。'}`
+      body: `気温${s.temp.toFixed(1)}℃。ピーマンの夜温の最低限界は12℃です（岡山県）。${heatAdvice}`
     });
   }
 
@@ -3240,7 +3246,7 @@ function generateAdvice() {
       level: 'warn',
       icon: '❄️',
       title: '夜温が15℃未満',
-      body: `気温${s.temp.toFixed(1)}℃。夜の適温は15〜20℃です（岡山県）。${heatText ? `${month}月の暖房設定の目安は ${heatText}（宮崎県）。` : ''}`
+      body: `気温${s.temp.toFixed(1)}℃。夜の適温は15〜20℃です（岡山県）。${bsetText ? `ボイラーは日誌の設定 ${bsetText}。` : ''}${heatText ? `県の目安は ${heatText}（${month}月・参考）。` : ''}`
     });
   }
 
@@ -3249,7 +3255,7 @@ function generateAdvice() {
       level: 'warn',
       icon: '🌙',
       title: `昨夜の最低気温 ${nightMin.toFixed(1)}℃`,
-      body: `夜の適温15〜20℃を下回りました（最低限界は12℃・岡山県）。${heatText ? `暖房を ${heatText} に設定するのが目安です（宮崎県 ${month}月）。` : '暖房・保温を確認してください。'}`
+      body: `夜の適温15〜20℃を下回りました（最低限界は12℃・岡山県）。${heatAdvice}`
     });
   }
 
