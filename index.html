@@ -821,6 +821,10 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
 
   .footer { padding: 4px 0 40px; font-size: 0.88rem; }
 }
+/* タブレット (768〜1023px): 土壌の4項目は2×2に（4列だと pH の文字が切れるため） */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .soil-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 </style>
 </head>
 <body>
