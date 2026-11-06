@@ -1654,6 +1654,8 @@ const PEPPER_TARGETS = {
   morningRiseMax: 2,                                 // ℃/h
   co2Min: 400,
   soilTemp: { okMin: 22, okMax: 25 },
+  // 土壌水分（SEN0604 相対値）: 出典の値ではなくオーナーの体感値で、この畑の灌水の基準（変えない）。同じ値: 参謀 env-targets.ts SOIL_MOISTURE_TARGET
+  soilMoisture: { okMin: 65, okMax: 90, dry: 45, saturated: 95 },
   soilEc: { okMin: 300, okMax: 700, high: 1000 },   // μS/cm（1 mS/cm = 1000 μS/cm）
   soilPh: { okMin: 5.5, okMax: 6.5, acid: 5.0, alkali: 7.0 },
   // 光飽和点の目安 3万〜4万lx（熊本県 耕種基準 促成ピーマン 3万／宮崎県 降灰対策・研究レジュメ 4万、高知県 3〜4万）を
@@ -1871,7 +1873,7 @@ function drawChart(data, color, unit, retry = 0) {
     temp: { min: T.day.okMin, max: T.day.okMax, color: '255, 149, 0',  label: `昼の適温 ${T.day.okMin}-${T.day.okMax}℃` },   // オレンジ
     hum:  { min: T.mistMin, max: T.humHigh, color: '0, 122, 255',  label: `昼の目安 ${T.mistMin}% 〜 夜は${T.humHigh}%未満` },  // ブルー
     soiltemp: { min: T.soilTemp.okMin, max: T.soilTemp.okMax, color: '217, 119, 6', label: `適正 ${T.soilTemp.okMin}-${T.soilTemp.okMax}℃` },  // 地温
-    soil:     { min: 65, max: 90, color: '52, 199, 89', label: '適正 65-90%(SEN0604)' },        // 土壌水分
+    soil:     { min: T.soilMoisture.okMin, max: T.soilMoisture.okMax, color: '52, 199, 89', label: `適正 ${T.soilMoisture.okMin}-${T.soilMoisture.okMax}%(SEN0604)` },        // 土壌水分
     soilec:   { min: T.soilEc.okMin, max: T.soilEc.okMax, color: '88, 86, 214', label: `目安 ${T.soilEc.okMin}-${T.soilEc.okMax} μS/cm` }, // EC
     // pH は目安帯を出さない（センサーの値は土壌分析の pH と比べられない）
     vpd:  { min: T.hdMin, max: T.hdMax, color: '52, 199, 89', label: `ふつう ${T.hdMin}-${T.hdMax} g/m³` },   // グリーン
@@ -2822,11 +2824,12 @@ function getHumStatus(h, t) {
 //   完全乾燥: 5〜15% / 適正: 65〜90% / 飽和: 95〜100%
 //   現場での体感校正：65%=乾き気味から逆算
 function getSoilStatus(s) {
+  const M = PEPPER_TARGETS.soilMoisture;
   if (s === null || isNaN(s)) return ['--', 'status-normal'];
-  if (s >= 95) return ['🌊 過湿(根腐れ注意)', 'status-danger'];
-  if (s >= 90 && s < 95) return ['💧 やや多め', 'status-warn'];
-  if (s >= 65 && s < 90) return ['✅ 適正', 'status-normal'];
-  if (s >= 45 && s < 65) return ['⚠️ やや乾燥', 'status-warn'];
+  if (s >= M.saturated) return ['🌊 過湿(根腐れ注意)', 'status-danger'];
+  if (s >= M.okMax) return ['💧 やや多め', 'status-warn'];
+  if (s >= M.okMin) return ['✅ 適正', 'status-normal'];
+  if (s >= M.dry) return ['⚠️ やや乾燥', 'status-warn'];
   return ['🏜️ 乾燥(かん水必要)', 'status-danger'];
 }
 
@@ -2906,14 +2909,15 @@ function calcAdvancedScore(temp, vpd, co2, soilTemp, soil, soilEc, soilPh) {
   // ----- 根圏要素 -----
   // 地温スコア: 22〜25℃ が満点。0点の線（12・35）は目安
   function soilTempScore(t) { return bandScore(t, T.soilTemp.okMin, T.soilTemp.okMax, 12, 35); }
-  // 土壌水分スコア (65-90%が満点 / SEN0604実機スケール)
+  // 土壌水分スコア (適正帯が満点 / SEN0604実機スケール)。帯は PEPPER_TARGETS.soilMoisture、帯の外の傾き (50・25・60 点の線) は目安・出典なし
   function soilMoistureScore(h) {
+    const M = T.soilMoisture;
     if (h === null || isNaN(h)) return null;
-    if (h >= 65 && h <= 90) return 100;
-    if (h >= 50 && h < 65) return 50 + (h - 50) / 15 * 50;         // 50→100
-    if (h > 90 && h <= 95) return 60 + (95 - h) / 5 * 40;          // 100→60
+    if (h >= M.okMin && h <= M.okMax) return 100;
+    if (h >= 50 && h < M.okMin) return 50 + (h - 50) / (M.okMin - 50) * 50;                 // 50→100
+    if (h > M.okMax && h <= M.saturated) return 60 + (M.saturated - h) / (M.saturated - M.okMax) * 40;   // 100→60
     if (h >= 25 && h < 50) return Math.max(0, (h - 25) / 25 * 50); // 0→50
-    if (h > 95 && h <= 100) return Math.max(0, (100 - h) / 5 * 60); // 60→0
+    if (h > M.saturated && h <= 100) return Math.max(0, (100 - h) / (100 - M.saturated) * 60); // 60→0
     return 0;
   }
   // ECスコア: 300〜700 μS/cm が満点。0点の線（0・1300）は目安
