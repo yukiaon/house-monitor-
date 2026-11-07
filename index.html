@@ -1542,23 +1542,15 @@ const SENSOR_NAMES = {
   co2:   'CO2'
 };
 
-// センサーピル判定の閾値（分）— センサーごとに個別設定
-// DeepSleep間隔が変わったらここを調整する
-//   送信間隔 5分なら OK=10分, WARN=20分
-//   送信間隔10分なら OK=15分, WARN=45分
-//   送信間隔15分なら OK=20分, WARN=60分
-const SENSOR_OK_MIN = {
-  unit1: 15,   // 北側センサー: 10分間隔
-  unit2: 15,   // 南側センサー: 10分間隔
-  soil:  10,   // 土壌SEN0604: 5分間隔
-  co2:   10,   // CO2センサー: 5分間隔
-};
-const SENSOR_WARN_MIN = {
-  unit1: 45,
-  unit2: 45,
-  soil:  20,
-  co2:   20,
-};
+// センサーピル判定の閾値（分）は全センサー共通で PEPPER_TARGETS.sensorStale（updateOneSensor が読む）
+// （2026-11-07 オーナー決定: 30 分で注意・60 分で停止。以前は台ごとに 15/45・10/20 だった）
+
+// 北・南 2 台の湿度のまとめ方: 高い方（片方だけならその値）。オーナー決定 2026-11-07
+// 参謀 env-targets.ts houseHumidity・SQL 0044 と同じ決まり。気温は平均のまま
+function houseHumidity(a, b) {
+  const xs = [a, b].filter(v => typeof v === 'number' && isFinite(v));
+  return xs.length ? Math.max(...xs) : null;
+}
 
 // グラフのバケット幅（ミリ秒）
 // 各ESP32は独立に送信するので、レコードは北側センサーと南側センサーが交互に来る。
@@ -1656,6 +1648,10 @@ const PEPPER_TARGETS = {
   soilTemp: { okMin: 22, okMax: 25 },
   // 土壌水分（SEN0604 相対値）: 出典の値ではなくオーナーの体感値で、この畑の灌水の基準（変えない）。同じ値: 参謀 env-targets.ts SOIL_MOISTURE_TARGET
   soilMoisture: { okMin: 65, okMax: 90, dry: 45, saturated: 95 },
+  // センサーが止まったとみなす時間 (分)。オーナー決定 2026-11-07・全アプリ共通
+  //   最後の受信から warn 分を超えたら「電波不良かも」(橙)、stop 分を超えたら「停止」(赤)
+  // 同じ値: 参謀 env-targets.ts SENSOR_STALE_MIN・家族画面 STALE_MIN・Garmin Env.mc・SQL 0016 (60 分)
+  sensorStale: { warn: 30, stop: 60 },
   soilEc: { okMin: 300, okMax: 700, high: 1000 },   // μS/cm（1 mS/cm = 1000 μS/cm）
   soilPh: { okMin: 5.5, okMax: 6.5, acid: 5.0, alkali: 7.0 },
   // 光飽和点の目安 3万〜4万lx（熊本県 耕種基準 促成ピーマン 3万／宮崎県 降灰対策・研究レジュメ 4万、高知県 3〜4万）を
@@ -3067,11 +3063,11 @@ function updateMainMetrics(t1, h1, t2, h2, u1Online, u2Online) {
   const u2Has = u2Online && !isNaN(t2) && !isNaN(h2);
 
   if (u1Has && u2Has) {
-    // 両方オンライン → 平均値・差を表示
+    // 両方オンライン → 気温は平均、湿度は高い方（2026-11-07 オーナー決定・病気の判断で安全側）。差も表示
     repTemp = (t1 + t2) / 2;
-    repHum  = (h1 + h2) / 2;
+    repHum  = houseHumidity(h1, h2);
     tempLabel.textContent = '気温（平均）';
-    humLabel.textContent  = '湿度（平均）';
+    humLabel.textContent  = '湿度（高い方）';
 
     const dT = t2 - t1;
     const dH = h2 - h1;
@@ -3652,8 +3648,8 @@ function updateOneSensor(key, lastTime) {
 
   const label = SENSOR_LABELS[key];
   // センサーごとの閾値を取得（未定義なら安全側のデフォルト）
-  const okMin   = SENSOR_OK_MIN[key]   ?? 15;
-  const warnMin = SENSOR_WARN_MIN[key] ?? 45;
+  const okMin   = PEPPER_TARGETS.sensorStale.warn;   // これ以下は 🟢
+  const warnMin = PEPPER_TARGETS.sensorStale.stop;   // これ以下は 🟡、超えたら 🔴
   let state;
 
   if (diffMin <= okMin) {
@@ -4576,13 +4572,11 @@ async function fetchData() {
       const all = [...b.u1Temps, ...b.u2Temps];
       return all.length > 0 ? all.reduce((s, v) => s + v, 0) / all.length : null;
     });
-    humHistory  = sortedBuckets.map(b => {
-      const all = [...b.u1Hums, ...b.u2Hums];
-      return all.length > 0 ? all.reduce((s, v) => s + v, 0) / all.length : null;
-    });
+    // 湿度は北・南それぞれの平均の高い方（片方だけならその値）。SQL 0044・参謀と同じ
+    humHistory  = sortedBuckets.map(b => houseHumidity(avg(b.u1Hums), avg(b.u2Hums)));
     co2History  = sortedBuckets.map(b => avg(b.co2s));
     solarHistory = sortedBuckets.map(b => avg(b.solars));
-    // VPDはバケット平均の温度・湿度から計算
+    // VPDはバケットの温度（平均）・湿度（高い方）から計算
     vpdHistory  = sortedBuckets.map((b, i) => {
       const at = tempHistory[i], ah = humHistory[i];
       if (at === null || ah === null) return null;
@@ -4626,7 +4620,7 @@ async function fetchData() {
     // ===== メイン表示更新（2センサー対応） =====
     const repValues = updateMainMetrics(t1, h1, t2, h2, u1Online, u2Online);
     const temp = repValues.temp;  // 代表温度（平均 or 単独 or null）
-    const hum  = repValues.hum;   // 代表湿度
+    const hum  = repValues.hum;   // 代表湿度（高い方 or 単独 or null）
 
     // ===== 土壌4項目表示 (SEN0604) =====
     const soilCard = document.getElementById('soilCard');
