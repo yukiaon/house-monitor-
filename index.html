@@ -620,6 +620,11 @@ small { font-size: 0.8rem; }
 .light-effect { display: block; margin-top: 4px; padding: 4px 8px; border-radius: 6px; font-size: 0.88rem; }
 .light-effect.good { background: rgba(52,199,89,0.10); color: #1f7a3a; }
 .light-effect.bad  { background: rgba(255,149,0,0.10); color: #a35a00; }
+.light-use { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border, rgba(0,0,0,0.06)); display: grid; gap: 10px; }
+.light-use:empty { display: none; }
+.light-use-title { font-size: 0.82rem; color: var(--text-secondary); }
+.light-use-main { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-top: 2px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.light-use-sub { font-size: 0.88rem; color: var(--text-secondary); margin-top: 2px; line-height: 1.45; }
 .light-details { margin-top: 8px; font-size: 0.92rem; color: var(--text-secondary); }
 .light-details summary { cursor: pointer; padding: 4px 0; }
 .light-detail-list div { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; }
@@ -670,6 +675,24 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
 .ph-morning-svg { width: 100%; height: 120px; display: block; }
 .ph-morning-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.9rem; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
 .ph-morning-list b { color: var(--text-primary); }
+
+/* 🚿 水やり（タイマーの見直し用） */
+.water-now { display: grid; gap: 4px; margin: 4px 0 12px; font-size: 0.95rem; }
+.water-now div { display: flex; justify-content: space-between; gap: 10px; }
+.water-now span { color: var(--text-secondary); }
+.water-now b { font-weight: 600; color: var(--text-primary); text-align: right; font-variant-numeric: tabular-nums; }
+.water-head, .water-row { display: grid; grid-template-columns: 4.6em 1fr 4.4em; gap: 8px; align-items: center; }
+.water-head { font-size: 0.78rem; color: var(--text-tertiary); padding-bottom: 4px; border-bottom: 1px solid var(--border, rgba(0,0,0,0.06)); }
+.water-head span:last-child, .water-pre { text-align: right; }
+.water-row { padding: 8px 0; border-bottom: 1px solid var(--border, rgba(0,0,0,0.06)); font-size: 0.92rem; }
+.water-row:last-child { border-bottom: none; }
+.water-date { color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.water-date small { display: block; font-size: 0.8rem; }
+.water-irr { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.water-irr.none { font-weight: 400; color: var(--text-tertiary); }
+.water-env { font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+.water-pre b { display: block; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.water-pre small { font-size: 0.78rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .chart-event { position: absolute; width: 0; border-left: 2px dashed var(--ev, #5856d6); pointer-events: none; z-index: 1; opacity: .85; }
 .chart-event-badge { position: absolute; top: -2px; left: -12px; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 1.5px solid var(--ev, #5856d6); display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; }
 .chart-events { margin: 10px 4px 0; display: grid; gap: 6px; }
@@ -1118,6 +1141,16 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <div class="humid-run-note" id="phMorningNote"></div>
   </div>
 
+  <!-- 🚿 水やり: 灌水はタイマー（オーナー 2026-11-11）。設定を見直す材料として、土壌水分の跳ね上がりから拾った水やりと、水やり前の底を天気・光とセットで並べる。事実だけを出し、指示はしない -->
+  <div class="card" id="waterCard" style="display:none;padding:20px;">
+    <div class="card-head-row"><span class="section-title">🚿 水やり（タイマーの見直し用）</span></div>
+    <div class="section-sub" style="margin:4px 0 12px;">土壌水分が急に上がった所を水やりとして拾い、日誌の灌水（時刻・長さ）と突き合わせています。「水やり前の底」が日ごとに上がれば水は多め、下がれば少なめです</div>
+    <div class="water-now" id="waterNow"></div>
+    <div class="water-head"><span>日・天気</span><span>水やり・光</span><span>水やり前の底</span></div>
+    <div id="waterList"></div>
+    <div class="humid-run-note" id="waterNote"></div>
+  </div>
+
   <!-- ☀️ 光と環境の評価: 土壌モニターの下に単独の枠で出す（2列の中だと縦に長くなるため）。光の活かし方 (日射 esp32_05 XM8580 × 気温・湿度・CO2)。データが届くまでは出さない -->
   <!-- 評価を主役にし、数字は「くわしく」を開いたときだけ出す -->
   <div class="metric-card solar" id="solarCard" style="--metric-accent:#f59e0b; display:none;">
@@ -1133,6 +1166,8 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       <div class="light-row"><span class="light-row-label">葉の濡れ・乾燥<small class="light-row-sub">気温 × 湿度 × 朝の昇温</small></span><span class="metric-status status-normal" id="lightRowLeaf">--</span></div>
       <div class="light-row"><span class="light-row-label">光の強さ<small class="light-row-sub">日射 × 光飽和点の目安</small></span><span class="metric-status status-normal" id="lightRowSun">--</span></div>
     </div>
+    <!-- 光が活きた時間: 光が目安以上あった時間のうち、飽差・CO2・気温もそろっていた時間。天気と光の量をセットで出す -->
+    <div class="light-use" id="lightUse"></div>
     <details class="light-details">
       <summary>くわしく（数字と評価のしかた）</summary>
       <div class="light-detail-list" id="lightDetails"></div>
@@ -1155,6 +1190,8 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         ・乾燥しすぎ：飽差が 6 g/m³ を超えると「乾燥しすぎ」。
         <span class="light-effect good">ふつう：飽差 3〜6 g/m³ が植物に無理のない範囲。</span>
         <span class="light-effect bad">湿りすぎ・結露：灰色かび病・菌核病・斑点病が出やすい。乾燥しすぎ：気孔が閉じて光合成が落ち、うどんこ病が出やすい。</span></p>
+        <p><b>光が活きた時間（日射 × 飽差 × CO2 × 気温）</b><br>光合成は光だけでは決まらず、足りないものに引っ張られます。10分ごとに、光が光飽和点の目安の下限（約220 W/m²）以上あった時間を数え、そのうち 飽差 3〜6 g/m³・CO2 400ppm 以上・気温 30℃ 未満 がそろっていた時間を「条件がそろった時間」とします。そろわなかった時間は理由ごとに出します（同じ時間に2つ重なることがあります）。基準はどれもこのカードのほかの行と同じ出典の値で、良い・悪いの判定ではありません。光合成の量そのものは、ピーマンで出典のある式が無いので出しません。<br>
+        「晴れの日の◯%」は、直近14日の晴れの日（気象庁 宮崎の観測で曇雨天でない日）のハウス内日射の中央値を100とした割合です。晴れの日が3日たまるまでは出しません。</p>
         <p><b>光の強さ（日射 × 光飽和点の目安）</b><br>ピーマンの光飽和点は資料によって 3万〜4万lx（熊本県 3万／宮崎県 4万／高知県 3〜4万）。センサーの W/m² に直すと約 220〜360 W/m² です（換算なので幅があります）。今の日射がこの帯より下か、帯の中か、上かを出します。良い・悪いの判定ではありません。グラフの「日射」にも同じ帯を出します。<br>
         ・帯は「これ以上はいらない」線ではありません。宮崎県・茨城県の測定では、ピーマンの葉の光合成は 1,500 µmol/m²/s（帯の上の約2倍）まで増え続けています。<br>
         ・光補償点や「1日に何 MJ 必要」という値は、ピーマンでは出典が見つからないので出しません。
@@ -4131,7 +4168,7 @@ async function fetchSolarDaily() {
 }
 // 気象庁 宮崎の観測した天気 (参謀 0029)。1行 = 1日: 昼 (07〜18時の毎正時) の晴の回数と、曇雨天の日か (晴が半分以下)
 async function fetchJmaDays() {
-  return rpcPost('get_jma_daily_weather', { p_days: 2 });
+  return rpcPost('get_jma_daily_weather', { p_days: 14 });   // 今日・昨日の天気と、晴れの日の基準 (直近14日) に使う
 }
 
 // 水の消費: 直近24時間の日射を、このハウスの過去の日 (1日分そろった日) と比べる
@@ -4148,6 +4185,77 @@ function setChip(id, text, cls) {
   const el = document.getElementById(id);
   el.textContent = text;
   el.className = 'metric-status ' + cls;
+}
+
+// 光が活きた時間: 10分枠ごとに、光が目安の下限以上 (PEPPER_TARGETS.solarSat.min) あった枠を数え、
+// そのうち 飽差 hdMin〜hdMax・CO2 co2Min 以上・気温 30℃ 未満 (高知県。このカードの「高温」と同じ) がそろった枠を数える。
+// 基準は全部すでにある出典の値。CO2 が届いていない枠は CO2 を理由に数えない。
+const LIGHT_USE_HOT_C = 30;
+function lightUseOf(rows, solarRows, fromMs, toMs) {
+  const T = PEPPER_TARGETS;
+  const bin = (t) => Math.floor(new Date(t).getTime() / 600000) * 600000;
+  const light = new Map(), co2 = new Map(), air = new Map();
+  const push = (m, b, v) => { if (!m.has(b)) m.set(b, []); m.get(b).push(v); };
+  for (const r of solarRows) { const b = bin(r.created); if (b >= fromMs && b < toMs) push(light, b, parseFloat(r.d8)); }
+  for (const r of rows) { const v = parseFloat(r.d7); if (!isNaN(v) && r.created) { const b = bin(r.created); if (b >= fromMs && b < toMs) push(co2, b, v); } }
+  for (const x of [...airBins(rows, 'd1', 'd2'), ...airBins(rows, 'd4', 'd5')]) {
+    if (x.b < fromMs || x.b >= toMs) continue;
+    if (!air.has(x.b)) air.set(x.b, { ts: [], hs: [] });
+    air.get(x.b).ts.push(x.t); air.get(x.b).hs.push(x.h);
+  }
+  const avg = (a) => a.reduce((x, v) => x + v, 0) / a.length;
+  const out = { enough: 0, used: 0, dry: 0, humid: 0, co2: 0, hot: 0, unknown: 0 };
+  for (const [b, ws] of light) {
+    if (avg(ws) < T.solarSat.min) continue;
+    out.enough++;
+    const a = air.get(b);
+    if (!a) { out.unknown++; continue; }   // 気温・湿度が無い枠は「そろった」に数えない
+    const t = avg(a.ts), hd = hdGm3(t, Math.min(100, Math.max(...a.hs)));   // 気温は平均、湿度は北南の高い方
+    const c = co2.has(b) ? avg(co2.get(b)) : null;
+    let ok = true;
+    if (hd > T.hdMax) { out.dry++; ok = false; } else if (hd < T.hdMin) { out.humid++; ok = false; }
+    if (c != null && c < T.co2Min) { out.co2++; ok = false; }
+    if (t >= LIGHT_USE_HOT_C) { out.hot++; ok = false; }
+    if (ok) out.used++;
+  }
+  return out;
+}
+function renderLightUse(rows, solarRows, solarDaily, jmaDays, now) {
+  const box = document.getElementById('lightUse');
+  if (!box) return;
+  box.replaceChildren();
+  const today = solarJstDate(new Date(now));
+  const yesterday = solarJstDate(new Date(now - 86400000));
+  const todayStart = new Date(today + 'T00:00:00+09:00').getTime();
+  const base = clearDayBaseMj(solarDaily, jmaDays, today);
+  const h = (n) => (n / 6).toFixed(1) + ' 時間';
+  const oldest = rows.reduce((t, r) => Math.min(t, new Date(r.created).getTime()), Infinity);
+  const add = (title, date, fromMs, toMs, mjText) => {
+    const u = lightUseOf(rows, solarRows, fromMs, toMs);
+    const wrap = waterEl('div', '');
+    const w = waterWeatherText((jmaDays || []).find(r => String(r.date).slice(0, 10) === date));
+    wrap.appendChild(waterEl('div', 'light-use-title', [title, w, mjText].filter(Boolean).join('・')));
+    if (u.enough === 0) wrap.appendChild(waterEl('div', 'light-use-sub', '光が目安（約' + PEPPER_TARGETS.solarSat.min + ' W/m²）以上の時間はまだありません'));
+    else {
+      wrap.appendChild(waterEl('div', 'light-use-main', '光が目安以上 ' + h(u.enough) + '・うち条件がそろった ' + h(u.used)));
+      const why = [];
+      if (u.dry)   why.push('飽差が高い（乾きすぎ）' + h(u.dry));
+      if (u.humid) why.push('飽差が低い（湿りすぎ）' + h(u.humid));
+      if (u.co2)   why.push('CO2 が外気より低い ' + h(u.co2));
+      if (u.hot)   why.push('気温 ' + LIGHT_USE_HOT_C + '℃以上 ' + h(u.hot));
+      if (why.length) wrap.appendChild(waterEl('div', 'light-use-sub', 'そろわなかった理由: ' + why.join('・')));
+    }
+    box.appendChild(wrap);
+  };
+  // きのう: 手元のデータが1日ぶんそろっている時だけ
+  if (oldest <= todayStart - 86400000 + 6 * 3600000) {
+    const y = (solarDaily || []).find(r => String(r.date).slice(0, 10) === yesterday);
+    const mj = y && y.inside_mj != null ? Number(y.inside_mj) : null;
+    add('きのう', yesterday, todayStart - 86400000, todayStart,
+        mj == null ? '' : '光 ' + mj.toFixed(1) + ' MJ' + (base ? '（晴れの日の ' + Math.round(mj / base * 100) + '%）' : ''));
+  }
+  const { mj: mjToday } = solarMj(solarRows, todayStart, now);
+  add('今日ここまで', today, todayStart, now + 1, mjToday == null ? '' : '光 ' + mjToday.toFixed(1) + ' MJ');
 }
 
 async function renderSolar(rows) {
@@ -4283,6 +4391,9 @@ async function renderSolar(rows) {
     head.className = 'light-headline status-normal';
   }
 
+  // ---- 光が活きた時間 (きのう・今日ここまで) ----
+  renderLightUse(rows, solarRows, solarDaily, jmaDays, now);
+
   // ---- くわしく (数字) ----
   const yesterday = solarJstDate(new Date(now - 86400000));
   const y = solarDaily.find(r => r.date === yesterday);
@@ -4309,6 +4420,227 @@ async function renderSolar(rows) {
   lines.push(['水の比べる日の数', (wj.n ?? 0) + '日']);
   document.getElementById('lightDetails').innerHTML =
     lines.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+}
+
+// ===== 🚿 水やり（タイマーの見直し用） =====
+// 灌水はタイマーで回している（オーナー 2026-11-11）。「今すぐ水を」ではなく、設定を変えるかどうかの材料を出す。
+// 水やりは土壌水分 (esp32_03) の跳ね上がりから拾う。参謀 SQL 0046 get_irrigation_daily と同じ決まり:
+//   10分平均が前の枠より 0.5% 以上上がった枠が続く所をまとめ、合計 1.5% 以上を 1 回の水やりとする。
+//   2026-11-08〜10 の実測では、水やり以外の上下は 1 枠 0.4% まで、水やりは 1 枠 2.0% 以上。出典のある値ではない。
+// 0046 が未適用の間は、手元の直近 73 時間ぶんから同じ計算をする（3日ぶんだけ出る）。
+// 「多い・少ない」の線はまだ無いので、底が上がっている・下がっているという事実だけを書く。指示は出さない。
+const WATER_STEP_MIN = 0.5, WATER_RISE_MIN = 1.5;
+const WATER_SHOW_DAYS = 7;
+const WATER_TREND_MIN = 0.5;   // 底が3回続けて同じ向きに動き、合計がこれ以上なら「上がっている／下がっている」と書く（センサーの揺れ 0.4% より大きく）
+
+function waterBins(soilRows) {
+  const m = new Map();
+  for (const r of soilRows || []) {
+    const v = parseFloat(r.d2);
+    if (isNaN(v) || !r.created) continue;
+    const b = Math.floor(new Date(r.created).getTime() / 600000) * 600000;
+    if (!m.has(b)) m.set(b, []);
+    m.get(b).push(v);
+  }
+  return [...m.entries()].sort((a, b) => a[0] - b[0]).map(([b, vs]) => ({ b, sm: vs.reduce((x, v) => x + v, 0) / vs.length }));
+}
+function detectIrrigations(bins) {
+  const events = [];
+  let cur = null;
+  for (let i = 1; i < bins.length; i++) {
+    const d = bins[i].sm - bins[i - 1].sm;
+    const rising = bins[i].b - bins[i - 1].b <= 30 * 60000 && d >= WATER_STEP_MIN;
+    if (rising) {
+      if (cur) { cur.rise += d; cur.peak = Math.max(cur.peak, bins[i].sm); }
+      else cur = { at: bins[i].b, pre: bins[i - 1].sm, rise: d, peak: bins[i].sm };
+    } else if (cur) { if (cur.rise >= WATER_RISE_MIN) events.push(cur); cur = null; }
+  }
+  if (cur && cur.rise >= WATER_RISE_MIN) events.push(cur);
+  return events;
+}
+// get_irrigation_daily と同じ形 (新しい日が先)
+function irrigationDailyFromRows(soilRows) {
+  const bins = waterBins(soilRows);
+  const days = new Map();
+  const day = (ms) => { const k = solarJstDate(new Date(ms)); if (!days.has(k)) days.set(k, { date: k, min: Infinity, max: -Infinity, n: 0, ev: [] }); return days.get(k); };
+  for (const x of bins) { const d = day(x.b); d.min = Math.min(d.min, x.sm); d.max = Math.max(d.max, x.sm); d.n++; }
+  for (const e of detectIrrigations(bins)) day(e.at).ev.push(e);
+  return [...days.values()].sort((a, b) => (a.date < b.date ? 1 : -1)).map(d => ({
+    date: d.date, soil_min_pct: d.min, soil_max_pct: d.max,
+    pre_first_pct: d.ev.length ? d.ev[0].pre : null,
+    irrigation_count: d.ev.length, irrigations: d.ev, sample_count: d.n,
+  }));
+}
+// 晴れの日の基準 MJ/m²: 直近14日の「曇雨天でない日」(気象庁 宮崎の観測。昼の晴が半分より多い) のハウス内日射の中央値。
+// センサーは動かさず、このハウスで測った値どうしを天気とセットで比べる (オーナー 2026-11-11)。季節で下がるので直近だけを使う。
+// 晴れの日が3日たまるまでは null (割合を出さない)
+function clearDayBaseMj(solarDaily, jmaDays, today) {
+  const cloudy = new Map((jmaDays || []).map(r => [String(r.date).slice(0, 10), r.cloudy_rainy]));
+  const v = (solarDaily || [])
+    .filter(r => String(r.date).slice(0, 10) !== today && r.inside_mj != null && (r.sample_count ?? 0) >= LIGHT_DAY_MIN_SAMPLES && cloudy.get(String(r.date).slice(0, 10)) === false)
+    .sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 14).map(r => Number(r.inside_mj)).sort((a, b) => a - b);
+  if (v.length < 3) return null;
+  return v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2;
+}
+// 日誌の灌水の読み取り: 時刻 'HH:MM' → 分、長さ '1分30秒' → 秒 (読めなければ 0)
+const WATER_MATCH_MIN = 45;   // 日誌の時刻と土の上がり始めのずれをここまで同じ水やりとみなす（実測のずれは 10〜20 分）
+function waterClockMin(s) { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
+function waterDetailSec(s) { const m = /^\s*(?:(\d+)\s*分)?\s*(?:(\d+)\s*秒)?\s*$/.exec(String(s || '')); return m && (m[1] || m[2]) ? Number(m[1] || 0) * 60 + Number(m[2] || 0) : 0; }
+function waterSecText(sec) { return (sec >= 60 ? Math.floor(sec / 60) + '分' : '') + (sec % 60 ? (sec % 60) + '秒' : ''); }
+function waterDiaryLabel(x) { return x.kind === 'hand_irrigate' ? '手灌水' : (waterDetailSec(x.detail) ? String(x.detail).trim() : 'パイプ灌水'); }
+function waterWeatherText(j) {
+  const w = waterWeather(j);
+  return w ? w + (j.cloudy_rainy ? ((j.rain_hours ?? 0) >= 3 ? ' 雨' : ' 曇り') : ' 晴れ') : '';
+}
+function waterWeather(j) {
+  if (!j || j.cloudy_rainy == null) return '';
+  if (!j.cloudy_rainy) return '☀️';
+  return (j.rain_hours ?? 0) >= 3 ? '🌧' : '☁️';
+}
+function waterEl(tag, cls, text) {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  if (text != null) el.textContent = text;
+  return el;
+}
+
+async function renderWater(envRows, soilRows) {
+  const card = document.getElementById('waterCard');
+  if (!card) return;
+  let daily = null, fromRpc = true;
+  try { daily = await rpcPost('get_irrigation_daily', { p_days: 14 }); }
+  catch (e) { fromRpc = false; daily = irrigationDailyFromRows(soilRows); }   // 0046 未適用・通信失敗
+  if (!Array.isArray(daily) || daily.length === 0) { card.style.display = 'none'; return; }
+  let solarDaily = [], jma = [], envDaily = [];
+  try { solarDaily = await fetchSolarDaily(); } catch (e) { /* 日射なしでも水やりは出す */ }
+  try { jma = await rpcPost('get_jma_daily_weather', { p_days: 14 }); } catch (e) { /* 天気の印を出さない */ }
+  try { envDaily = await rpcPost('get_environment_daily', { p_days: 14 }); } catch (e) { /* 湿度を出さない */ }
+  // 日誌の灌水 (参謀 0021 get_irrigation_recent: 日付・時刻・「2分」などの長さ)。土の上がりと突き合わせる
+  let diary = [];
+  try { diary = await rpcPost('get_irrigation_recent', { p_days: 14 }); } catch (e) { /* 日誌なしでも土の上がりだけで出す */ }
+  card.style.display = '';
+
+  const num = (v) => (v == null || !isFinite(Number(v)) ? null : Number(v));
+  const ms = (at) => (typeof at === 'number' ? at : new Date(at).getTime());
+  const hm = (t) => { const j = new Date(t + 9 * 3600000); return j.getUTCHours() + ':' + String(j.getUTCMinutes()).padStart(2, '0'); };
+  const md = (d) => { const [, m, dd] = d.split('-'); return Number(m) + '/' + Number(dd); };
+  const dow = (d) => '日月火水木金土'[new Date(d + 'T12:00:00+09:00').getUTCDay()];   // JST の正午 = UTC 3時 (同じ日付)
+  const now = Date.now();
+  const today = solarJstDate(new Date(now));
+  const byDate = (arr) => new Map((arr || []).map(r => [String(r.date).slice(0, 10), r]));
+  const solarBy = byDate(solarDaily), jmaBy = byDate(jma), envBy = byDate(envDaily);
+
+  const clearBase = clearDayBaseMj(solarDaily, jma, today);
+
+  // ---- 日ごとの行 ----
+  const rows = daily.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, WATER_SHOW_DAYS);
+  const list = document.getElementById('waterList');
+  list.replaceChildren();
+  const solarRows = (envRows || []).filter(r => r.d8 != null && !isNaN(parseFloat(r.d8)));
+  const todayStart = new Date(today + 'T00:00:00+09:00').getTime();
+  rows.forEach((r, i) => {
+    const d = String(r.date).slice(0, 10);
+    const row = waterEl('div', 'water-row');
+    const dateEl = waterEl('div', 'water-date', md(d) + '(' + dow(d) + ')');
+    const w = waterWeatherText(jmaBy.get(d));
+    if (w) dateEl.appendChild(waterEl('small', '', w));
+    row.appendChild(dateEl);
+
+    const mid = waterEl('div', '');
+    const evs = Array.isArray(r.irrigations) ? r.irrigations : [];
+    // 日誌の灌水と突き合わせる: 日誌の時刻と土の上がり始めが WATER_MATCH_MIN 分以内なら同じ水やり
+    const dEntries = (Array.isArray(diary) ? diary : [])
+      .filter(x => String(x.date).slice(0, 10) === d && (x.kind === 'irrigate' || x.kind === 'hand_irrigate'))
+      .map(x => ({ ...x, min: waterClockMin(x.at_time), used: false }));
+    const items = evs.map(e => {
+      const t = ms(e.at), j = new Date(t + 9 * 3600000), em = j.getUTCHours() * 60 + j.getUTCMinutes();
+      let best = null;
+      for (const x of dEntries) if (!x.used && x.min != null && Math.abs(x.min - em) <= WATER_MATCH_MIN && (!best || Math.abs(x.min - em) < Math.abs(best.min - em))) best = x;
+      if (best) best.used = true;
+      return { sort: em, text: hm(t) + ' ' + (best ? waterDiaryLabel(best) + ' ' : '') + '+' + Number(e.rise).toFixed(1) + '%' + (!best && diary.length ? '（日誌に記録なし）' : '') };
+    });
+    for (const x of dEntries) if (!x.used)
+      items.push({ sort: x.min ?? (x.period === 'pm' ? 900 : 540), text: (x.at_time || (x.period === 'pm' ? '午後' : '午前')) + ' ' + waterDiaryLabel(x) + '（土の上がりなし）' });
+    items.sort((a, b) => a.sort - b.sort);
+    mid.appendChild(items.length
+      ? waterEl('div', 'water-irr', items.map(x => x.text).join('・'))
+      : waterEl('div', 'water-irr none', d === today ? 'まだ' : '水やりなし'));
+    const env = [];
+    const totalSec = dEntries.reduce((a, x) => a + (x.kind === 'irrigate' ? waterDetailSec(x.detail) : 0), 0);
+    if (totalSec > 0) env.push('パイプ灌水 計 ' + waterSecText(totalSec));
+    if (d === today) {
+      const { mj } = solarMj(solarRows, todayStart, now);
+      if (mj != null) env.push('光 ここまで ' + mj.toFixed(1) + ' MJ');
+    } else {
+      const s = solarBy.get(d), mj = s ? num(s.inside_mj) : null;
+      if (mj != null && (s.sample_count ?? 0) >= LIGHT_DAY_MIN_SAMPLES)
+        env.push('光 ' + mj.toFixed(1) + ' MJ' + (clearBase ? '（晴れの日の ' + Math.round(mj / clearBase * 100) + '%）' : ''));
+      const hmin = num(envBy.get(d)?.humidity_midday_min_pct);
+      if (hmin != null) env.push('昼の湿度の底 ' + Math.round(hmin) + '%');
+    }
+    if (env.length) mid.appendChild(waterEl('div', 'water-env', env.join('・')));
+    row.appendChild(mid);
+
+    const pre = waterEl('div', 'water-pre');
+    const p = num(r.pre_first_pct);
+    pre.appendChild(waterEl('b', '', p == null ? '--' : p.toFixed(1) + '%'));
+    const prev = rows.slice(i + 1).map(x => num(x.pre_first_pct)).find(v => v != null);
+    if (p != null && prev != null) {
+      const diff = p - prev;
+      pre.appendChild(waterEl('small', '', Math.abs(diff) < 0.05 ? '±0' : (diff > 0 ? '▲' : '▼') + Math.abs(diff).toFixed(1)));
+    }
+    row.appendChild(pre);
+    list.appendChild(row);
+  });
+
+  // ---- 今の状況 ----
+  const nowBox = document.getElementById('waterNow');
+  nowBox.replaceChildren();
+  const line = (k, v) => { const el = waterEl('div', ''); el.appendChild(waterEl('span', '', k)); el.appendChild(waterEl('b', '', v)); nowBox.appendChild(el); };
+  const smNow = (() => { const r = (soilRows || []).find(x => x.d2 != null && !isNaN(parseFloat(x.d2))); return r ? parseFloat(r.d2) : null; })();
+  const SM = PEPPER_TARGETS.soilMoisture;
+  if (smNow != null) line('今の土壌水分', smNow.toFixed(1) + '%（目安 ' + SM.okMin + '〜' + SM.okMax + '%）');
+  const allEv = daily.flatMap(r => (Array.isArray(r.irrigations) ? r.irrigations : []).map(e => ({ ...e, at: ms(e.at) }))).sort((a, b) => b.at - a.at);
+  const last = allEv[0];
+  if (last) {
+    const lastDay = solarJstDate(new Date(last.at));
+    line('前回の水やり', (lastDay === today ? '今日 ' : md(lastDay) + ' ') + hm(last.at) + '（+' + Number(last.rise).toFixed(1) + '%）');
+    // 前回の水やりからの光と飽差（手元の73時間の中にある時だけ）
+    const oldest = (envRows || []).reduce((t, r) => Math.min(t, new Date(r.created).getTime()), Infinity);
+    if (last.at >= oldest) {
+      const parts = [];
+      const { mj } = solarMj(solarRows, last.at, now);
+      if (mj != null) parts.push('光 ' + mj.toFixed(1) + ' MJ');
+      const air = new Map();   // 10分枠ごと: 気温は平均、湿度は北南の高い方（ほかの表示と同じ決まり）
+      for (const x of [...airBins(envRows, 'd1', 'd2'), ...airBins(envRows, 'd4', 'd5')]) {
+        if (x.b < last.at) continue;
+        if (!air.has(x.b)) air.set(x.b, { ts: [], hs: [] });
+        air.get(x.b).ts.push(x.t); air.get(x.b).hs.push(x.h);
+      }
+      let hdMax = null;
+      for (const v of air.values()) {
+        const hd = hdGm3(v.ts.reduce((a, t) => a + t, 0) / v.ts.length, Math.min(100, Math.max(...v.hs)));
+        if (hdMax == null || hd > hdMax) hdMax = hd;
+      }
+      if (hdMax != null) parts.push('飽差の山 ' + hdMax.toFixed(1) + ' g/m³');
+      if (parts.length) line('前回の水やりから', parts.join('・'));
+    }
+  }
+
+  // ---- 底の動き（事実だけ） ----
+  const pres = daily.slice().sort((a, b) => (a.date < b.date ? -1 : 1)).map(r => num(r.pre_first_pct)).filter(v => v != null).slice(-3);
+  const note = document.getElementById('waterNote');
+  let text = '';
+  if (pres.length < 3) text = '水やり前の底の動きは、水やりのあった日が3日たまると出ます。';
+  else {
+    const [a, b, c] = pres;
+    const seq = pres.map(v => v.toFixed(1)).join(' → ') + '%';
+    if (b > a && c > b && c - a >= WATER_TREND_MIN) text = '水やり前の底が3回続けて上がっています（' + seq + '）。使った分より多く入っている形です。';
+    else if (b < a && c < b && a - c >= WATER_TREND_MIN) text = '水やり前の底が3回続けて下がっています（' + seq + '）。入れた分より多く使っている形です。';
+    else text = '水やり前の底はほぼ横ばいです（' + seq + '）。';
+  }
+  if (!fromRpc) text += ' ※ いまは直近3日ぶんだけの表示です。';
+  note.textContent = text;
 }
 
 // ===== センサーが止まった原因を診断ログから読み解く =====
@@ -4726,6 +5058,7 @@ async function fetchData() {
     }
 
     renderSolar(data);   // ☀️ 日射 (データが届いていれば出す)
+    renderWater(data, soilData);   // 🚿 水やり (土壌水分の跳ね上がりから拾う)
 
     // 最新状態を保存してアドバイス再生成
     latestState.temp = temp;  // 既にnull or 数値
