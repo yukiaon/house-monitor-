@@ -661,6 +661,10 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
 /* グラフのツールチップ (参謀の温度推移と同じ見た目: 縦線 + 各線上の点 + 黒い吹き出し) */
 .humid-run-list { display: grid; gap: 10px; }
 .humid-run-row { display: grid; grid-template-columns: 6.6em 1fr 5.6em; align-items: center; gap: 10px; font-size: 0.95rem; }
+.insul-table { display: grid; grid-template-columns: 1fr auto auto; column-gap: 14px; row-gap: 9px; align-items: baseline; font-size: 0.95rem; }
+.insul-table .insul-h { color: var(--text-secondary); font-size: 0.85rem; text-align: right; white-space: nowrap; }
+.insul-table .insul-k { color: var(--text-secondary); line-height: 1.35; }
+.insul-table .insul-v { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .humid-run-date { color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .humid-run-bar { height: 14px; border-radius: 7px; background: rgba(0,0,0,0.06); overflow: hidden; position: relative; }
 .humid-run-bar::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: rgba(0,0,0,0.25); } /* 8時間の目盛り (16時間幅) */
@@ -1253,6 +1257,11 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <span style="width:14px;height:0;border-top:2px dashed #c2410c;display:inline-block;"></span>
         <span id="legendBoilerText" style="color:#c2410c;"></span>
       </span>
+      <!-- 保温: 中ホロを閉めていた時間の帯と中サイド（参謀の日誌 0048）。記録があるときだけ -->
+      <span id="legendCurtain" style="display:none;align-items:center;gap:5px;">
+        <span style="width:14px;height:12px;border-radius:2px;background:rgba(37,99,235,0.22);display:inline-block;"></span>
+        <span id="legendCurtainText" style="color:#1e3a8a;"></span>
+      </span>
     </div>
     <div class="chart-wrap">
       <!-- Y軸（固定表示） -->
@@ -1294,6 +1303,14 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <div class="humid-run-list" id="humidRunList"></div>
     <div class="humid-run-note" id="humidRunNote"></div>
     <div class="section-sub" id="humidRunUpdated" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- 保温の前と後: 中サイド・中ホロを始める前の夜と、始めた後の夜を並べる（参謀の日誌 0048）。数字を並べるだけで判定はしない -->
+  <div class="card" id="insulationCard" style="display:none;padding:20px;">
+    <div class="card-head-row"><span class="section-title">🛡️ 保温の前と後</span></div>
+    <div class="section-sub" id="insulationSub" style="margin:4px 0 14px;"></div>
+    <div class="insul-table" id="insulationTable"></div>
+    <div class="humid-run-note" id="insulationNote"></div>
   </div>
 
   <!-- 日中の湿度: 9〜15時の最低湿度と 65% 未満だった時間 (0033)。65 はオーナーの目標（出典なし）。サイドの開け閉めの振り返り用 -->
@@ -1949,6 +1966,29 @@ function drawChart(data, color, unit, retry = 0) {
   // 土壌系モードは別チャンネル取得なので別の時間軸を使う
   const labelsForX = (chartMode === 'soiltemp' || chartMode === 'soil' || chartMode === 'soilec' || chartMode === 'soilph')
     ? soilTimeLabels : timeLabels;
+
+  // 中ホロを閉めていた時間（参謀の日誌 0048）: 薄い青の帯。記録するだけで判定には使わない
+  if (insulationDays.length && labelsForX && labelsForX.length > 1) {
+    const n = Math.min(labelsForX.length, data.length);
+    const t0 = labelsForX[0], t1 = labelsForX[n - 1];
+    const spans = t0 && t1 ? curtainClosedSpans(t0.getTime(), t1.getTime(), Date.now()) : [];
+    if (spans.length) {
+      ctx.fillStyle = 'rgba(37, 99, 235, 0.09)';
+      let runStart = -1;
+      for (let i = 0; i <= n; i++) {
+        const t = i < n ? labelsForX[i] : null;
+        const ms = t ? t.getTime() : NaN;
+        const closed = t ? spans.some(sp => ms >= sp[0] && ms < sp[1]) : false;
+        if (closed && runStart < 0) runStart = i;
+        if (!closed && runStart >= 0) {
+          const x0 = pad.left + runStart * xStep, x1 = pad.left + (i - 1) * xStep;
+          ctx.fillRect(x0, pad.top, Math.max(x1 - x0, 1), ch);
+          runStart = -1;
+        }
+      }
+    }
+  }
+
   if (labelsForX && labelsForX.length > 0) {
     let lastLabel = null;
     let lastLabelX = -999;
@@ -2402,6 +2442,168 @@ function boilerStatusOn(day) {
   return { setC: set ? set.setC : null, morningC: lastSet ? lastSet.morningC : null, since: start.date, days: Math.round((Date.parse(day) - Date.parse(start.date)) / 86400000) + 1 };
 }
 
+// ===== 保温: 中サイドのビニール・中ホロの開け閉め (参謀の日誌の公開 RPC: 0048 get_insulation_recent)。未適用・失敗なら空 =====
+// 考え方は参謀の src/lib/insulation.ts と同じ（変えるときは両方）:
+// 日誌の 1 日 = その日の朝に開けた時刻 (open) と夕方に閉めた時刻 (close)。閉めていた時間 = その日の close 〜 翌日の open。
+// 記録して並べるだけ。判定・警告・スコアには使わない。
+let insulationDays = [];   // [{ date, sideEvent: 'on'|'off'|null, open: 'HH:MM'|null, close: 'HH:MM'|null }] 日付順
+const CURTAIN_CARRY_DAYS = 7;   // 中ホロの時刻を「今の時刻」として持ち越す日数
+function parseHm(v) {
+  const m = typeof v === 'string' ? /^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(v.trim()) : null;
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return null;
+  return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
+async function fetchInsulation() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_insulation_recent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ p_days: 60 }),
+    });
+    if (!res.ok) { insulationDays = []; }
+    else {
+      insulationDays = (await res.json()).map(r => ({
+        date: String(r.date).slice(0, 10),
+        sideEvent: r.side_event === 'on' || r.side_event === 'off' ? r.side_event : null,
+        open: parseHm(r.curtain_open),
+        close: parseHm(r.curtain_close),
+      })).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.date) && (d.sideEvent || d.open || d.close))
+        .sort((a, b) => a.date.localeCompare(b.date));
+    }
+  } catch (e) {
+    insulationDays = [];
+  }
+  updateChart();
+  renderInsulationCompare();
+}
+const dayAdd = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10);
+const hmShort = (t) => `${Number(t.slice(0, 2))}:${t.slice(3, 5)}`;
+const jstMs = (day, hm) => Date.parse(`${day}T${hm}:00+09:00`);
+
+// fromMs〜toMs にかかる「中ホロを閉めていた時間」[[開始ms, 終了ms], ...]
+// 終わりは翌日の日誌の open。翌日の日誌がまだ無ければ、翌日の正午までの間だけ「今」まで（開けた時刻は作らない）
+function curtainClosedSpans(fromMs, toMs, nowMs, days = insulationDays) {
+  const out = [];
+  days.forEach(d => {
+    if (!d.close) return;
+    const start = jstMs(d.date, d.close);
+    const next = days.find(x => x.date === dayAdd(d.date, 1));
+    let end;
+    if (next && next.open) end = jstMs(next.date, next.open);
+    else if (nowMs < jstMs(dayAdd(d.date, 1), '12:00')) end = nowMs;
+    else return;
+    if (end > start && end > fromMs && start < toMs) out.push([start, end]);
+  });
+  return out;
+}
+
+// その日時点の保温の1行: 「中サイド 11/10〜・中ホロ 17:30〜翌9:00」。記録が無ければ null
+function insulationLabelOn(day, days = insulationDays) {
+  const list = days.filter(d => d.date <= day);
+  const lastSide = [...list].reverse().find(d => d.sideEvent);
+  const lastCur = [...list].reverse().find(d => d.open || d.close);
+  const gap = (a, b) => (Date.parse(a) - Date.parse(b)) / 86400000;
+  const cur = lastCur && gap(day, lastCur.date) <= CURTAIN_CARRY_DAYS ? lastCur : null;
+  const md = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
+  const parts = [];
+  if (lastSide && lastSide.sideEvent === 'on') parts.push(`中サイド ${md(lastSide.date)}〜`);
+  if (cur) {
+    const openRow = cur.open ? cur : [...list].reverse().find(d => d.open && gap(cur.date, d.date) <= CURTAIN_CARRY_DAYS);
+    const open = openRow ? openRow.open : null;
+    if (cur.close && open) parts.push(`中ホロ ${hmShort(cur.close)}〜翌${hmShort(open)}`);
+    else if (cur.close) parts.push(`中ホロ ${hmShort(cur.close)} に閉める`);
+    else if (open) parts.push(`中ホロ ${hmShort(open)} に開ける`);
+  }
+  return parts.length ? parts.join('・') : null;
+}
+
+// 保温を始めた日: 最後の「中サイドを外した」より後で、最初に何か書いた日。無ければ null
+function insulationStartDay(days = insulationDays) {
+  let from = 0;
+  for (let i = days.length - 1; i >= 0; i--) if (days[i].sideEvent === 'off') { from = i + 1; break; }
+  const run = days.slice(from).filter(d => d.sideEvent === 'on' || d.close);
+  return run.length ? run[0].date : null;
+}
+
+// 前と後の夜を並べる。夜 D = D の夕方〜D+1 の朝。
+//   湿度90%以上が続いた時間 = daily[D].humid_run_max_hours（D の12時〜翌12時）
+//   翌日の最低気温 = daily[D+1].temp_min_c、外 = weather[D+1].temp_min_c、昼の湿度の底 = daily[D+1].humidity_midday_min_pct
+// today/hourJst: 翌日がまだ終わっていない夜は、朝9時（最低気温）・15時（昼の湿度）を過ぎてから数える
+function insulationCompare(startDay, daily, weather, today, hourJst, beforeNights = 7) {
+  const dMap = new Map(daily.map(r => [String(r.date).slice(0, 10), r]));
+  const wMap = new Map(weather.map(r => [String(r.date).slice(0, 10), r]));
+  const num = (v) => (v === null || v === undefined || !Number.isFinite(Number(v)) ? null : Number(v));
+  const night = (D) => {
+    const N = dayAdd(D, 1);
+    if (N > today) return null;
+    const d0 = dMap.get(D), d1 = dMap.get(N), w1 = wMap.get(N);
+    const morningDone = N < today || hourJst >= 9;
+    const middayDone = N < today || hourJst >= 15;
+    const inMin = d1 && morningDone ? num(d1.temp_min_c) : null;
+    const outMin = w1 && morningDone ? num(w1.temp_min_c) : null;
+    return {
+      date: D,
+      humidRun: d0 && Number(d0.sample_count) >= 36 && morningDone ? num(d0.humid_run_max_hours) : null,
+      inMin, outMin,
+      diff: inMin !== null && outMin !== null ? inMin - outMin : null,
+      middayMin: d1 && middayDone ? num(d1.humidity_midday_min_pct) : null,
+    };
+  };
+  const collect = (list) => list.map(night).filter(Boolean);
+  const before = collect(Array.from({ length: beforeNights }, (_, i) => dayAdd(startDay, -(i + 1))));
+  const afterDays = [];
+  for (let D = startDay; D < today; D = dayAdd(D, 1)) afterDays.push(D);
+  const after = collect(afterDays);
+  const avg = (rows, k) => {
+    const v = rows.map(r => r[k]).filter(x => x !== null);
+    return v.length ? { mean: v.reduce((a, b) => a + b, 0) / v.length, n: v.length } : null;
+  };
+  const keys = ['humidRun', 'inMin', 'outMin', 'diff', 'middayMin'];
+  const side = (rows) => Object.fromEntries(keys.map(k => [k, avg(rows, k)]));
+  return { before: side(before), after: side(after), beforeN: before.length, afterN: after.length };
+}
+
+async function renderInsulationCompare() {
+  const card = document.getElementById('insulationCard');
+  if (!card) return;
+  const start = insulationStartDay();
+  if (!start) { card.style.display = 'none'; return; }
+  try {
+    const jst = new Date(Date.now() + 9 * 3600000);
+    const today = jst.toISOString().slice(0, 10);
+    const span = Math.min(110, Math.round((Date.parse(today) - Date.parse(start)) / 86400000) + 9);
+    const [daily, weather] = await Promise.all([
+      rpcPost('get_environment_daily', { p_days: span }),
+      rpcPost('get_weather_recent', { p_days: span }),
+    ]);
+    const c = insulationCompare(start, daily, weather, today, jst.getUTCHours());
+    if (c.afterN === 0) { card.style.display = 'none'; return; }
+    const md = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
+    document.getElementById('insulationSub').textContent =
+      `${insulationLabelOn(today) || '保温'}。${md(start)} の夜からを「後」、その前の 7 夜を「前」として平均を並べています`;
+    const table = document.getElementById('insulationTable');
+    table.textContent = '';
+    const cell = (cls, text) => { const el = document.createElement('span'); el.className = cls; el.textContent = text; table.appendChild(el); };
+    cell('insul-h', ''); cell('insul-h', `前（${c.beforeN}夜）`); cell('insul-h', `後（${c.afterN}夜）`);
+    const fmt = (a, unit, sign) => (a ? `${sign && a.mean > 0 ? '+' : ''}${a.mean.toFixed(1)}${unit}` : '--');
+    [
+      ['夜に湿度90%以上が続いた時間', 'humidRun', '時間', false],
+      ['翌日の最低気温（ハウス内）', 'inMin', '℃', false],
+      ['翌日の最低気温（外・Open-Meteo）', 'outMin', '℃', false],
+      ['ハウス内 − 外', 'diff', '℃', true],
+      ['翌日 9〜15時の湿度の底', 'middayMin', '%', false],
+    ].forEach(([label, k, unit, sign]) => {
+      cell('insul-k', label); cell('insul-v', fmt(c.before[k], unit, sign)); cell('insul-v', fmt(c.after[k], unit, sign));
+    });
+    document.getElementById('insulationNote').textContent = c.afterN < 7
+      ? `後はまだ ${c.afterN} 夜ぶんです。天気やボイラーの設定もちがうので、数がたまるまでは参考にとどめてください。`
+      : '天気やボイラーの設定もちがうので、外の気温が近い夜どうしで見てください。';
+    card.style.display = '';
+  } catch (e) {
+    card.style.display = 'none';
+  }
+}
+
 // 作業の一覧・印は直近48時間 (グラフと同じ長さ)
 const EVENT_HOURS = 48;
 const localDate = (t) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
@@ -2782,6 +2984,14 @@ function updateChart() {
       document.getElementById('legendBoilerText').textContent =
         `ボイラー ${st.morningC !== null ? `夜 ${st.setC !== null ? st.setC + '℃' : '未記入'}・早朝6〜9時 ${st.morningC}℃` : st.setC !== null ? st.setC + '℃' : '設定未記入'}（${md(st.since)}〜・${st.days}日目）`;
     }
+  }
+
+  // 保温（気温・湿度タブで記録があるとき）: 「中サイド 11/10〜・中ホロ 17:30〜翌9:00」
+  const lc = document.getElementById('legendCurtain');
+  if (lc) {
+    const label = chartMode === 'temp' || chartMode === 'hum' ? insulationLabelOn(localDate(new Date())) : null;
+    lc.style.display = label ? 'inline-flex' : 'none';
+    if (label) document.getElementById('legendCurtainText').textContent = label;
   }
 
   drawChart(data, color, unit);
@@ -5227,6 +5437,7 @@ function refreshAll() {
   fetchWeather();
   fetchChartEvents();
   fetchBoiler();
+  fetchInsulation();
   fetchHumidRuns();
   fetchPhMorning();
 }
