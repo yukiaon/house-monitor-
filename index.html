@@ -1257,7 +1257,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <span style="width:14px;height:0;border-top:2px dashed #c2410c;display:inline-block;"></span>
         <span id="legendBoilerText" style="color:#c2410c;"></span>
       </span>
-      <!-- 保温: 中ホロを閉めていた時間の帯と中サイド（参謀の日誌 0048）。記録があるときだけ -->
+      <!-- 保温: 中ホロ（東側・西側）を閉めていた時間の帯と中サイド（参謀の日誌 0048・0050）。記録があるときだけ -->
       <span id="legendCurtain" style="display:none;align-items:center;gap:5px;">
         <span style="width:14px;height:12px;border-radius:2px;background:rgba(37,99,235,0.22);display:inline-block;"></span>
         <span id="legendCurtainText" style="color:#1e3a8a;"></span>
@@ -1967,13 +1967,15 @@ function drawChart(data, color, unit, retry = 0) {
   const labelsForX = (chartMode === 'soiltemp' || chartMode === 'soil' || chartMode === 'soilec' || chartMode === 'soilph')
     ? soilTimeLabels : timeLabels;
 
-  // 中ホロを閉めていた時間（参謀の日誌 0048）: 薄い青の帯。記録するだけで判定には使わない
+  // 中ホロを閉めていた時間（参謀の日誌 0048・東西は 0050）: 薄い青の帯。上半分 = 東側、下半分 = 西側（両方閉めていれば上から下まで）
+  // 記録するだけで判定には使わない
   if (insulationDays.length && labelsForX && labelsForX.length > 1) {
     const n = Math.min(labelsForX.length, data.length);
     const t0 = labelsForX[0], t1 = labelsForX[n - 1];
-    const spans = t0 && t1 ? curtainClosedSpans(t0.getTime(), t1.getTime(), Date.now()) : [];
-    if (spans.length) {
-      ctx.fillStyle = 'rgba(37, 99, 235, 0.09)';
+    ctx.fillStyle = 'rgba(37, 99, 235, 0.09)';
+    ['east', 'west'].forEach((side, si) => {
+      const spans = t0 && t1 ? curtainClosedSpans(side, t0.getTime(), t1.getTime(), Date.now()) : [];
+      if (!spans.length) return;
       let runStart = -1;
       for (let i = 0; i <= n; i++) {
         const t = i < n ? labelsForX[i] : null;
@@ -1982,11 +1984,11 @@ function drawChart(data, color, unit, retry = 0) {
         if (closed && runStart < 0) runStart = i;
         if (!closed && runStart >= 0) {
           const x0 = pad.left + runStart * xStep, x1 = pad.left + (i - 1) * xStep;
-          ctx.fillRect(x0, pad.top, Math.max(x1 - x0, 1), ch);
+          ctx.fillRect(x0, pad.top + si * (ch / 2), Math.max(x1 - x0, 1), ch / 2);
           runStart = -1;
         }
       }
-    }
+    });
   }
 
   if (labelsForX && labelsForX.length > 0) {
@@ -2442,16 +2444,27 @@ function boilerStatusOn(day) {
   return { setC: set ? set.setC : null, morningC: lastSet ? lastSet.morningC : null, since: start.date, days: Math.round((Date.parse(day) - Date.parse(start.date)) / 86400000) + 1 };
 }
 
-// ===== 保温: 中サイドのビニール・中ホロの開け閉め (参謀の日誌の公開 RPC: 0048 get_insulation_recent)。未適用・失敗なら空 =====
+// ===== 保温: 中サイドのビニール・中ホロ（東側・西側）の開け閉め (参謀の日誌の公開 RPC: 0048 get_insulation_recent・東西は 0050)。未適用・失敗なら空 =====
 // 考え方は参謀の src/lib/insulation.ts と同じ（変えるときは両方）:
-// 日誌の 1 日 = その日の朝に開けた時刻 (open) と夕方に閉めた時刻 (close)。閉めていた時間 = その日の close 〜 翌日の open。
+// 日誌の 1 日 = 側ごとに、その日の朝に開けた時刻 (open) と夕方に閉めた時刻 (close)。閉めていた時間 = その日の close 〜 翌日の open。
 // 記録して並べるだけ。判定・警告・スコアには使わない。
-let insulationDays = [];   // [{ date, sideEvent: 'on'|'off'|null, open: 'HH:MM'|null, close: 'HH:MM'|null }] 日付順
+let insulationDays = [];   // [{ date, sideEvent: 'on'|'off'|null, east: { open, close }, west: { open, close } }] 日付順。時刻は 'HH:MM'|null
 const CURTAIN_CARRY_DAYS = 7;   // 中ホロの時刻を「今の時刻」として持ち越す日数
 function parseHm(v) {
   const m = typeof v === 'string' ? /^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(v.trim()) : null;
   if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return null;
   return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
+const curtainHas = (t) => !!(t.open || t.close);
+// RPC の 1 行 → 1 日。0050 より前の形（curtain_open / curtain_close の 1 組）は両側とも同じ時刻として読む
+function toInsulationDay(r) {
+  const old = { open: parseHm(r.curtain_open), close: parseHm(r.curtain_close) };
+  const side = (k) => (k + '_open' in r || k + '_close' in r ? { open: parseHm(r[k + '_open']), close: parseHm(r[k + '_close']) } : { ...old });
+  return {
+    date: String(r.date).slice(0, 10),
+    sideEvent: r.side_event === 'on' || r.side_event === 'off' ? r.side_event : null,
+    east: side('east'), west: side('west'),
+  };
 }
 async function fetchInsulation() {
   try {
@@ -2462,12 +2475,8 @@ async function fetchInsulation() {
     });
     if (!res.ok) { insulationDays = []; }
     else {
-      insulationDays = (await res.json()).map(r => ({
-        date: String(r.date).slice(0, 10),
-        sideEvent: r.side_event === 'on' || r.side_event === 'off' ? r.side_event : null,
-        open: parseHm(r.curtain_open),
-        close: parseHm(r.curtain_close),
-      })).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.date) && (d.sideEvent || d.open || d.close))
+      insulationDays = (await res.json()).map(toInsulationDay)
+        .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.date) && (d.sideEvent || curtainHas(d.east) || curtainHas(d.west)))
         .sort((a, b) => a.date.localeCompare(b.date));
     }
   } catch (e) {
@@ -2480,16 +2489,17 @@ const dayAdd = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * 8640000
 const hmShort = (t) => `${Number(t.slice(0, 2))}:${t.slice(3, 5)}`;
 const jstMs = (day, hm) => Date.parse(`${day}T${hm}:00+09:00`);
 
-// fromMs〜toMs にかかる「中ホロを閉めていた時間」[[開始ms, 終了ms], ...]
-// 終わりは翌日の日誌の open。翌日の日誌がまだ無ければ、翌日の正午までの間だけ「今」まで（開けた時刻は作らない）
-function curtainClosedSpans(fromMs, toMs, nowMs, days = insulationDays) {
+// fromMs〜toMs にかかる、中ホロの side（'east'|'west'）を閉めていた時間 [[開始ms, 終了ms], ...]
+// 終わりは翌日の日誌の open。翌日の日誌にその側の open がまだ無ければ、翌日の正午までの間だけ「今」まで（開けた時刻は作らない）
+function curtainClosedSpans(side, fromMs, toMs, nowMs, days = insulationDays) {
   const out = [];
   days.forEach(d => {
-    if (!d.close) return;
-    const start = jstMs(d.date, d.close);
+    const close = d[side].close;
+    if (!close) return;
+    const start = jstMs(d.date, close);
     const next = days.find(x => x.date === dayAdd(d.date, 1));
     let end;
-    if (next && next.open) end = jstMs(next.date, next.open);
+    if (next && next[side].open) end = jstMs(next.date, next[side].open);
     else if (nowMs < jstMs(dayAdd(d.date, 1), '12:00')) end = nowMs;
     else return;
     if (end > start && end > fromMs && start < toMs) out.push([start, end]);
@@ -2497,22 +2507,30 @@ function curtainClosedSpans(fromMs, toMs, nowMs, days = insulationDays) {
   return out;
 }
 
-// その日時点の保温の1行: 「中サイド 11/10〜・中ホロ 17:30〜翌9:00」。記録が無ければ null
+// その日時点の保温の1行: 「中サイド 11/10〜・中ホロ 東西 17:30〜翌9:00」/「…・中ホロ 東 17:30〜翌9:00・西 17:00〜翌9:30」。記録が無ければ null
 function insulationLabelOn(day, days = insulationDays) {
   const list = days.filter(d => d.date <= day);
   const lastSide = [...list].reverse().find(d => d.sideEvent);
-  const lastCur = [...list].reverse().find(d => d.open || d.close);
+  const lastCur = [...list].reverse().find(d => curtainHas(d.east) || curtainHas(d.west));
   const gap = (a, b) => (Date.parse(a) - Date.parse(b)) / 86400000;
   const cur = lastCur && gap(day, lastCur.date) <= CURTAIN_CARRY_DAYS ? lastCur : null;
   const md = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
   const parts = [];
   if (lastSide && lastSide.sideEvent === 'on') parts.push(`中サイド ${md(lastSide.date)}〜`);
   if (cur) {
-    const openRow = cur.open ? cur : [...list].reverse().find(d => d.open && gap(cur.date, d.date) <= CURTAIN_CARRY_DAYS);
-    const open = openRow ? openRow.open : null;
-    if (cur.close && open) parts.push(`中ホロ ${hmShort(cur.close)}〜翌${hmShort(open)}`);
-    else if (cur.close) parts.push(`中ホロ ${hmShort(cur.close)} に閉める`);
-    else if (open) parts.push(`中ホロ ${hmShort(open)} に開ける`);
+    // 側ごと。開ける時刻は、その日に書いていなければそれより前に書いた値（その日に閉めた側だけ）
+    const span = (k) => {
+      const t = cur[k];
+      let open = t.open;
+      if (!open && t.close) {
+        const row = [...list].reverse().find(d => d[k].open && gap(cur.date, d.date) <= CURTAIN_CARRY_DAYS);
+        open = row ? row[k].open : null;
+      }
+      return t.close && open ? `${hmShort(t.close)}〜翌${hmShort(open)}` : t.close ? `${hmShort(t.close)} に閉める` : open ? `${hmShort(open)} に開ける` : null;
+    };
+    const e = span('east'), w = span('west');
+    if (e && e === w) parts.push(`中ホロ 東西 ${e}`);
+    else if (e || w) parts.push(`中ホロ ${[e ? `東 ${e}` : null, w ? `西 ${w}` : null].filter(Boolean).join('・')}（帯の上＝東・下＝西）`);
   }
   return parts.length ? parts.join('・') : null;
 }
@@ -2521,7 +2539,7 @@ function insulationLabelOn(day, days = insulationDays) {
 function insulationStartDay(days = insulationDays) {
   let from = 0;
   for (let i = days.length - 1; i >= 0; i--) if (days[i].sideEvent === 'off') { from = i + 1; break; }
-  const run = days.slice(from).filter(d => d.sideEvent === 'on' || d.close);
+  const run = days.slice(from).filter(d => d.sideEvent === 'on' || d.east.close || d.west.close);
   return run.length ? run[0].date : null;
 }
 
