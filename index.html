@@ -2386,7 +2386,7 @@ async function fetchIrrigationEvents() {
       const hhmm = r.at_time || (r.period === 'pm' ? '15:00' : '09:00');
       const key = `${r.date}|${hhmm}|${leaf ? 'leaf' : 'water'}|${r.at_time ? 't' : 'a'}`;
       if (!groups.has(key)) groups.set(key, { date: r.date, period: r.period, hhmm, exact: !!r.at_time, leaf, pipe: [], hand: [], leafs: [] });
-      groups.get(key)[leaf ? 'leafs' : r.kind === 'hand_irrigate' ? 'hand' : 'pipe'].push(r.detail || '');
+      groups.get(key)[leaf ? 'leafs' : r.kind === 'hand_irrigate' ? 'hand' : 'pipe'].push(leaf || r.kind === 'hand_irrigate' ? (r.detail || '') : waterWithPipes(r.detail || '', r.pipes));
     });
     const label = (name, details) => details.length === 0 ? '' : `${name} ${details.filter(Boolean).join('+')}`.trim();
     return [...groups.values()].map(g => {
@@ -4697,7 +4697,16 @@ const WATER_MATCH_MIN = 45;   // 日誌の時刻と土の上がり始めのず�
 function waterClockMin(s) { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
 function waterDetailSec(s) { const m = /^\s*(?:(\d+)\s*分)?\s*(?:(\d+)\s*秒)?\s*$/.exec(String(s || '')); return m && (m[1] || m[2]) ? Number(m[1] || 0) * 60 + Number(m[2] || 0) : 0; }
 function waterSecText(sec) { return (sec >= 60 ? Math.floor(sec / 60) + '分' : '') + (sec % 60 ? (sec % 60) + '秒' : ''); }
-function waterDiaryLabel(x) { return x.kind === 'hand_irrigate' ? '手灌水' : (waterDetailSec(x.detail) ? String(x.detail).trim() : 'パイプ灌水'); }
+// パイプ灌水を何本ずつかけたか (参謀の日誌の pipes。SQL 0049)。30 本を ふだんは 3 本ずつ。考え方は参謀の src/lib/irrigation-pipes.ts と同じ（変えるときは両方）。
+// 同じ「5分」でも本数が違うと 1 株あたりの水量が違うので、ふだんと違う日だけ「5分（6本ずつ）」と添える。0049 未適用・未記入は何も添えない。
+const WATER_PIPES_DEFAULT = 3;
+function waterPipesNote(v) {
+  if (v == null || v === '' || typeof v === 'boolean') return '';
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 1 && n <= 30 && n !== WATER_PIPES_DEFAULT ? n + '本ずつ' : '';
+}
+function waterWithPipes(detail, v) { const note = waterPipesNote(v); return !note ? detail : detail ? detail + '（' + note + '）' : note; }
+function waterDiaryLabel(x) { return x.kind === 'hand_irrigate' ? '手灌水' : waterWithPipes(waterDetailSec(x.detail) ? String(x.detail).trim() : 'パイプ灌水', x.pipes); }
 function waterWeatherText(j) {
   const w = waterWeather(j);
   return w ? w + (j.cloudy_rainy ? ((j.rain_hours ?? 0) >= 3 ? ' 雨' : ' 曇り') : ' 晴れ') : '';
