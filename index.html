@@ -2906,18 +2906,112 @@ function updateAllRefMarkers() {
   // pH はセンサーの値を目安の帯に当てない（土壌分析の値と比べるための目安として残す）
 }
 
-// 適正値ガイドの折りたたみ切替
-function toggleRefGuide() {
+// ===== Android の戻るスワイプ（ブラウザの履歴） =====
+// 説明を開くたびに履歴を1つ積み、戻るで新しく開いたものから1つずつ閉じる。URL は変えない（履歴に入れるのはパネル名と深さだけ）。
+// 何も開いていなければ何もしない（ブラウザがアプリを閉じる）。
+// グラフの系列タブ（気温・湿度…）は同じカードの中の切り替えなので積まない。
+const NAV_ID = 'hm-' + Date.now().toString(36); // このページ読み込みの印（前の読み込みの履歴と見分ける）
+let navDepth = 0;
+const navEntries = [null];  // navEntries[d] = d 番目の履歴で開いたパネル名（閉じ済みは null）
+const NAV_PANELS = {};      // パネル名 → { isOpen(), close(), anchor() }
+history.replaceState({ hm: NAV_ID, depth: 0 }, '');
+
+// ユーザーがパネルを開いたとき: 履歴を1つ積む
+function navOpened(name) {
+  if (navEntries.indexOf(name) > 0) return;
+  navDepth++;
+  navEntries.length = navDepth;
+  navEntries[navDepth] = name;
+  history.pushState({ hm: NAV_ID, depth: navDepth }, '');
+}
+// 画面のボタンで閉じるとき。いちばん上の履歴なら history.back() で閉じて（popstate が閉じる）、
+// 下のほうなら直接閉じて、その履歴は戻るときに飛ばす（何も起きない空振りのスワイプを作らない）
+function navRequestClose(name, closeNow) {
+  const d = navEntries.indexOf(name);
+  if (d <= 0) { closeNow(); return; }
+  if (d === navDepth) { history.back(); return; }
+  navEntries[d] = null;
+  closeNow();
+}
+function navEntryLive(d) {
+  const name = navEntries[d];
+  return !!(name && NAV_PANELS[name] && NAV_PANELS[name].isOpen());
+}
+// 戻るで閉じたパネルの見出しが画面より上にあれば、見出しまで戻す（閉じて中身が縮んでも迷子にならないように）
+function navShowAnchor(el) {
+  if (!el) return;
+  const header = document.querySelector('.header');
+  const headH = header ? header.getBoundingClientRect().height : 0;
+  const top = el.getBoundingClientRect().top;
+  if (top < headH) window.scrollTo(0, Math.max(0, window.scrollY + top - headH - 8));
+}
+window.addEventListener('popstate', (e) => {
+  const st = e.state;
+  const known = !!(st && st.hm === NAV_ID && Number.isInteger(st.depth) && st.depth >= 0);
+  const target = known ? st.depth : 0; // 前の読み込みの履歴などは「何も開いていない」として扱う
+  let lastClosed = null;
+  for (let d = navEntries.length - 1; d > target; d--) {
+    const name = navEntries[d];
+    navEntries[d] = null;
+    const p = name && NAV_PANELS[name];
+    if (p && p.isOpen()) { p.close(); lastClosed = p; }
+  }
+  if (!known) { navEntries.length = 1; navDepth = 0; }
+  else navDepth = target;
+  if (lastClosed) navShowAnchor(lastClosed.anchor());
+  // 行き先の履歴のパネルがもう閉じていたら、その履歴は飛ばしてもう1つ戻る
+  if (known && target > 0 && !navEntryLive(target)) history.back();
+  // 再読み込み前の古い履歴で、閉じるものが無かったときも飛ばす（空振りのスワイプにしない）
+  else if (!known && !lastClosed) history.back();
+});
+
+// 適正値ガイドの折りたたみ（最初は開いている。閉じてから「開く」を押したときだけ履歴を積む）
+function isRefGuideOpen() {
+  const content = document.getElementById('refContent');
+  return !!content && !content.classList.contains('collapsed');
+}
+function setRefGuideOpen(open) {
   const content = document.getElementById('refContent');
   const btn     = document.getElementById('refToggleBtn');
   if (!content || !btn) return;
-  if (content.classList.contains('collapsed')) {
-    content.classList.remove('collapsed');
-    btn.textContent = '▲ 閉じる';
+  content.classList.toggle('collapsed', !open);
+  btn.textContent = open ? '▲ 閉じる' : '▼ 開く';
+}
+NAV_PANELS.refGuide = {
+  isOpen: isRefGuideOpen,
+  close: () => setRefGuideOpen(false),
+  anchor: () => document.getElementById('refCard'),
+};
+function toggleRefGuide() {
+  if (!document.getElementById('refContent')) return;
+  if (isRefGuideOpen()) {
+    navRequestClose('refGuide', () => setRefGuideOpen(false));
   } else {
-    content.classList.add('collapsed');
-    btn.textContent = '▼ 開く';
+    setRefGuideOpen(true);
+    navOpened('refGuide');
   }
+}
+
+// 光と環境の評価「くわしく（数字と評価のしかた）」（<details>）
+NAV_PANELS.lightDetails = {
+  isOpen: () => { const d = document.querySelector('.light-details'); return !!d && d.open; },
+  close: () => { const d = document.querySelector('.light-details'); if (d) d.open = false; },
+  anchor: () => document.querySelector('.light-details'),
+};
+function initLightDetailsNav() {
+  const det = document.querySelector('.light-details');
+  if (!det) return;
+  // toggle は開閉のあとで（プログラムで閉じたときも）届く。履歴の記録と食い違うときだけ動く
+  det.addEventListener('toggle', () => {
+    const tracked = navEntries.indexOf('lightDetails') > 0;
+    if (det.open && !tracked) navOpened('lightDetails');
+    else if (!det.open && tracked) navRequestClose('lightDetails', () => {}); // 見出しを押して閉じた
+  });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initLightDetailsNav);
+} else {
+  initLightDetailsNav();
 }
 
 // ===== タブのスクロール末端検知（右端フェードのON/OFF） =====
