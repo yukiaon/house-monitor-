@@ -1258,9 +1258,10 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <span id="legendBoilerText" style="color:#c2410c;"></span>
       </span>
       <!-- 保温: 中ホロ（東側・西側）を閉めていた時間の帯と中サイド（参謀の日誌 0048・0050）。記録があるときだけ -->
-      <span id="legendCurtain" style="display:none;align-items:center;gap:5px;">
-        <span style="width:14px;height:12px;border-radius:2px;background:rgba(37,99,235,0.22);display:inline-block;"></span>
-        <span id="legendCurtainText" style="color:#1e3a8a;"></span>
+      <span id="legendCurtain" style="display:none;align-items:center;gap:5px;flex-wrap:wrap;">
+        <span id="legendCurtainText" style="color:#334155;"></span>
+        <!-- 帯の色見本（その日のグラフに出ている色だけ） -->
+        <span id="legendCurtainSwatches" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;"></span>
       </span>
     </div>
     <div class="chart-wrap">
@@ -1967,28 +1968,35 @@ function drawChart(data, color, unit, retry = 0) {
   const labelsForX = (chartMode === 'soiltemp' || chartMode === 'soil' || chartMode === 'soilec' || chartMode === 'soilph')
     ? soilTimeLabels : timeLabels;
 
-  // 中ホロを閉めていた時間（参謀の日誌 0048・東西は 0050）: 薄い青の帯。上半分 = 東側、下半分 = 西側（両方閉めていれば上から下まで）
+  // 中ホロを閉めていた時間（参謀の日誌 0048・東西は 0050）: 上から下まで薄い色の帯で、色で区別する
+  //   灰 = 東西とも閉めている / 紫 = 東だけ / ピンク = 西だけ（CURTAIN_BAND）。線（青・橙・緑）や適温の帯（橙・青）と混ざらない色
   // 記録するだけで判定には使わない
   if (insulationDays.length && labelsForX && labelsForX.length > 1) {
     const n = Math.min(labelsForX.length, data.length);
     const t0 = labelsForX[0], t1 = labelsForX[n - 1];
-    ctx.fillStyle = 'rgba(37, 99, 235, 0.09)';
-    ['east', 'west'].forEach((side, si) => {
-      const spans = t0 && t1 ? curtainClosedSpans(side, t0.getTime(), t1.getTime(), Date.now()) : [];
-      if (!spans.length) return;
-      let runStart = -1;
-      for (let i = 0; i <= n; i++) {
+    const spansOf = (side) => t0 && t1 ? curtainClosedSpans(side, t0.getTime(), t1.getTime(), Date.now()) : [];
+    const eSp = spansOf('east'), wSp = spansOf('west');
+    if (eSp.length || wSp.length) {
+      const inSp = (sps, ms) => sps.some(sp => ms >= sp[0] && ms < sp[1]);
+      const stateAt = (i) => {
         const t = i < n ? labelsForX[i] : null;
-        const ms = t ? t.getTime() : NaN;
-        const closed = t ? spans.some(sp => ms >= sp[0] && ms < sp[1]) : false;
-        if (closed && runStart < 0) runStart = i;
-        if (!closed && runStart >= 0) {
-          const x0 = pad.left + runStart * xStep, x1 = pad.left + (i - 1) * xStep;
-          ctx.fillRect(x0, pad.top + si * (ch / 2), Math.max(x1 - x0, 1), ch / 2);
-          runStart = -1;
+        if (!t) return null;
+        const ms = t.getTime(), e = inSp(eSp, ms), w = inSp(wSp, ms);
+        return e && w ? 'both' : e ? 'east' : w ? 'west' : null;
+      };
+      let runStart = -1, runState = null;
+      for (let i = 0; i <= n; i++) {
+        const st = stateAt(i);
+        if (st === runState) continue;
+        if (runState) {
+          // 次の状態の帯とすき間なくつなぐ（最後だけ右端の点まで）
+          const x0 = pad.left + runStart * xStep, x1 = pad.left + Math.min(i, n - 1) * xStep;
+          ctx.fillStyle = CURTAIN_BAND[runState].fill;
+          ctx.fillRect(x0, pad.top, Math.max(x1 - x0, 1), ch);
         }
+        runStart = i; runState = st;
       }
-    });
+    }
   }
 
   if (labelsForX && labelsForX.length > 0) {
@@ -2449,6 +2457,12 @@ function boilerStatusOn(day) {
 // 日誌の 1 日 = 側ごとに、その日の朝に開けた時刻 (open) と夕方に閉めた時刻 (close)。閉めていた時間 = その日の close 〜 翌日の open。
 // 記録して並べるだけ。判定・警告・スコアには使わない。
 let insulationDays = [];   // [{ date, sideEvent: 'on'|'off'|null, east: { open, close }, west: { open, close } }] 日付順。時刻は 'HH:MM'|null
+// 中ホロの帯の色（グラフの帯と凡例で同じ値を使う）
+const CURTAIN_BAND = {
+  both: { fill: 'rgba(100, 116, 139, 0.16)', swatch: 'rgba(100, 116, 139, 0.38)', label: '東西とも' },
+  east: { fill: 'rgba(139, 92, 246, 0.20)',  swatch: 'rgba(139, 92, 246, 0.42)',  label: '東だけ' },
+  west: { fill: 'rgba(236, 72, 153, 0.16)',  swatch: 'rgba(236, 72, 153, 0.38)',  label: '西だけ' },
+};
 const CURTAIN_CARRY_DAYS = 7;   // 中ホロの時刻を「今の時刻」として持ち越す日数
 function parseHm(v) {
   const m = typeof v === 'string' ? /^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(v.trim()) : null;
@@ -2530,7 +2544,7 @@ function insulationLabelOn(day, days = insulationDays) {
     };
     const e = span('east'), w = span('west');
     if (e && e === w) parts.push(`中ホロ 東西 ${e}`);
-    else if (e || w) parts.push(`中ホロ ${[e ? `東 ${e}` : null, w ? `西 ${w}` : null].filter(Boolean).join('・')}（帯の上＝東・下＝西）`);
+    else if (e || w) parts.push(`中ホロ ${[e ? `東 ${e}` : null, w ? `西 ${w}` : null].filter(Boolean).join('・')}`);
   }
   return parts.length ? parts.join('・') : null;
 }
@@ -3104,6 +3118,30 @@ function updateChart() {
     const label = chartMode === 'temp' || chartMode === 'hum' ? insulationLabelOn(localDate(new Date())) : null;
     lc.style.display = label ? 'inline-flex' : 'none';
     if (label) document.getElementById('legendCurtainText').textContent = label;
+    // 色見本: 今のグラフの範囲に出ている状態だけ（東西とも/東だけ/西だけ）
+    const sw = document.getElementById('legendCurtainSwatches');
+    sw.replaceChildren();
+    if (label) {
+      const tl = timeLabels.filter(Boolean);
+      const from = tl.length ? tl[0].getTime() : Date.now() - 86400000, to = tl.length ? tl[tl.length - 1].getTime() : Date.now();
+      const eSp = curtainClosedSpans('east', from, to, Date.now()), wSp = curtainClosedSpans('west', from, to, Date.now());
+      const states = new Set();
+      for (let ms = from; ms <= to; ms += 5 * 60000) {
+        const e = eSp.some(sp => ms >= sp[0] && ms < sp[1]), w = wSp.some(sp => ms >= sp[0] && ms < sp[1]);
+        if (e || w) states.add(e && w ? 'both' : e ? 'east' : 'west');
+      }
+      ['both', 'east', 'west'].filter(k => states.has(k)).forEach(k => {
+        const item = document.createElement('span');
+        item.style.cssText = 'display:inline-flex;align-items:center;gap:4px;';
+        const box = document.createElement('span');
+        box.style.cssText = `width:14px;height:12px;border-radius:2px;display:inline-block;background:${CURTAIN_BAND[k].swatch};`;
+        const txt = document.createElement('span');
+        txt.style.color = '#334155';
+        txt.textContent = CURTAIN_BAND[k].label;
+        item.append(box, txt);
+        sw.append(item);
+      });
+    }
   }
 
   drawChart(data, color, unit);
