@@ -1252,7 +1252,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <span id="legendDot2" style="width:14px;height:3px;border-radius:2px;background:#ff6b35;display:inline-block;"></span>
         <span style="color:var(--text-secondary);">南側</span>
       </span>
-      <!-- ボイラーの設定温度（参謀の日誌 0038・早朝 0041）。気温タブで記録があるときだけ -->
+      <!-- ボイラーの設定温度（参謀の日誌 0038・早朝 0041・温水 0054）。気温タブで記録があるときだけ -->
       <span id="legendBoiler" style="display:none;align-items:center;gap:5px;">
         <span style="width:14px;height:0;border-top:2px dashed #c2410c;display:inline-block;"></span>
         <span id="legendBoilerText" style="color:#c2410c;"></span>
@@ -2409,10 +2409,11 @@ async function fetchIrrigationEvents() {
   }
 }
 
-// ボイラーの設定温度（夜間・早朝6〜9時）と炊き出し日 (参謀の日誌の公開 RPC: 0038 get_boiler_recent、早朝は 0041)。未適用・失敗なら空。
+// ボイラーの設定温度（夜間・早朝6〜9時・温水）と炊き出し日 (参謀の日誌の公開 RPC: 0038 get_boiler_recent、早朝は 0041、温水は 0054)。未適用・失敗なら空。
+// 夜間・早朝はハウスの気温の設定、温水はボイラーの湯の温度（2026-11-18 に 45→50℃）。温水は凡例と暖房の文に添えるだけ（グラフの線・判定には使わない）。
 // 考え方は参謀の src/lib/boiler.ts と同じ（変えるときは両方）: 最後の「停止」より後が今の炊き出し。
 // 炊き出しの印が無ければ、停止の後に初めて設定を書いた日。設定はその日までに最後に書いた値。
-let boilerDays = [];   // [{ date: 'YYYY-MM-DD', setC: number|null, morningC: number|null, event: 'start'|'stop'|null }] 日付順
+let boilerDays = [];   // [{ date: 'YYYY-MM-DD', setC: number|null, morningC: number|null, waterC: number|null, event: 'start'|'stop'|null }] 日付順
 async function fetchBoiler() {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_boiler_recent`, {
@@ -2422,11 +2423,13 @@ async function fetchBoiler() {
     });
     if (!res.ok) { boilerDays = []; return; }
     const temp = (v) => { const c = Number(v); return v !== null && v !== undefined && Number.isFinite(c) && c >= 5 && c <= 30 ? Math.round(c * 10) / 10 : null; };
+    const water = (v) => { const c = Number(v); return v !== null && v !== undefined && Number.isFinite(c) && c >= 30 && c <= 90 ? Math.round(c * 10) / 10 : null; };
     boilerDays = (await res.json()).map(r => {
       return {
         date: String(r.date).slice(0, 10),
         setC: temp(r.set_c),
         morningC: temp(r.morning_c),   // 0041 未適用なら列が無く null
+        waterC: water(r.water_c),      // 0054 未適用なら列が無く null
         event: r.event === 'start' || r.event === 'stop' ? r.event : null,
       };
     }).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.date)).sort((a, b) => a.date.localeCompare(b.date));
@@ -2449,7 +2452,10 @@ function boilerStatusOn(day) {
   const start = [...run].reverse().find(d => d.event === 'start') || run[0];
   const set = [...run].reverse().find(d => d.setC !== null);
   const lastSet = [...run].reverse().find(d => d.setC !== null || d.morningC !== null);
-  return { setC: set ? set.setC : null, morningC: lastSet ? lastSet.morningC : null, since: start.date, days: Math.round((Date.parse(day) - Date.parse(start.date)) / 86400000) + 1 };
+  // 温水: 書いた日だけを並べ、最後の値と、その値になった日・その前の値
+  let waterC = null, waterSince = null, waterPrevC = null;
+  for (const d of run) if (d.waterC !== null && d.waterC !== waterC) { waterPrevC = waterC; waterC = d.waterC; waterSince = d.date; }
+  return { setC: set ? set.setC : null, morningC: lastSet ? lastSet.morningC : null, waterC, waterSince, waterPrevC, since: start.date, days: Math.round((Date.parse(day) - Date.parse(start.date)) / 86400000) + 1 };
 }
 
 // ===== 保温: 中サイドのビニール・中ホロ（東側・西側）の開け閉め (参謀の日誌の公開 RPC: 0048 get_insulation_recent・東西は 0050)。未適用・失敗なら空 =====
@@ -3100,7 +3106,7 @@ function updateChart() {
     }
   }
 
-  // ボイラー（気温タブで炊いているときだけ）: 「ボイラー 14.5℃（10/27〜・3日目）」
+  // ボイラー（気温タブで炊いているときだけ）: 「ボイラー 14.5℃（10/27〜・3日目）・温水 50℃（11/18 に 45→50℃）」
   const lb = document.getElementById('legendBoiler');
   if (lb) {
     const st = chartMode === 'temp' ? boilerStatusOn(localDate(new Date())) : null;
@@ -3108,7 +3114,8 @@ function updateChart() {
     if (st) {
       const md = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
       document.getElementById('legendBoilerText').textContent =
-        `ボイラー ${st.morningC !== null ? `夜 ${st.setC !== null ? st.setC + '℃' : '未記入'}・早朝6〜9時 ${st.morningC}℃` : st.setC !== null ? st.setC + '℃' : '設定未記入'}（${md(st.since)}〜・${st.days}日目）`;
+        `ボイラー ${st.morningC !== null ? `夜 ${st.setC !== null ? st.setC + '℃' : '未記入'}・早朝6〜9時 ${st.morningC}℃` : st.setC !== null ? st.setC + '℃' : '設定未記入'}（${md(st.since)}〜・${st.days}日目）`
+        + (st.waterC !== null ? `・温水 ${st.waterC}℃${st.waterPrevC !== null ? `（${md(st.waterSince)} に ${st.waterPrevC}→${st.waterC}℃）` : ''}` : '');
     }
   }
 
@@ -3562,7 +3569,7 @@ function generateAdvice() {
   const heatText = heat ? (heat[0] === heat[1] ? `${heat[0]}℃` : `${heat[0]}〜${heat[1]}℃`) : null;
   // 暖房の文: うちの設定は日誌のボイラー (get_boiler_recent) が正。設定は時期で変わるので県の目安は「参考」として添えるだけ (2026-11-06 オーナー)
   const bst = boilerStatusOn(localDate(new Date()));
-  const bsetText = bst && bst.setC !== null ? `夜間${bst.setC}℃${bst.morningC !== null ? `・早朝${bst.morningC}℃` : ''}` : null;
+  const bsetText = bst && bst.setC !== null ? `夜間${bst.setC}℃${bst.morningC !== null ? `・早朝${bst.morningC}℃` : ''}${bst.waterC !== null ? `・温水${bst.waterC}℃` : ''}` : null;
   const heatAdvice = bsetText
     ? `ボイラーは日誌の設定 ${bsetText} で炊いています。設定より低ければボイラーの能力・ダクト・保温カーテンを確認。${heatText ? `（県の目安 ${heatText}・${month}月・参考）` : ''}`
     : (heatText ? `暖房・保温を確認してください（県の目安 ${heatText}・${month}月・参考。設定は日誌に記録）。` : '暖房・保温を確認してください。');
