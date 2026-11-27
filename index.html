@@ -3828,16 +3828,6 @@ function renderScore() {
     // 説明文：軸ごとの状態を踏まえたプロ視点コメント
     descEl.textContent = buildScoreDescription(result);
 
-    // 目安（満点の帯）から外れた項目があるのに「絶好調」と出ると、下の注意と食い違って読みにくい（2026-11-27 見直し）。
-    // 外れた項目があるときは見出しを「目安の外 N項目」にして名前を出す。帯は PEPPER_TARGETS のまま（新しい数字は足さない）
-    const out = outOfBandItems(result);
-    if (out.length > 0 && result.total >= 60) {
-      labelEl.textContent = '⚠️ 要確認 ' + out.length + '項目';
-      labelEl.style.color = '#ff9500';
-      numEl.style.color = '#ff9500';
-      ringEl.setAttribute('stroke', '#ff9500');
-      descEl.textContent = out.join('・') + 'が今、目安から外れています。下のカードで確かめてください。';
-    }
   }
 
   // ----- 軸スコア表示 -----
