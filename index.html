@@ -902,10 +902,10 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
   <div class="card score-card" id="scoreCard">
     <div class="score-card-header">
       <div class="card-head-row">
-        <span class="section-title">🌟 ハウス効率スコア</span>
+        <span class="section-title">🌟 ハウスの点数</span>
         <span class="card-head-time" id="scoreTime">--</span>
       </div>
-      <div class="section-sub">光合成 × 根圏 の総合評価</div>
+      <div class="section-sub">空気（葉のまわり）と土（根のまわり）の今の値を点数にしたもの</div>
     </div>
 
     <!-- メイン総合スコア -->
@@ -932,8 +932,8 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       <div class="axis-card upper">
         <div class="axis-card-head">
           <div>
-            <span class="axis-card-title">🌿 地上部</span>
-            <span class="axis-card-subtitle">光合成効率</span>
+            <span class="axis-card-title">🌿 空気</span>
+            <span class="axis-card-subtitle">葉のまわり</span>
           </div>
           <span class="axis-card-score" id="upperScore">--</span>
         </div>
@@ -960,8 +960,8 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       <div class="axis-card root">
         <div class="axis-card-head">
           <div>
-            <span class="axis-card-title">🌱 根圏</span>
-            <span class="axis-card-subtitle">草勢の土台</span>
+            <span class="axis-card-title">🌱 土</span>
+            <span class="axis-card-subtitle">根のまわり</span>
           </div>
           <span class="axis-card-score" id="rootScore">--</span>
         </div>
@@ -990,11 +990,48 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
   </div>
 
   <!-- 現在値 + 本日の最高/最低 を項目ごとに1枚へ (スマホ1列 / PC2列) -->
+  <!-- 並び: スコア → 管理アドバイス → 天気 → 各指標（やることを先に。2026-11-27 見直し） -->
+  <div class="card" id="adviceCard" style="padding:20px;">
+    <div class="card-head-row" style="margin-bottom:14px;">
+      <span class="section-title">💡 管理アドバイス</span>
+      <span class="card-head-time" id="adviceTime">--</span>
+    </div>
+    <div id="adviceList" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="font-size:0.92rem;color:var(--text-tertiary);padding:8px 0;">データ取得後に表示されます...</div>
+    </div>
+  </div>
+
+  <!-- 天気情報 -->
+  <div class="card" id="weatherCard" style="padding:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <span style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌤️ 天気予報（農園）</span>
+      <span style="font-size:0.85rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="weatherSource">JMA</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="weatherGrid">
+      <div style="text-align:center;padding:10px;background:rgba(0,122,255,0.05);border-radius:12px;border:1px solid rgba(0,122,255,0.1);">
+        <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">今日</div>
+        <div style="font-size:2rem;margin-bottom:4px;" id="todayWeatherIcon">--</div>
+        <div style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:4px;" id="todayWeatherDesc">取得中...</div>
+        <div style="font-size:0.92rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="todayWeatherTemp">--/--℃</div>
+        <div style="font-size:0.87rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="todayWeatherPrecip">--</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:rgba(52,199,89,0.05);border-radius:12px;border:1px solid rgba(52,199,89,0.1);">
+        <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">明日</div>
+        <div style="font-size:2rem;margin-bottom:4px;" id="tomorrowWeatherIcon">--</div>
+        <div style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:4px;" id="tomorrowWeatherDesc">取得中...</div>
+        <div style="font-size:0.92rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="tomorrowWeatherTemp">--/--℃</div>
+        <div style="font-size:0.87rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="tomorrowWeatherPrecip">--</div>
+      </div>
+    </div>
+    <!-- 週間（参謀のホームと同じデータ） -->
+    <div class="weather-week" id="weatherWeek" hidden></div>
+  </div>
+
   <div class="metrics-grid">
     <div class="metric-card temp" style="--metric-accent:var(--accent-temp);">
-      <div class="metric-head"><span class="metric-icon">🌡️</span><span class="metric-label" id="tempLabel">気温（平均）</span></div>
+      <div class="metric-head"><span class="metric-icon">🌡️</span><span class="metric-label" id="tempLabel">気温（北と南の平均）</span></div>
       <div class="metric-value" id="tempVal">--<span class="metric-unit">℃</span></div>
-      <div class="metric-trend" id="tempTrend">— <span class="metric-trend-label">30分前比</span></div>
+      <div class="metric-trend" id="tempTrend"><span class="metric-trend-label">30分前の値なし</span></div>
       <div class="metric-badges">
         <div class="metric-status status-normal" id="tempStatus">--</div>
         <div class="diff-badge diff-ok" id="tempDiff" style="display:none;">差 --℃</div>
@@ -1011,11 +1048,11 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       </div>
       <div class="stat-tiles">
         <div class="stat-tile">
-          <div class="stat-tile-label">本日 最高</div>
+          <div class="stat-tile-label">今日の最高</div>
           <div class="stat-tile-val" id="todayMax" style="color:#ff6b35;">--<span class="stat-tile-unit">℃</span></div>
         </div>
         <div class="stat-tile">
-          <div class="stat-tile-label">本日 最低</div>
+          <div class="stat-tile-label">今日の最低</div>
           <div class="stat-tile-val" id="todayMin" style="color:#007aff;">--<span class="stat-tile-unit">℃</span></div>
         </div>
       </div>
@@ -1024,7 +1061,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <div class="metric-card hum" style="--metric-accent:var(--accent-hum);">
       <div class="metric-head"><span class="metric-icon">💧</span><span class="metric-label" id="humLabel">湿度（平均）</span></div>
       <div class="metric-value" id="humVal">--<span class="metric-unit">%</span></div>
-      <div class="metric-trend" id="humTrend">— <span class="metric-trend-label">30分前比</span></div>
+      <div class="metric-trend" id="humTrend"><span class="metric-trend-label">30分前の値なし</span></div>
       <div class="metric-badges">
         <div class="metric-status status-normal" id="humStatus">--</div>
         <div class="diff-badge diff-ok" id="humDiff" style="display:none;">差 --%</div>
@@ -1041,11 +1078,11 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       </div>
       <div class="stat-tiles">
         <div class="stat-tile">
-          <div class="stat-tile-label">本日 最高</div>
+          <div class="stat-tile-label">今日の最高</div>
           <div class="stat-tile-val" id="todayMaxHum" style="color:#007aff;">--<span class="stat-tile-unit">%</span></div>
         </div>
         <div class="stat-tile">
-          <div class="stat-tile-label">本日 最低</div>
+          <div class="stat-tile-label">今日の最低</div>
           <div class="stat-tile-val" id="todayMinHum" style="color:#34c759;">--<span class="stat-tile-unit">%</span></div>
         </div>
       </div>
@@ -1054,17 +1091,17 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <div class="metric-card vpd" style="--metric-accent:var(--accent-vpd);">
       <div class="metric-head"><span class="metric-icon">🍃</span><span class="metric-label">飽差</span></div>
       <div class="metric-value" id="vpdVal" style="color:var(--accent-vpd);">--<span class="metric-unit">g/m³</span></div>
-      <div class="metric-trend" id="vpdTrend">— <span class="metric-trend-label">30分前比</span></div>
+      <div class="metric-trend" id="vpdTrend"><span class="metric-trend-label">30分前の値なし</span></div>
       <div class="metric-badges">
         <div class="metric-status status-normal" id="vpdStatus">--</div>
       </div>
       <div class="stat-tiles">
         <div class="stat-tile">
-          <div class="stat-tile-label">本日 最高</div>
+          <div class="stat-tile-label">今日の最高</div>
           <div class="stat-tile-val" id="todayMaxVpd" style="color:#af52de;">--<span class="stat-tile-unit">g/m³</span></div>
         </div>
         <div class="stat-tile">
-          <div class="stat-tile-label">本日 最低</div>
+          <div class="stat-tile-label">今日の最低</div>
           <div class="stat-tile-val" id="todayMinVpd" style="color:#007aff;">--<span class="stat-tile-unit">g/m³</span></div>
         </div>
       </div>
@@ -1073,17 +1110,17 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <div class="metric-card co2" style="--metric-accent:var(--accent-co2);">
       <div class="metric-head"><span class="metric-icon">💨</span><span class="metric-label">CO2濃度</span></div>
       <div class="metric-value" id="co2Val" style="color:#0a84d6;">--<span class="metric-unit">ppm</span></div>
-      <div class="metric-trend" id="co2Trend">— <span class="metric-trend-label">30分前比</span></div>
+      <div class="metric-trend" id="co2Trend"><span class="metric-trend-label">30分前の値なし</span></div>
       <div class="metric-badges">
         <div class="metric-status status-normal" id="co2Status">--</div>
       </div>
       <div class="stat-tiles">
         <div class="stat-tile">
-          <div class="stat-tile-label">本日 最高</div>
+          <div class="stat-tile-label">今日の最高</div>
           <div class="stat-tile-val" id="todayMaxCo2" style="color:#0a84d6;">--<span class="stat-tile-unit">ppm</span></div>
         </div>
         <div class="stat-tile">
-          <div class="stat-tile-label">本日 最低</div>
+          <div class="stat-tile-label">今日の最低</div>
           <div class="stat-tile-val" id="todayMinCo2" style="color:#8e8e93;">--<span class="stat-tile-unit">ppm</span></div>
         </div>
       </div>
@@ -1105,7 +1142,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="soil-item-head"><span class="soil-item-icon">🌡️</span><span>地温</span></div>
         <div class="soil-item-main">
           <div class="soil-item-val" id="soilTempVal">--<span class="soil-item-unit">℃</span></div>
-          <div class="soil-item-trend" id="soilTempTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+          <div class="soil-item-trend" id="soilTempTrend"><span class="soil-item-trend-label">30分前の値なし</span></div>
         </div>
         <div class="soil-item-status status-normal" id="soilTempStatus">--</div>
       </div>
@@ -1113,7 +1150,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="soil-item-head"><span class="soil-item-icon">💧</span><span>水分</span></div>
         <div class="soil-item-main">
           <div class="soil-item-val" id="soilHumVal">--<span class="soil-item-unit">%</span></div>
-          <div class="soil-item-trend" id="soilHumTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+          <div class="soil-item-trend" id="soilHumTrend"><span class="soil-item-trend-label">30分前の値なし</span></div>
         </div>
         <div class="soil-item-status status-normal" id="soilHumStatus">--</div>
       </div>
@@ -1121,7 +1158,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="soil-item-head"><span class="soil-item-icon">⚡</span><span>EC</span></div>
         <div class="soil-item-main">
           <div class="soil-item-val" id="soilEcVal">--<span class="soil-item-unit">μS/cm</span></div>
-          <div class="soil-item-trend" id="soilEcTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+          <div class="soil-item-trend" id="soilEcTrend"><span class="soil-item-trend-label">30分前の値なし</span></div>
         </div>
         <div class="soil-item-status status-normal" id="soilEcStatus">--</div>
       </div>
@@ -1129,7 +1166,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="soil-item-head"><span class="soil-item-icon">⚗️</span><span>pH（参考）</span></div>
         <div class="soil-item-main">
           <div class="soil-item-val" id="soilPhVal">--</div>
-          <div class="soil-item-trend" id="soilPhTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+          <div class="soil-item-trend" id="soilPhTrend"><span class="soil-item-trend-label">30分前の値なし</span></div>
         </div>
         <div class="soil-item-status status-normal" id="soilPhStatus">--</div>
       </div>
@@ -1148,9 +1185,9 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
   <!-- 🚿 水やり: 灌水はタイマー（オーナー 2026-11-11）。設定を見直す材料として、土壌水分の跳ね上がりから拾った水やりと、水やり前の底を天気・光とセットで並べる。事実だけを出し、指示はしない -->
   <div class="card" id="waterCard" style="display:none;padding:20px;">
     <div class="card-head-row"><span class="section-title">🚿 水やり（タイマーの見直し用）</span></div>
-    <div class="section-sub" style="margin:4px 0 12px;">土壌水分が急に上がった所を水やりとして拾い、日誌の灌水（時刻・長さ）と突き合わせています。「水やり前の底」が日ごとに上がれば水は多め、下がれば少なめです</div>
+    <div class="section-sub" style="margin:4px 0 12px;">土壌水分が急に上がった時刻を「水やりした」とみなして、日誌の灌水（時刻・分数）と並べています。右の「水やり前の値」は、その日の水やりの直前の土壌水分です。日ごとに上がっていけば水は多め、下がっていけば少なめです</div>
     <div class="water-now" id="waterNow"></div>
-    <div class="water-head"><span>日・天気</span><span>水やり・光</span><span>水やり前の底</span></div>
+    <div class="water-head"><span>日・天気</span><span>水やり・日射</span><span>水やり前の値</span></div>
     <div id="waterList"></div>
     <div class="humid-run-note" id="waterNote"></div>
   </div>
@@ -1165,10 +1202,10 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     </div>
     <div class="light-rows">
       <div class="light-row"><span class="light-row-label">温度<small class="light-row-sub">昼の高温・夜温・天気</small></span><span class="metric-status status-normal" id="lightRowTemp">--</span></div>
-      <div class="light-row"><span class="light-row-label">水の消費<small class="light-row-sub">日射の量</small></span><span class="metric-status status-normal" id="lightRowWater">--</span></div>
-      <div class="light-row"><span class="light-row-label">CO2<small class="light-row-sub">日中 × CO2</small></span><span class="metric-status status-normal" id="lightRowCo2">--</span></div>
-      <div class="light-row"><span class="light-row-label">葉の濡れ・乾燥<small class="light-row-sub">気温 × 湿度 × 朝の昇温</small></span><span class="metric-status status-normal" id="lightRowLeaf">--</span></div>
-      <div class="light-row"><span class="light-row-label">光の強さ<small class="light-row-sub">日射 × 光飽和点の目安</small></span><span class="metric-status status-normal" id="lightRowSun">--</span></div>
+      <div class="light-row"><span class="light-row-label">水の使い方<small class="light-row-sub">日射の量から</small></span><span class="metric-status status-normal" id="lightRowWater">--</span></div>
+      <div class="light-row"><span class="light-row-label">CO2<small class="light-row-sub">日中のCO2</small></span><span class="metric-status status-normal" id="lightRowCo2">--</span></div>
+      <div class="light-row"><span class="light-row-label">葉のぬれ・乾き<small class="light-row-sub">気温・湿度・朝の温度の上がり方</small></span><span class="metric-status status-normal" id="lightRowLeaf">--</span></div>
+      <div class="light-row"><span class="light-row-label">光の強さ<small class="light-row-sub">光合成が頭打ちになる強さ（光飽和点）と比べる</small></span><span class="metric-status status-normal" id="lightRowSun">--</span></div>
     </div>
     <!-- 光が活きた時間: 光が目安以上あった時間のうち、飽差・CO2・気温もそろっていた時間。天気と光の量をセットで出す -->
     <div class="light-use" id="lightUse"></div>
@@ -1300,7 +1337,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
   <!-- 夜の高湿度: 湿度90%以上が何時間続いたか (灰色かび病などは「濡れたままの長さ」で決まる) -->
   <div class="card" id="humidRunCard" style="display:none;padding:20px;">
     <div class="card-head-row"><span class="section-title">💧 夜の高湿度</span></div>
-    <div class="section-sub" style="margin:4px 0 14px;">湿度90%以上が途切れずに続いた最長時間。1行 = その日の12時〜翌日12時の夜（最大24時間）。8時間を超えると病気が出やすい</div>
+    <div class="section-sub" style="margin:4px 0 14px;">湿度90%以上がいちばん長く続いた時間です。1行は、その日の正午から次の日の正午まで（最大24時間）。8時間を超えると病気が出やすくなります</div>
     <div class="humid-run-list" id="humidRunList"></div>
     <div class="humid-run-note" id="humidRunNote"></div>
     <div class="section-sub" id="humidRunUpdated" style="margin-top:8px;"></div>
@@ -1317,7 +1354,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
   <!-- 日中の湿度: 9〜15時の最低湿度と 65% 未満だった時間 (0033)。65 はオーナーの目標（出典なし）。サイドの開け閉めの振り返り用 -->
   <div class="card" id="middayHumCard" style="display:none;padding:20px;">
     <div class="card-head-row"><span class="section-title">☀️ 日中の湿度</span></div>
-    <div class="section-sub" style="margin:4px 0 14px;">9〜15時の最低湿度と、65% を下回った時間（棒は 6時間で満タン）。目標は日中 65% 以上</div>
+    <div class="section-sub" style="margin:4px 0 14px;">9〜15時でいちばん低かった湿度と、65% を下回っていた時間です。目標は日中 65% 以上（棒がいっぱいで6時間）</div>
     <div class="humid-run-list" id="middayHumList"></div>
     <div class="humid-run-note" id="middayHumNote"></div>
   </div>
@@ -1329,9 +1366,9 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <span class="section-title">📚 適正値ガイド</span>
         <span class="section-sub">空気と土の目安（出典つき）</span>
       </div>
-      <button class="ref-toggle-btn" id="refToggleBtn" onclick="toggleRefGuide()">▲ 閉じる</button>
+      <button class="ref-toggle-btn" id="refToggleBtn" onclick="toggleRefGuide()">▼ 開く</button>
     </div>
-    <div id="refContent">
+    <div id="refContent" class="collapsed">
 
       <!-- 🌿 ハウス内の空気（出典つき） -->
       <div class="ref-section">
@@ -1486,42 +1523,6 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
   </div>
 
   <!-- 💡 ハウス管理アドバイス -->
-  <div class="card" id="adviceCard" style="padding:20px;">
-    <div class="card-head-row" style="margin-bottom:14px;">
-      <span class="section-title">💡 管理アドバイス</span>
-      <span class="card-head-time" id="adviceTime">--</span>
-    </div>
-    <div id="adviceList" style="display:flex;flex-direction:column;gap:10px;">
-      <div style="font-size:0.92rem;color:var(--text-tertiary);padding:8px 0;">データ取得後に表示されます...</div>
-    </div>
-  </div>
-
-  <!-- 天気情報 -->
-  <div class="card" id="weatherCard" style="padding:20px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <span style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌤️ 天気予報（農園）</span>
-      <span style="font-size:0.85rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="weatherSource">JMA</span>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="weatherGrid">
-      <div style="text-align:center;padding:10px;background:rgba(0,122,255,0.05);border-radius:12px;border:1px solid rgba(0,122,255,0.1);">
-        <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">今日</div>
-        <div style="font-size:2rem;margin-bottom:4px;" id="todayWeatherIcon">--</div>
-        <div style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:4px;" id="todayWeatherDesc">取得中...</div>
-        <div style="font-size:0.92rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="todayWeatherTemp">--/--℃</div>
-        <div style="font-size:0.87rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="todayWeatherPrecip">--</div>
-      </div>
-      <div style="text-align:center;padding:10px;background:rgba(52,199,89,0.05);border-radius:12px;border:1px solid rgba(52,199,89,0.1);">
-        <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">明日</div>
-        <div style="font-size:2rem;margin-bottom:4px;" id="tomorrowWeatherIcon">--</div>
-        <div style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:4px;" id="tomorrowWeatherDesc">取得中...</div>
-        <div style="font-size:0.92rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="tomorrowWeatherTemp">--/--℃</div>
-        <div style="font-size:0.87rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="tomorrowWeatherPrecip">--</div>
-      </div>
-    </div>
-    <!-- 週間（参謀のホームと同じデータ） -->
-    <div class="weather-week" id="weatherWeek" hidden></div>
-  </div>
-
   <!-- 接続情報のみ（コンパクト） -->
   <div class="card" style="padding:20px;">
     <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">接続情報</div>
@@ -1548,7 +1549,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <a href="https://pest-map-ebon.vercel.app/">🐛 病害虫マップ</a>
   </nav>
   <button class="to-top-btn" id="toTopBtn" type="button" aria-label="一番上へ戻る" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">↑</button>
-  <div class="footer"><span>自動更新 5分ごと</span><span>送信間隔 気温湿度10分／土壌5分</span></div>
+  <div class="footer"><span>自動更新 5分ごと</span></div>
 
 </div>
 
@@ -2185,8 +2186,8 @@ async function fetchHumidRuns() {
     });
     const recent = rows.slice(0, 3).filter(r => Number(r.humid_run_max_hours) >= 8).length;
     document.getElementById('humidRunNote').textContent =
-      recent >= 2 ? '⚠️ 直近3日で8時間以上の夜が' + recent + '回。灰色かび病が出やすい状態です。朝の換気を早めに、夕方は葉を濡らさない。' + CONTROLLER_HINT.nightHumid
-      : recent === 1 ? '8時間以上の夜が1回ありました。続くようなら朝の換気を早めに。' + CONTROLLER_HINT.nightHumid
+      recent >= 2 ? '⚠️ 今夜を入れた直近3夜のうち、8時間以上続いた夜が' + recent + '回。灰色かび病が出やすい状態です。朝の換気を早めにして、夕方は葉をぬらさないようにします。' + CONTROLLER_HINT.nightHumid
+      : recent === 1 ? '今夜を入れた直近3夜のうち、8時間以上続いた夜が1回。続くようなら朝の換気を早めにします。' + CONTROLLER_HINT.nightHumid
       : '長く湿ったままの夜は続いていません。';
     const yesterday = rows[1]; // きのう = 1日分そろっている最新の日
     const dif = yesterday && yesterday.dif_c != null ? `きのうの昼夜の温度差 ${Number(yesterday.dif_c).toFixed(1)}℃` : '';
@@ -2207,8 +2208,8 @@ const MIDDAY_HUMIDITY_MIN_PCT = 65;
 // 自動開閉装置 SF Neo+（サンクールシステム・取説 Ver11.2）の設定のヒント。谷とサイドはこの装置が温度で自動開閉している。
 // 文言は参謀 src/config/house-controller.ts と同じ考え方（まとめ: agri-apps/house-controller/sfneo-plus-guide.pdf）
 const CONTROLLER_HINT = {
-  nightHumid: ' 開閉機なら「強制換気」で朝6:30ごろ谷を少し開けて湿気を抜ける（下限温度を設定。取説 p.39）。',
-  middayLow: ' 開閉機の「通常開け幅補正」で 9〜15時の開け幅を 50〜70% に絞るか、「蒸込換気」の終了を15時に（取説 p.43・p.38）。28℃を超えるなら絞らず水で。',
+  nightHumid: ' 開閉機（SF Neo+）の「強制換気」を使うと、朝6:30ごろに谷を少し開けて湿気を抜けます（下限温度も設定しておく。取扱説明書 p.39）。',
+  middayLow: ' 開閉機（SF Neo+）の「通常開け幅補正」で 9〜15時の開け幅を 50〜70% に絞るか、「蒸込換気」の終わりを15時にします（取扱説明書 p.43・p.38）。28℃を超えるときは絞らずに、水で湿度を上げます。',
 };
 function renderMiddayHumidity(all) {
   const card = document.getElementById('middayHumCard');
@@ -2237,7 +2238,7 @@ function renderMiddayHumidity(all) {
     bar.appendChild(fill);
     const val = document.createElement('span');
     val.className = 'humid-run-val';
-    val.textContent = min == null ? 'まだ' : `${Math.round(min)}%・${low > 0 ? low.toFixed(1) + 'h' : 'なし'}`;
+    val.textContent = min == null ? 'まだ' : `最低 ${Math.round(min)}%・${low > 0 ? '下回った ' + low.toFixed(1) + '時間' : '下回らず'}`;
     row.append(date, bar, val);
     list.appendChild(row);
   });
@@ -2629,7 +2630,7 @@ async function renderInsulationCompare() {
       ['翌日の最低気温（ハウス内）', 'inMin', '℃', false],
       ['翌日の最低気温（外・Open-Meteo）', 'outMin', '℃', false],
       ['ハウス内 − 外', 'diff', '℃', true],
-      ['翌日 9〜15時の湿度の底', 'middayMin', '%', false],
+      ['次の日 9〜15時の最低湿度', 'middayMin', '%', false],
     ].forEach(([label, k, unit, sign]) => {
       cell('insul-k', label); cell('insul-v', fmt(c.before[k], unit, sign)); cell('insul-v', fmt(c.after[k], unit, sign));
     });
@@ -3195,28 +3196,28 @@ function getTempStatus(t, isDay) {
   if (isDay === undefined) isDay = isDaytimeAt(Date.now());
   if (isDay) {
     const g = PEPPER_TARGETS.day;
-    if (t >= g.limit) return ['🔥 限界(35℃以上)', 'status-danger'];
+    if (t >= g.limit) return ['🔥 高すぎる（35℃以上）', 'status-danger'];
     if (t > g.okMax)  return ['⚠️ 高温(30℃超)', 'status-warn'];
     if (t >= g.okMin) return ['✅ 適温', 'status-normal'];
-    if (t <= PEPPER_TARGETS.night.limit) return ['🧊 限界(12℃以下)', 'status-danger'];
+    if (t <= PEPPER_TARGETS.night.limit) return ['🧊 低すぎる（12℃以下）', 'status-danger'];
     return ['🌤️ 適温より低め', 'status-warn'];
   }
   const g = PEPPER_TARGETS.night;
-  if (t <= g.limit) return ['🧊 限界(12℃以下)', 'status-danger'];
-  if (t < g.okMin)  return ['❄️ 低め(15℃未満)', 'status-warn'];
+  if (t <= g.limit) return ['🧊 低すぎる（12℃以下）', 'status-danger'];
+  if (t < g.okMin)  return ['❄️ 低め（15℃未満）', 'status-warn'];
   if (t <= g.okMax) return ['✅ 夜の適温', 'status-normal'];
-  if (t >= PEPPER_TARGETS.day.limit) return ['🔥 限界(35℃以上)', 'status-danger'];
-  return ['⚠️ 夜温高め(20℃超)', 'status-warn'];
+  if (t >= PEPPER_TARGETS.day.limit) return ['🔥 高すぎる（35℃以上）', 'status-danger'];
+  return ['⚠️ 夜にしては高め（20℃超）', 'status-warn'];
 }
 
 // 湿度判定。高い側は宮崎県マニュアルの 90%。乾燥は湿度ではなく飽差で見る（気温で変わるため）
 function getHumStatus(h, t) {
-  if (h >= PEPPER_TARGETS.humVeryHigh) return ['💦 ほぼ飽和(結露・病気)', 'status-danger'];
-  if (h >= PEPPER_TARGETS.humHigh)     return ['💦 過湿(90%以上)', 'status-warn'];
+  if (h >= PEPPER_TARGETS.humVeryHigh) return ['💦 ほぼ100%（結露して病気が出やすい）', 'status-danger'];
+  if (h >= PEPPER_TARGETS.humHigh)     return ['💦 湿りすぎ（90%以上）', 'status-warn'];
   if (t !== undefined && t !== null && !isNaN(t) && calcVPD(t, h) > PEPPER_TARGETS.hdMax) {
     return ['🏜️ 乾燥しすぎ', 'status-warn'];
   }
-  return ['✅ 正常', 'status-normal'];
+  return ['✅ ちょうどよい', 'status-normal'];
 }
 
 // SEN0604 土壌水分（相対水分／飽和度ベース）判定
@@ -3226,20 +3227,20 @@ function getHumStatus(h, t) {
 function getSoilStatus(s) {
   const M = PEPPER_TARGETS.soilMoisture;
   if (s === null || isNaN(s)) return ['--', 'status-normal'];
-  if (s >= M.saturated) return ['🌊 過湿(根腐れ注意)', 'status-danger'];
+  if (s >= M.saturated) return ['🌊 水が多すぎる（根腐れに注意）', 'status-danger'];
   if (s >= M.okMax) return ['💧 やや多め', 'status-warn'];
   if (s >= M.okMin) return ['✅ 適正', 'status-normal'];
   if (s >= M.dry) return ['⚠️ やや乾燥', 'status-warn'];
-  return ['🏜️ 乾燥(かん水必要)', 'status-danger'];
+  return ['🏜️ 乾いている（水やりが必要）', 'status-danger'];
 }
 
 // 地温判定（とうがらしの最適培地温度 22〜25℃ 橘 1989）。危険側の線は出典が無いので出さない
 function getSoilTempStatus(t) {
   if (t === null || isNaN(t)) return ['--', 'status-normal'];
   const g = PEPPER_TARGETS.soilTemp;
-  if (t > g.okMax) return ['⚠️ やや高め(25℃超)', 'status-warn'];
+  if (t > g.okMax) return ['⚠️ やや高め（25℃超）', 'status-warn'];
   if (t >= g.okMin) return ['✅ 適正', 'status-normal'];
-  return ['⚠️ やや低め(22℃未満)', 'status-warn'];
+  return ['⚠️ やや低め（22℃未満）', 'status-warn'];
 }
 
 // EC判定（μS/cm）。300〜700 が目安（鹿児島県）、1000 以上は高い（岩手県）。
@@ -3247,8 +3248,8 @@ function getSoilTempStatus(t) {
 function getSoilEcStatus(ec) {
   if (ec === null || isNaN(ec)) return ['--', 'status-normal'];
   const g = PEPPER_TARGETS.soilEc;
-  if (ec >= g.high)  return ['🚨 高い(1000以上)', 'status-danger'];
-  if (ec > g.okMax)  return ['⚠️ やや高め(700超)', 'status-warn'];
+  if (ec >= g.high)  return ['🚨 高い（1000以上）', 'status-danger'];
+  if (ec > g.okMax)  return ['⚠️ やや高め（700超）', 'status-warn'];
   if (ec >= g.okMin) return ['✅ 目安の範囲', 'status-normal'];
   return ['📉 目安より低い', 'status-warn'];
 }
@@ -3256,17 +3257,17 @@ function getSoilEcStatus(ec) {
 // 飽差判定（g/m³）。3〜6 がふつう（兵庫県・大分県）
 function getVpdStatus(v) {
   if (isNaN(v)) return ['--', 'status-normal'];
-  if (v < PEPPER_TARGETS.hdMin)  return ['💧 湿りすぎ(3未満)', 'status-warn'];
-  if (v <= PEPPER_TARGETS.hdMax) return ['✅ ふつう', 'status-normal'];
-  return ['🏜️ 乾燥しすぎ(6超)', 'status-warn'];
+  if (v < PEPPER_TARGETS.hdMin)  return ['💧 湿りすぎ（3未満）', 'status-warn'];
+  if (v <= PEPPER_TARGETS.hdMax) return ['✅ ちょうどよい（3〜6）', 'status-normal'];
+  return ['🏜️ 乾きすぎ（6超）', 'status-warn'];
 }
 
 // CO2濃度判定。外気並み 400ppm 以上を保つ（岩手県）。上限側はピーマンの出典が無いので判定しない
 function getCo2Status(c) {
   if (isNaN(c)) return ['--', 'status-normal'];
-  if (c < 200)   return ['❓ 異常低値', 'status-danger'];
-  if (c < PEPPER_TARGETS.co2Min) return ['📉 外気より低い(不足)', 'status-warn'];
-  return ['✅ 外気並み以上', 'status-normal'];
+  if (c < 200)   return ['❓ 低すぎる（センサーの不具合かも）', 'status-danger'];
+  if (c < PEPPER_TARGETS.co2Min) return ['📉 外の空気より少ない', 'status-warn'];
+  return ['✅ 外の空気と同じかそれ以上', 'status-normal'];
 }
 
 // ===== ハウス効率スコア（地上部 × 根圏の二軸構造評価） =====
@@ -3405,11 +3406,11 @@ function getAxisColor(score) {
 function getDiffStatus(diff, type) {
   const a = Math.abs(diff);
   if (type === 'temp') {
-    if (a < 3) return { className: 'diff-ok',     text: '差 ' + diff.toFixed(1) + '℃' };
+    if (a < 3) return { className: 'diff-ok',     text: '北と南の差 ' + Math.abs(diff).toFixed(1) + '℃' };
     if (a < 5) return { className: 'diff-warn',   text: '⚠️ 差 ' + diff.toFixed(1) + '℃' };
     return       { className: 'diff-danger', text: '🚨 差 ' + diff.toFixed(1) + '℃' };
   } else { // hum
-    if (a < 10) return { className: 'diff-ok',     text: '差 ' + diff.toFixed(0) + '%' };
+    if (a < 10) return { className: 'diff-ok',     text: '北と南の差 ' + Math.abs(diff).toFixed(0) + '%' };
     if (a < 15) return { className: 'diff-warn',   text: '⚠️ 差 ' + diff.toFixed(0) + '%' };
     return        { className: 'diff-danger', text: '🚨 差 ' + diff.toFixed(0) + '%' };
   }
@@ -3470,8 +3471,8 @@ function updateMainMetrics(t1, h1, t2, h2, u1Online, u2Online) {
     // 両方オンライン → 気温は平均、湿度は高い方（2026-11-07 オーナー決定・病気の判断で安全側）。差も表示
     repTemp = (t1 + t2) / 2;
     repHum  = houseHumidity(h1, h2);
-    tempLabel.textContent = '気温（平均）';
-    humLabel.textContent  = '湿度（高い方）';
+    tempLabel.textContent = '気温（北と南の平均）';
+    humLabel.textContent  = '湿度（北と南の高いほう）';
 
     const dT = t2 - t1;
     const dH = h2 - h1;
@@ -3711,7 +3712,7 @@ function generateAdvice() {
       level: 'warn',
       icon: '🌡️',
       title: '地温が22℃未満',
-      body: `地温${s.soilTemp.toFixed(1)}℃。とうがらしの最適は22〜25℃（橘 1989）。地温が低いとリン酸や水の吸収が落ちます（岡山県）。下がった地温は戻しにくいので、下げない工夫を。`
+      body: `地温${s.soilTemp.toFixed(1)}℃。とうがらしの最適は22〜25℃（橘 1989）。地温が低いとリン酸や水の吸収が落ちます（岡山県）。下がった地温は戻しにくいので、下げないようにするのが基本です。`
     });
   }
 
@@ -3762,7 +3763,7 @@ function generateAdvice() {
       level: 'info',
       icon: '☀️',
       title: '気温・飽差とも目安の範囲',
-      body: `気温${s.temp.toFixed(1)}℃（昼の適温25〜30℃）・飽差${s.vpd.toFixed(1)}g/m³（3〜6）${s.co2 !== null && s.co2 >= T.co2Min ? `・CO2 ${Math.round(s.co2)}ppm（外気並み以上）` : ''}。今の換気バランスを維持。`
+      body: `気温${s.temp.toFixed(1)}℃（昼の適温25〜30℃）・飽差${s.vpd.toFixed(1)}g/m³（3〜6）${s.co2 !== null && s.co2 >= T.co2Min ? `・CO2 ${Math.round(s.co2)}ppm（外気並み以上）` : ''}。今の換気のままで大丈夫です。`
     });
   }
 
@@ -3826,6 +3827,17 @@ function renderScore() {
 
     // 説明文：軸ごとの状態を踏まえたプロ視点コメント
     descEl.textContent = buildScoreDescription(result);
+
+    // 目安（満点の帯）から外れた項目があるのに「絶好調」と出ると、下の注意と食い違って読みにくい（2026-11-27 見直し）。
+    // 外れた項目があるときは見出しを「目安の外 N項目」にして名前を出す。帯は PEPPER_TARGETS のまま（新しい数字は足さない）
+    const out = outOfBandItems(result);
+    if (out.length > 0 && result.total >= 60) {
+      labelEl.textContent = '⚠️ 要確認 ' + out.length + '項目';
+      labelEl.style.color = '#ff9500';
+      numEl.style.color = '#ff9500';
+      ringEl.setAttribute('stroke', '#ff9500');
+      descEl.textContent = out.join('・') + 'が今、目安から外れています。下のカードで確かめてください。';
+    }
   }
 
   // ----- 軸スコア表示 -----
@@ -3874,16 +3886,22 @@ function renderScore() {
   }
 }
 
+// 今の値が目安（満点の帯）から外れている項目の名前
+function outOfBandItems(result) {
+  return [['気温', result.temp], ['飽差', result.vpd], ['CO2', result.co2], ['地温', result.soilTemp], ['水分', result.soilMoisture], ['EC', result.ec]]
+    .filter(([, v]) => v !== null && v !== undefined && !isNaN(v) && v < 100).map(([n]) => n);
+}
+
 // ===== スコア説明文（メイン） =====
 function buildScoreDescription(result) {
   if (result.upper === null && result.root === null) return 'データ取得中です';
 
   // 単独軸のみ
   if (result.upper !== null && result.root === null) {
-    return '土壌データ未取得。地上部のみの評価です。';
+    return '土のデータがまだ届いていません。空気だけの点数です。';
   }
   if (result.root !== null && result.upper === null) {
-    return '地上部データ未取得。根圏のみの評価です。';
+    return '空気のデータがまだ届いていません。土だけの点数です。';
   }
 
   // 両軸あり：弱点を指摘
@@ -3891,17 +3909,17 @@ function buildScoreDescription(result) {
   const diff = Math.abs(u - r);
 
   if (result.total >= 85) {
-    return '地上部・根圏ともに最適範囲。光合成効率と草勢のバランス良好です。';
+    return outOfBandItems(result).length === 0 ? '今の値はすべて目安の範囲です。' : '空気も土も、おおむね目安の範囲です。';
   } else if (result.total >= 70) {
-    if (diff < 10) return '両軸とも良好。安定した生育が期待できます。';
-    return (u < r) ? '光合成の効率がやや低下中。気温・飽差・CO2を確認。'
-                   : '根圏の状態がやや低下中。地温・水分・ECを確認。';
+    if (diff < 10) return '空気も土も、おおむね目安の範囲です。';
+    return (u < r) ? '空気の側が少し目安から外れています。気温・飽差・CO2 を確かめてください。'
+                   : '土の側が少し目安から外れています。地温・水分・EC を確かめてください。';
   } else if (result.total >= 50) {
-    if (diff < 10) return '両軸とも改善余地あり。優先順位を決めて手を打ちましょう。';
-    return (u < r) ? '光合成側に課題。葉の活動が低下しています。'
-                   : '根圏側に課題。草勢の土台を立て直す時です。';
+    if (diff < 10) return '空気も土も、目安から外れている項目があります。';
+    return (u < r) ? '空気の側（気温・飽差・CO2）が目安から外れています。'
+                   : '土の側（地温・水分・EC）が目安から外れています。';
   } else {
-    return '複数の項目で適正域を外れています。緊急度の高い要素から対応を。';
+    return 'いくつもの項目が目安から外れています。下のカードで確かめてください。';
   }
 }
 
@@ -3913,38 +3931,37 @@ function buildBalanceDiagnosis(result) {
 
   // 弱点要素を特定
   const items = [
-    { name: '気温',     score: result.temp,         axis: '地上部' },
-    { name: '飽差',    score: result.vpd,          axis: '地上部' },
-    { name: 'CO2',     score: result.co2,          axis: '地上部' },
-    { name: '地温',    score: result.soilTemp,     axis: '根圏'   },
-    { name: '水分',    score: result.soilMoisture, axis: '根圏'   },
-    { name: 'EC',      score: result.ec,           axis: '根圏'   }
+    { name: '気温',     score: result.temp,         axis: '空気' },
+    { name: '飽差',    score: result.vpd,          axis: '空気' },
+    { name: 'CO2',     score: result.co2,          axis: '空気' },
+    { name: '地温',    score: result.soilTemp,     axis: '土'   },
+    { name: '水分',    score: result.soilMoisture, axis: '土'   },
+    { name: 'EC',      score: result.ec,           axis: '土'   }
   ].filter(x => x.score !== null);
   const weakest = items.slice().sort((a, b) => a.score - b.score)[0];
-  const strongest = items.slice().sort((a, b) => b.score - a.score)[0];
 
   if (!weakest) return null;
 
   // 全体が良好
   if (result.total >= 85) {
-    return `💎 <strong>${strongest.name}</strong> が満点級。この状態を維持できれば収量・品質ともにトップクラスです。`;
+    return null;   // 見出しと説明で足りる（出典のない「トップクラス」等は出さない）
   }
 
   // 軸間に大きな差
   if (diff >= 20) {
-    return `🌿 地上部 <strong>${u}点</strong> ／ 🌱 根圏 <strong>${r}点</strong>。地上部が好調でも根圏が追いつかないと草勢低下→着果負担。優先課題：<strong>${weakest.axis}の${weakest.name}（${Math.round(weakest.score)}点）</strong>`;
+    return `🌿 空気 <strong>${u}点</strong> ／ 🌱 土 <strong>${r}点</strong>。いちばん目安から外れているのは <strong>${weakest.axis}の${weakest.name}（${Math.round(weakest.score)}点）</strong>です。`;
   }
   if (diff <= -20) {
-    return `🌱 根圏 <strong>${r}点</strong> ／ 🌿 地上部 <strong>${u}点</strong>。根は元気でも葉の活動が低調だと光合成効率が落ちます。優先課題：<strong>${weakest.axis}の${weakest.name}（${Math.round(weakest.score)}点）</strong>`;
+    return `🌱 土 <strong>${r}点</strong> ／ 🌿 空気 <strong>${u}点</strong>。いちばん目安から外れているのは <strong>${weakest.axis}の${weakest.name}（${Math.round(weakest.score)}点）</strong>です。`;
   }
 
   // 軸はバランス取れているが弱点あり
   if (weakest.score < 60) {
-    return `🎯 優先課題は <strong>${weakest.axis}の${weakest.name}（${Math.round(weakest.score)}点）</strong>。ここを改善すれば総合スコアが大きく上がります。`;
+    return `🎯 いちばん目安から外れているのは <strong>${weakest.axis}の${weakest.name}（${Math.round(weakest.score)}点）</strong>です。`;
   }
 
   // 全体的に60-85のグレー帯
-  return `📈 大きな弱点はなし。総合 <strong>${result.total}点</strong>。あと一歩で良好域です。`;
+    return `📈 大きく外れている項目はありません（合計 <strong>${result.total}点</strong>）。`;
 }
 
 function renderAdvice() {
@@ -4295,6 +4312,8 @@ function renderWeatherWeek(days) {
       + `<div class="wd-rain">${rain}</div></div>`;
   }).join('');
   el.hidden = days.length === 0;
+  const grid = document.getElementById('weatherGrid');
+  if (grid) grid.style.display = days.length >= 2 ? 'none' : 'grid';   // 週間に今日・明日も入っているので二重に出さない
 }
 
 async function fetchWeather() {
@@ -4378,7 +4397,7 @@ async function fetchTodayData() {
     document.getElementById('todayMax').innerHTML = todayMax + '<span class="stat-tile-unit">℃</span>';
     document.getElementById('todayMin').innerHTML = todayMin + '<span class="stat-tile-unit">℃</span>';
     const [tmLabel, tmClass] = getTempStatus(parseFloat(todayMax), true);
-    document.getElementById('todayMaxStatus').textContent = `最高 ${tmLabel}`;
+    document.getElementById('todayMaxStatus').textContent = `今日の最高は ${tmLabel}`;
     document.getElementById('todayMaxStatus').className = 'metric-status today-status ' + tmClass;
 
     // 本日最高・最低湿度（2センサー合算）
@@ -4388,7 +4407,7 @@ async function fetchTodayData() {
       document.getElementById('todayMaxHum').innerHTML = todayMaxHum + '<span class="stat-tile-unit">%</span>';
       document.getElementById('todayMinHum').innerHTML = todayMinHum + '<span class="stat-tile-unit">%</span>';
       const [hmaxLabel, hmaxClass] = getHumStatus(parseFloat(todayMaxHum));
-      document.getElementById('todayMaxHumStatus').textContent = `最高 ${hmaxLabel}`;
+      document.getElementById('todayMaxHumStatus').textContent = `今日の最高は ${hmaxLabel}`;
       document.getElementById('todayMaxHumStatus').className = 'metric-status today-status ' + hmaxClass;
     }
 
@@ -4407,7 +4426,7 @@ async function fetchTodayData() {
       document.getElementById('todayMaxVpd').innerHTML = todayMaxVpd + '<span class="stat-tile-unit">g/m³</span>';
       document.getElementById('todayMinVpd').innerHTML = todayMinVpd + '<span class="stat-tile-unit">g/m³</span>';
       const [vmaxLabel, vmaxClass] = getVpdStatus(parseFloat(todayMaxVpd));
-      document.getElementById('todayMaxVpdStatus').textContent = `最高 ${vmaxLabel}`;
+      document.getElementById('todayMaxVpdStatus').textContent = `今日の最高は ${vmaxLabel}`;
       document.getElementById('todayMaxVpdStatus').className = 'metric-status today-status ' + vmaxClass;
     }
 
@@ -4419,7 +4438,7 @@ async function fetchTodayData() {
       document.getElementById('todayMaxCo2').innerHTML = todayMaxCo2 + '<span class="stat-tile-unit">ppm</span>';
       document.getElementById('todayMinCo2').innerHTML = todayMinCo2 + '<span class="stat-tile-unit">ppm</span>';
       const [cmaxLabel, cmaxClass] = getCo2Status(todayMaxCo2);
-      document.getElementById('todayMaxCo2Status').textContent = `最高 ${cmaxLabel}`;
+      document.getElementById('todayMaxCo2Status').textContent = `今日の最高は ${cmaxLabel}`;
       document.getElementById('todayMaxCo2Status').className = 'metric-status today-status ' + cmaxClass;
     }
 
@@ -4602,15 +4621,15 @@ function renderLightUse(rows, solarRows, solarDaily, jmaDays, now) {
     const wrap = waterEl('div', '');
     const w = waterWeatherText((jmaDays || []).find(r => String(r.date).slice(0, 10) === date));
     wrap.appendChild(waterEl('div', 'light-use-title', [title, w, mjText].filter(Boolean).join('・')));
-    if (u.enough === 0) wrap.appendChild(waterEl('div', 'light-use-sub', '光が目安（約' + PEPPER_TARGETS.solarSat.min + ' W/m²）以上の時間はまだありません'));
+    if (u.enough === 0) wrap.appendChild(waterEl('div', 'light-use-sub', '光が十分（約' + PEPPER_TARGETS.solarSat.min + ' W/m² 以上）だった時間は、まだありません'));
     else {
-      wrap.appendChild(waterEl('div', 'light-use-main', '光が目安以上 ' + h(u.enough) + '・うち条件がそろった ' + h(u.used)));
+      wrap.appendChild(waterEl('div', 'light-use-main', '光が十分だった時間 ' + h(u.enough) + '。そのうち気温・飽差・CO2 もちょうどよかった時間 ' + h(u.used)));
       const why = [];
       if (u.dry)   why.push('飽差が高い（乾きすぎ）' + h(u.dry));
       if (u.humid) why.push('飽差が低い（湿りすぎ）' + h(u.humid));
       if (u.co2)   why.push('CO2 が外気より低い ' + h(u.co2));
       if (u.hot)   why.push('気温 ' + LIGHT_USE_HOT_C + '℃以上 ' + h(u.hot));
-      if (why.length) wrap.appendChild(waterEl('div', 'light-use-sub', 'そろわなかった理由: ' + why.join('・')));
+      if (why.length) wrap.appendChild(waterEl('div', 'light-use-sub', 'ちょうどよくなかった理由: ' + why.join('・')));
     }
     box.appendChild(wrap);
   };
@@ -4619,10 +4638,10 @@ function renderLightUse(rows, solarRows, solarDaily, jmaDays, now) {
     const y = (solarDaily || []).find(r => String(r.date).slice(0, 10) === yesterday);
     const mj = y && y.inside_mj != null ? Number(y.inside_mj) : null;
     add('きのう', yesterday, todayStart - 86400000, todayStart,
-        mj == null ? '' : '光 ' + mj.toFixed(1) + ' MJ' + (base ? '（晴れの日の ' + Math.round(mj / base * 100) + '%）' : ''));
+        mj == null ? '' : '日射 ' + mj.toFixed(1) + ' MJ' + (base ? '（晴れの日の ' + Math.round(mj / base * 100) + '%）' : ''));
   }
   const { mj: mjToday } = solarMj(solarRows, todayStart, now);
-  add('今日ここまで', today, todayStart, now + 1, mjToday == null ? '' : '光 ' + mjToday.toFixed(1) + ' MJ');
+  add('今日（今まで）', today, todayStart, now + 1, mjToday == null ? '' : '日射 ' + mjToday.toFixed(1) + ' MJ');
 }
 
 async function renderSolar(rows) {
@@ -4693,9 +4712,9 @@ async function renderSolar(rows) {
   if (wj.wait) setChip('lightRowWater', `データ集め中（あと${wj.wait}日）`, 'status-wait');
   else if (wj.none) setChip('lightRowWater', 'データ集め中', 'status-wait');
   else if (wj.level === 'high') {
-    setChip('lightRowWater', 'よく使う日', 'status-warn');
+    setChip('lightRowWater', '水をよく使う日', 'status-warn');
     issues.push([1, '今日は水をよく使う日です', '日射が多い日。土壌水分の下がり方を見てください']);
-  } else if (wj.level === 'low') setChip('lightRowWater', 'あまり使わない日', 'status-normal');
+  } else if (wj.level === 'low') setChip('lightRowWater', '水をあまり使わない日', 'status-normal');
   else setChip('lightRowWater', 'ふつう', 'status-normal');
 
   // ---- CO2 (日の出1時間後〜日没1時間前) ----
@@ -4705,7 +4724,7 @@ async function renderSolar(rows) {
   else if (co2Now < 400) {
     setChip('lightRowCo2', '外気より低い（不足）', 'status-warn');
     issues.push([4, '日中のCO2が外気より低くなっています', '外気並み（400ppm）以上を保つと増収した記録があります（岩手県・宮崎県）']);
-  } else setChip('lightRowCo2', '外気並み以上', 'status-normal');
+  } else setChip('lightRowCo2', '外の空気と同じかそれ以上', 'status-normal');
 
   // ---- 光の強さ (光飽和点の目安 3〜4万lx ≒ 220〜360 W/m²。判定ではなく目安との位置) ----
   const SAT = PEPPER_TARGETS.solarSat;
@@ -4732,7 +4751,7 @@ async function renderSolar(rows) {
   if (hNow == null) setChip('lightRowLeaf', '--', 'status-wait');
   else if (iat >= 20) {
     // 資料の「危険」(20時間)。区切りはそのまま、表示は赤にせず一段落ち着かせる (2026-10-24 オーナー「強調されすぎ」)
-    setChip('lightRowLeaf', '灰色かび 出やすい', 'status-warn');
+    setChip('lightRowLeaf', '灰色かびが出やすい', 'status-warn');
     issues.push([3, '灰色かび病が出やすい状態です', '直近48時間の高湿度が続いています。換気・送風・除湿暖房を']);
   } else if (morning && riseRate != null && riseRate > 2) {
     setChip('lightRowLeaf', '結露しやすい（急な昇温）', 'status-warn');
@@ -4780,11 +4799,11 @@ async function renderSolar(rows) {
     ['今の湿度', f(hNow, 0, '%')],
     ['今の飽差', f(hd, 1, ' g/m³')],
     ['灰色かび 感染有効積算時間', f(iat, 1, ' 時間')],
-    ['直近1時間の昇温', f(riseRate, 1, '℃/h')],
+    ['この1時間で上がった気温', f(riseRate, 1, '℃/h')],
     ['日の出・日没', hm(sun.rise) + '・' + hm(sun.set)],
   ];
   if (y && y.inside_mj != null) lines.push(['昨日の日射', f(Number(y.inside_mj), 1, ' MJ/m²')]);
-  lines.push(['水の比べる日の数', (wj.n ?? 0) + '日']);
+  lines.push(['水の使い方を比べた日数', (wj.n ?? 0) + '日']);
   document.getElementById('lightDetails').innerHTML =
     lines.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
 }
@@ -4940,19 +4959,19 @@ async function renderWater(envRows, soilRows) {
     items.sort((a, b) => a.sort - b.sort);
     mid.appendChild(items.length
       ? waterEl('div', 'water-irr', items.map(x => x.text).join('・'))
-      : waterEl('div', 'water-irr none', d === today ? 'まだ' : '水やりなし'));
+      : waterEl('div', 'water-irr none', d === today ? '水やりはまだ' : '水やりなし'));
     const env = [];
     const totalSec = dEntries.reduce((a, x) => a + (x.kind === 'irrigate' ? waterDetailSec(x.detail) : 0), 0);
     if (totalSec > 0) env.push('パイプ灌水 計 ' + waterSecText(totalSec));
     if (d === today) {
       const { mj } = solarMj(solarRows, todayStart, now);
-      if (mj != null) env.push('光 ここまで ' + mj.toFixed(1) + ' MJ');
+      if (mj != null) env.push('日射 今までに ' + mj.toFixed(1) + ' MJ');
     } else {
       const s = solarBy.get(d), mj = s ? num(s.inside_mj) : null;
       if (mj != null && (s.sample_count ?? 0) >= LIGHT_DAY_MIN_SAMPLES)
-        env.push('光 ' + mj.toFixed(1) + ' MJ' + (clearBase ? '（晴れの日の ' + Math.round(mj / clearBase * 100) + '%）' : ''));
+        env.push('日射 ' + mj.toFixed(1) + ' MJ' + (clearBase ? '（晴れの日の ' + Math.round(mj / clearBase * 100) + '%）' : ''));
       const hmin = num(envBy.get(d)?.humidity_midday_min_pct);
-      if (hmin != null) env.push('昼の湿度の底 ' + Math.round(hmin) + '%');
+      if (hmin != null) env.push('昼の最低湿度 ' + Math.round(hmin) + '%');
     }
     if (env.length) mid.appendChild(waterEl('div', 'water-env', env.join('・')));
     row.appendChild(mid);
@@ -4986,7 +5005,7 @@ async function renderWater(envRows, soilRows) {
     if (last.at >= oldest) {
       const parts = [];
       const { mj } = solarMj(solarRows, last.at, now);
-      if (mj != null) parts.push('光 ' + mj.toFixed(1) + ' MJ');
+      if (mj != null) parts.push('日射 ' + mj.toFixed(1) + ' MJ');
       const air = new Map();   // 10分枠ごと: 気温は平均、湿度は北南の高い方（ほかの表示と同じ決まり）
       for (const x of [...airBins(envRows, 'd1', 'd2'), ...airBins(envRows, 'd4', 'd5')]) {
         if (x.b < last.at) continue;
@@ -4998,7 +5017,7 @@ async function renderWater(envRows, soilRows) {
         const hd = hdGm3(v.ts.reduce((a, t) => a + t, 0) / v.ts.length, Math.min(100, Math.max(...v.hs)));
         if (hdMax == null || hd > hdMax) hdMax = hd;
       }
-      if (hdMax != null) parts.push('飽差の山 ' + hdMax.toFixed(1) + ' g/m³');
+      if (hdMax != null) parts.push('いちばん乾いたときの飽差 ' + hdMax.toFixed(1) + ' g/m³');
       if (parts.length) line('前回の水やりから', parts.join('・'));
     }
   }
@@ -5007,13 +5026,13 @@ async function renderWater(envRows, soilRows) {
   const pres = daily.slice().sort((a, b) => (a.date < b.date ? -1 : 1)).map(r => num(r.pre_first_pct)).filter(v => v != null).slice(-3);
   const note = document.getElementById('waterNote');
   let text = '';
-  if (pres.length < 3) text = '水やり前の底の動きは、水やりのあった日が3日たまると出ます。';
+  if (pres.length < 3) text = '水やり前の値の動きは、水やりした日が3日たまると出ます。';
   else {
     const [a, b, c] = pres;
     const seq = pres.map(v => v.toFixed(1)).join(' → ') + '%';
-    if (b > a && c > b && c - a >= WATER_TREND_MIN) text = '水やり前の底が3回続けて上がっています（' + seq + '）。使った分より多く入っている形です。';
-    else if (b < a && c < b && a - c >= WATER_TREND_MIN) text = '水やり前の底が3回続けて下がっています（' + seq + '）。入れた分より多く使っている形です。';
-    else text = '水やり前の底はほぼ横ばいです（' + seq + '）。';
+    if (b > a && c > b && c - a >= WATER_TREND_MIN) text = '水やり前の値が3回続けて上がっています（' + seq + '）。使った分より多く水が入っているようです。';
+    else if (b < a && c < b && a - c >= WATER_TREND_MIN) text = '水やり前の値が3回続けて下がっています（' + seq + '）。入れた分より多く水を使っているようです。';
+    else text = '水やり前の値はほぼ変わっていません（' + seq + '）。';
   }
   if (!fromRpc) text += ' ※ いまは直近3日ぶんだけの表示です。';
   note.textContent = text;
@@ -5381,7 +5400,7 @@ async function fetchData() {
       document.getElementById('soilPhVal').innerHTML = soilPh.toFixed(1);
       // 判定はしない（センサーの pH は当てにならない。土壌分析の値で判断する）
       const el = document.getElementById('soilPhStatus');
-      el.textContent = '参考値・判定なし'; el.className = 'soil-item-status status-ref';
+      el.textContent = '参考に出すだけ（判定しない）'; el.className = 'soil-item-status status-ref';
       document.getElementById('soilPhItem').classList.remove('soil-offline');
     } else {
       document.getElementById('soilPhVal').innerHTML = '──';
@@ -5507,7 +5526,7 @@ function _formatTrendHTML(diff, unit, digits, isSoil) {
   const labelCls = isSoil ? 'soil-item-trend-label' : 'metric-trend-label';
   const arrowCls = isSoil ? 'soil-item-trend-arrow' : 'metric-trend-arrow';
   if (diff === null || diff === undefined || isNaN(diff)) {
-    return { html: `— <span class="${labelCls}">30分前比</span>`, cls: '' };
+    return { html: `<span class="${labelCls}">30分前の値なし</span>`, cls: '' };
   }
   const eps = unit === '℃' ? 0.1
     : unit === '%' ? 0.5
@@ -5522,7 +5541,7 @@ function _formatTrendHTML(diff, unit, digits, isSoil) {
   const sign  = diff > 0 ? '+' : '';
   const num   = diff.toFixed(digits);
   return {
-    html: `<span class="${arrowCls}">${arrow}</span> ${sign}${num}${unit} <span class="${labelCls}">30分前比</span>`,
+    html: cls === 'flat' ? `<span class="${arrowCls}">${arrow}</span> <span class="${labelCls}">30分前とほぼ同じ</span>` : `<span class="${arrowCls}">${arrow}</span> <span class="${labelCls}">30分前より</span> ${sign}${num}${unit}`,
     cls
   };
 }
@@ -5539,8 +5558,6 @@ function setTrend(elId, diff, unit, digits, isSoil) {
 function updateAllTrends(envData, soilData) {
   // ----- Environment (温度・湿度・VPD・CO2) -----
   if (envData && envData.length > 0) {
-    const latest = envData[0];
-    const old    = findOldRecord(envData, 30);
 
     const avgTemp = (r) => {
       const t1 = parseFloat(r.d1);
@@ -5555,14 +5572,28 @@ function updateAllTrends(envData, soilData) {
       return vs.length ? vs.reduce((a,b) => a + b, 0) / vs.length : NaN;
     };
 
-    const tNow = avgTemp(latest);
-    const tOld = old ? avgTemp(old) : NaN;
-    const hNow = avgHum(latest);
-    const hOld = old ? avgHum(old) : NaN;
+    // 行は端末ごとに届く（気温湿度の端末と CO2 の端末は別の行）。いちばん新しい行に欲しい値が無いことがあるので、
+    // 値ごとに「値のある、いちばん新しい行」と「そこから30分〜1時間前で値のある行」を比べる
+    const tsOf = (r) => new Date(r.created_at || r.created).getTime();
+    const pair = (fn) => {
+      let iNow = -1;
+      for (let i = 0; i < envData.length && i < 50; i++) { if (!isNaN(fn(envData[i]))) { iNow = i; break; } }
+      if (iNow < 0) return [NaN, NaN];
+      const tNowMs = tsOf(envData[iNow]);
+      for (let i = iNow + 1; i < envData.length; i++) {
+        const t = tsOf(envData[i]);
+        if (isNaN(t) || t > tNowMs - 30 * 60 * 1000) continue;
+        if (t < tNowMs - 60 * 60 * 1000) break;   // 1時間より前は「30分前」と言わない
+        const v = fn(envData[i]);
+        if (!isNaN(v)) return [fn(envData[iNow]), v];
+      }
+      return [fn(envData[iNow]), NaN];
+    };
+    const [tNow, tOld] = pair(avgTemp);
+    const [hNow, hOld] = pair(avgHum);
     const vNow = (!isNaN(tNow) && !isNaN(hNow)) ? calcVPD(tNow, hNow) : NaN;
     const vOld = (!isNaN(tOld) && !isNaN(hOld)) ? calcVPD(tOld, hOld) : NaN;
-    const cNow = latest ? parseFloat(latest.d7) : NaN;
-    const cOld = old    ? parseFloat(old.d7)    : NaN;
+    const [cNow, cOld] = pair((r) => parseFloat(r.d7));
 
     const diff = (a, b) => (!isNaN(a) && !isNaN(b)) ? (a - b) : null;
     setTrend('tempTrend', diff(tNow, tOld), '℃',  1, false);
