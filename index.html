@@ -52,6 +52,9 @@
 html { font-size: 112.5%; -webkit-text-size-adjust: 100%; }
 
 body {
+  /* 日本語を単語の途中で折り返さない（「今の土壌水／分」のような切れ方を防ぐ。Chrome 119 以降。2026-11-27） */
+  word-break: auto-phrase;
+  text-wrap: pretty;
   font-family: 'DM Sans', -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text-primary);
@@ -155,8 +158,9 @@ small { font-size: 0.8rem; }
 }
 
 /* オフラインバナー */
-.weather-week { display: flex; gap: 6px; overflow-x: auto; margin-top: 12px; padding-bottom: 2px; }
-.weather-week .wd { flex: 0 0 auto; min-width: 54px; text-align: center; padding: 6px 4px; border-radius: 10px; background: rgba(120,120,128,0.06); }
+.weather-week { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 6px; margin-top: 12px; padding-bottom: 2px; }
+.weather-week .wd { min-width: 0; text-align: center; padding: 6px 2px; border-radius: 10px; background: rgba(120,120,128,0.06); }
+.weather-week .wd-day { white-space: nowrap; }
 .weather-week .wd-day { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
 .weather-week .wd-icon { font-size: 1.25rem; line-height: 1.3; }
 .weather-week .wd-temp { font-size: 0.87rem; font-weight: 600; font-family: 'DM Mono', monospace; }
@@ -284,8 +288,8 @@ small { font-size: 0.8rem; }
   overflow: hidden;
 }
 /* 1段目: 名前 (左) と判定 (右) は同じ段に重ねて置く。2段目: 値 (左・幅は中身なり) と 30分前比 (右・狭ければ折れる) */
-.soil-item-head   { grid-row: 1; grid-column: 1 / -1; justify-self: start; }
-.soil-item-status { grid-row: 1; grid-column: 1 / -1; justify-self: end; }
+.soil-item-head   { grid-row: 1; grid-column: 1; justify-self: start; white-space: nowrap; }
+.soil-item-status { grid-row: 1; grid-column: 2; justify-self: end; white-space: normal !important; text-align: right; }
 /* 2段目: 大きな値、その下に30分前比 (4項目とも同じ形に揃える) */
 .soil-item-main   { grid-row: 2; grid-column: 1 / -1; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
 .soil-item-val    { white-space: nowrap; }
@@ -611,7 +615,9 @@ small { font-size: 0.8rem; }
 @media (min-width: 768px) { .light-rows { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; } }
 .light-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border, rgba(0,0,0,0.06)); }
 .light-row:last-child { border-bottom: none; }
-.light-row-label { font-size: 1rem; color: var(--text-secondary); }
+.light-row-label { font-size: 1rem; color: var(--text-secondary); flex: 1 1 auto; min-width: 7em; }
+/* 判定の札は右に。狭い画面では札の幅を半分強までにして、名前を細く折らない */
+.light-row > .metric-status { flex: 0 1 auto; max-width: 56%; text-align: right; }
 .light-row-sub { display: block; font-size: 0.78rem; color: var(--text-secondary); opacity: 0.75; margin-top: 1px; }
 .light-how { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border, rgba(0,0,0,0.06)); }
 .light-how p { margin: 6px 0; line-height: 1.5; }
@@ -672,6 +678,9 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
 .humid-run-fill.warn { background: var(--accent-orange); }
 .humid-run-fill.danger { background: var(--accent-red); }
 .humid-run-val { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.midday-val { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.midday-val small { font-size: 0.78rem; font-weight: 500; color: var(--text-secondary); }
+#middayHumList .humid-run-row { grid-template-columns: 6.6em 1fr 6.4em; }
 .humid-run-note { margin-top: 14px; font-size: 0.9rem; line-height: 1.6; color: var(--text-primary); }
 .humid-run-note:empty { display: none; }
 .midday-bar::after { display: none; } /* 日中の湿度は 0〜6時間の棒なので 8時間の目盛りは出さない */
@@ -683,9 +692,10 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
 /* 🚿 水やり（タイマーの見直し用） */
 .water-now { display: grid; gap: 4px; margin: 4px 0 12px; font-size: 0.95rem; }
 .water-now div { display: flex; justify-content: space-between; gap: 10px; }
-.water-now span { color: var(--text-secondary); }
+.water-now span { color: var(--text-secondary); white-space: nowrap; }
 .water-now b { font-weight: 600; color: var(--text-primary); text-align: right; font-variant-numeric: tabular-nums; }
-.water-head, .water-row { display: grid; grid-template-columns: 4.6em 1fr 4.4em; gap: 8px; align-items: center; }
+.water-head, .water-row { display: grid; grid-template-columns: 5.2em 1fr 5.2em; gap: 8px; align-items: center; }
+.water-head span { white-space: nowrap; }
 .water-head { font-size: 0.78rem; color: var(--text-tertiary); padding-bottom: 4px; border-bottom: 1px solid var(--border, rgba(0,0,0,0.06)); }
 .water-head span:last-child, .water-pre { text-align: right; }
 .water-row { padding: 8px 0; border-bottom: 1px solid var(--border, rgba(0,0,0,0.06)); font-size: 0.92rem; }
@@ -1003,9 +1013,9 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
 
   <!-- 天気情報 -->
   <div class="card" id="weatherCard" style="padding:20px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <span style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌤️ 天気予報（農園）</span>
-      <span style="font-size:0.85rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="weatherSource">JMA</span>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:2px 10px;margin-bottom:12px;">
+      <span style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">🌤️ 天気予報（農園）</span>
+      <span style="font-size:0.85rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;white-space:nowrap;" id="weatherSource">JMA</span>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="weatherGrid">
       <div style="text-align:center;padding:10px;background:rgba(0,122,255,0.05);border-radius:12px;border:1px solid rgba(0,122,255,0.1);">
@@ -1201,7 +1211,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
       <div class="light-headline-sub" id="lightHeadlineSub"></div>
     </div>
     <div class="light-rows">
-      <div class="light-row"><span class="light-row-label">温度<small class="light-row-sub">昼の高温・夜温・天気</small></span><span class="metric-status status-normal" id="lightRowTemp">--</span></div>
+      <div class="light-row"><span class="light-row-label">温度<small class="light-row-sub">昼の高温・夜の温度・天気</small></span><span class="metric-status status-normal" id="lightRowTemp">--</span></div>
       <div class="light-row"><span class="light-row-label">水の使い方<small class="light-row-sub">日射の量から</small></span><span class="metric-status status-normal" id="lightRowWater">--</span></div>
       <div class="light-row"><span class="light-row-label">CO2<small class="light-row-sub">日中のCO2</small></span><span class="metric-status status-normal" id="lightRowCo2">--</span></div>
       <div class="light-row"><span class="light-row-label">葉のぬれ・乾き<small class="light-row-sub">気温・湿度・朝の温度の上がり方</small></span><span class="metric-status status-normal" id="lightRowLeaf">--</span></div>
@@ -1290,8 +1300,8 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <span style="color:var(--text-secondary);">南側</span>
       </span>
       <!-- ボイラーの設定温度（参謀の日誌 0038・早朝 0041・温水 0054）。気温タブで記録があるときだけ -->
-      <span id="legendBoiler" style="display:none;align-items:center;gap:5px;">
-        <span style="width:14px;height:0;border-top:2px dashed #c2410c;display:inline-block;"></span>
+      <span id="legendBoiler" style="display:none;align-items:flex-start;gap:5px;">
+        <span style="flex:0 0 14px;width:14px;height:0;border-top:2px dashed #c2410c;display:inline-block;margin-top:0.7em;"></span>
         <span id="legendBoilerText" style="color:#c2410c;"></span>
       </span>
       <!-- 保温: 中ホロ（東側・西側）を閉めていた時間の帯と中サイド（参謀の日誌 0048・0050）。記録があるときだけ -->
@@ -2237,8 +2247,14 @@ function renderMiddayHumidity(all) {
     fill.style.width = Math.min(100, (low / 6) * 100) + '%';
     bar.appendChild(fill);
     const val = document.createElement('span');
-    val.className = 'humid-run-val';
-    val.textContent = min == null ? 'まだ' : `最低 ${Math.round(min)}%・${low > 0 ? '下回った ' + low.toFixed(1) + '時間' : '下回らず'}`;
+    val.className = 'humid-run-val midday-val';
+    // 2段: 最低湿度 (太字) と 65% を下回った時間 (小さく)。1行だと狭い画面で右が切れる
+    if (min == null) val.textContent = 'まだ';
+    else {
+      const top = document.createElement('span'); top.textContent = `最低 ${Math.round(min)}%`;
+      const sub = document.createElement('small'); sub.textContent = low > 0 ? `下回った ${low.toFixed(1)}時間` : '下回らず';
+      val.append(top, sub);
+    }
     row.append(date, bar, val);
     list.appendChild(row);
   });
@@ -2628,7 +2644,7 @@ async function renderInsulationCompare() {
     [
       ['夜に湿度90%以上が続いた時間', 'humidRun', '時間', false],
       ['翌日の最低気温（ハウス内）', 'inMin', '℃', false],
-      ['翌日の最低気温（外・Open-Meteo）', 'outMin', '℃', false],
+      ['翌日の最低気温（外・Open‑Meteo）', 'outMin', '℃', false],
       ['ハウス内 − 外', 'diff', '℃', true],
       ['次の日 9〜15時の最低湿度', 'middayMin', '%', false],
     ].forEach(([label, k, unit, sign]) => {
@@ -4294,7 +4310,7 @@ function renderWeatherWeek(days) {
   const week = ['日', '月', '火', '水', '木', '金', '土'];
   el.innerHTML = days.slice(0, 7).map((w, i) => {
     const dt = new Date(w.date + 'T00:00:00');
-    const label = i === 0 ? '今日' : i === 1 ? '明日' : `${dt.getMonth() + 1}/${dt.getDate()}(${week[dt.getDay()]})`;
+    const label = i === 0 ? '今日' : i === 1 ? '明日' : `${dt.getDate()}日(${week[dt.getDay()]})`;   // 月は省く (狭い画面で切れないように)
     const info = getWeatherInfo(w.code);
     const rain = w.precip != null && w.precip >= 1 ? `💧${Math.round(w.precip)}mm` : '';
     return `<div class="wd"><div class="wd-day">${label}</div><div class="wd-icon" title="${info.desc}">${info.icon}</div>`
@@ -4720,9 +4736,9 @@ async function renderSolar(rows) {
   const SAT = PEPPER_TARGETS.solarSat;
   if (!daytime) setChip('lightRowSun', '夜（評価しない）', 'status-wait');
   else if (solarNow == null) setChip('lightRowSun', '--', 'status-wait');
-  else if (solarNow < SAT.min) setChip('lightRowSun', `目安より弱い（${Math.round(solarNow)} W/m²）`, 'status-wait');
-  else if (solarNow <= SAT.max) setChip('lightRowSun', `目安の範囲（${Math.round(solarNow)} W/m²）`, 'status-normal');
-  else setChip('lightRowSun', `目安より強い（${Math.round(solarNow)} W/m²）`, 'status-normal');
+  else if (solarNow < SAT.min) setChip('lightRowSun', `目安より弱い（${Math.round(solarNow)}\u00a0W/m²）`, 'status-wait');
+  else if (solarNow <= SAT.max) setChip('lightRowSun', `目安の範囲（${Math.round(solarNow)}\u00a0W/m²）`, 'status-normal');
+  else setChip('lightRowSun', `目安より強い（${Math.round(solarNow)}\u00a0W/m²）`, 'status-normal');
 
 
   // ---- 葉の濡れ・乾燥 ----
