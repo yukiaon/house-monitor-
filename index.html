@@ -990,11 +990,48 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
   </div>
 
   <!-- 現在値 + 本日の最高/最低 を項目ごとに1枚へ (スマホ1列 / PC2列) -->
+  <!-- 並び: スコア → 管理アドバイス → 天気 → 各指標（やることを先に。2026-11-27 見直し） -->
+  <div class="card" id="adviceCard" style="padding:20px;">
+    <div class="card-head-row" style="margin-bottom:14px;">
+      <span class="section-title">💡 管理アドバイス</span>
+      <span class="card-head-time" id="adviceTime">--</span>
+    </div>
+    <div id="adviceList" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="font-size:0.92rem;color:var(--text-tertiary);padding:8px 0;">データ取得後に表示されます...</div>
+    </div>
+  </div>
+
+  <!-- 天気情報 -->
+  <div class="card" id="weatherCard" style="padding:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <span style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌤️ 天気予報（農園）</span>
+      <span style="font-size:0.85rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="weatherSource">JMA</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="weatherGrid">
+      <div style="text-align:center;padding:10px;background:rgba(0,122,255,0.05);border-radius:12px;border:1px solid rgba(0,122,255,0.1);">
+        <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">今日</div>
+        <div style="font-size:2rem;margin-bottom:4px;" id="todayWeatherIcon">--</div>
+        <div style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:4px;" id="todayWeatherDesc">取得中...</div>
+        <div style="font-size:0.92rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="todayWeatherTemp">--/--℃</div>
+        <div style="font-size:0.87rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="todayWeatherPrecip">--</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:rgba(52,199,89,0.05);border-radius:12px;border:1px solid rgba(52,199,89,0.1);">
+        <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">明日</div>
+        <div style="font-size:2rem;margin-bottom:4px;" id="tomorrowWeatherIcon">--</div>
+        <div style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:4px;" id="tomorrowWeatherDesc">取得中...</div>
+        <div style="font-size:0.92rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="tomorrowWeatherTemp">--/--℃</div>
+        <div style="font-size:0.87rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="tomorrowWeatherPrecip">--</div>
+      </div>
+    </div>
+    <!-- 週間（参謀のホームと同じデータ） -->
+    <div class="weather-week" id="weatherWeek" hidden></div>
+  </div>
+
   <div class="metrics-grid">
     <div class="metric-card temp" style="--metric-accent:var(--accent-temp);">
       <div class="metric-head"><span class="metric-icon">🌡️</span><span class="metric-label" id="tempLabel">気温（平均）</span></div>
       <div class="metric-value" id="tempVal">--<span class="metric-unit">℃</span></div>
-      <div class="metric-trend" id="tempTrend">— <span class="metric-trend-label">30分前比</span></div>
+      <div class="metric-trend" id="tempTrend"><span class="metric-trend-label">30分前の値なし</span></div>
       <div class="metric-badges">
         <div class="metric-status status-normal" id="tempStatus">--</div>
         <div class="diff-badge diff-ok" id="tempDiff" style="display:none;">差 --℃</div>
@@ -1024,7 +1061,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <div class="metric-card hum" style="--metric-accent:var(--accent-hum);">
       <div class="metric-head"><span class="metric-icon">💧</span><span class="metric-label" id="humLabel">湿度（平均）</span></div>
       <div class="metric-value" id="humVal">--<span class="metric-unit">%</span></div>
-      <div class="metric-trend" id="humTrend">— <span class="metric-trend-label">30分前比</span></div>
+      <div class="metric-trend" id="humTrend"><span class="metric-trend-label">30分前の値なし</span></div>
       <div class="metric-badges">
         <div class="metric-status status-normal" id="humStatus">--</div>
         <div class="diff-badge diff-ok" id="humDiff" style="display:none;">差 --%</div>
@@ -1054,7 +1091,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <div class="metric-card vpd" style="--metric-accent:var(--accent-vpd);">
       <div class="metric-head"><span class="metric-icon">🍃</span><span class="metric-label">飽差</span></div>
       <div class="metric-value" id="vpdVal" style="color:var(--accent-vpd);">--<span class="metric-unit">g/m³</span></div>
-      <div class="metric-trend" id="vpdTrend">— <span class="metric-trend-label">30分前比</span></div>
+      <div class="metric-trend" id="vpdTrend"><span class="metric-trend-label">30分前の値なし</span></div>
       <div class="metric-badges">
         <div class="metric-status status-normal" id="vpdStatus">--</div>
       </div>
@@ -1073,7 +1110,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <div class="metric-card co2" style="--metric-accent:var(--accent-co2);">
       <div class="metric-head"><span class="metric-icon">💨</span><span class="metric-label">CO2濃度</span></div>
       <div class="metric-value" id="co2Val" style="color:#0a84d6;">--<span class="metric-unit">ppm</span></div>
-      <div class="metric-trend" id="co2Trend">— <span class="metric-trend-label">30分前比</span></div>
+      <div class="metric-trend" id="co2Trend"><span class="metric-trend-label">30分前の値なし</span></div>
       <div class="metric-badges">
         <div class="metric-status status-normal" id="co2Status">--</div>
       </div>
@@ -1105,7 +1142,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="soil-item-head"><span class="soil-item-icon">🌡️</span><span>地温</span></div>
         <div class="soil-item-main">
           <div class="soil-item-val" id="soilTempVal">--<span class="soil-item-unit">℃</span></div>
-          <div class="soil-item-trend" id="soilTempTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+          <div class="soil-item-trend" id="soilTempTrend"><span class="soil-item-trend-label">30分前の値なし</span></div>
         </div>
         <div class="soil-item-status status-normal" id="soilTempStatus">--</div>
       </div>
@@ -1113,7 +1150,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="soil-item-head"><span class="soil-item-icon">💧</span><span>水分</span></div>
         <div class="soil-item-main">
           <div class="soil-item-val" id="soilHumVal">--<span class="soil-item-unit">%</span></div>
-          <div class="soil-item-trend" id="soilHumTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+          <div class="soil-item-trend" id="soilHumTrend"><span class="soil-item-trend-label">30分前の値なし</span></div>
         </div>
         <div class="soil-item-status status-normal" id="soilHumStatus">--</div>
       </div>
@@ -1121,7 +1158,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="soil-item-head"><span class="soil-item-icon">⚡</span><span>EC</span></div>
         <div class="soil-item-main">
           <div class="soil-item-val" id="soilEcVal">--<span class="soil-item-unit">μS/cm</span></div>
-          <div class="soil-item-trend" id="soilEcTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+          <div class="soil-item-trend" id="soilEcTrend"><span class="soil-item-trend-label">30分前の値なし</span></div>
         </div>
         <div class="soil-item-status status-normal" id="soilEcStatus">--</div>
       </div>
@@ -1129,7 +1166,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="soil-item-head"><span class="soil-item-icon">⚗️</span><span>pH（参考）</span></div>
         <div class="soil-item-main">
           <div class="soil-item-val" id="soilPhVal">--</div>
-          <div class="soil-item-trend" id="soilPhTrend">— <span class="soil-item-trend-label">30分前比</span></div>
+          <div class="soil-item-trend" id="soilPhTrend"><span class="soil-item-trend-label">30分前の値なし</span></div>
         </div>
         <div class="soil-item-status status-normal" id="soilPhStatus">--</div>
       </div>
@@ -1329,9 +1366,9 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <span class="section-title">📚 適正値ガイド</span>
         <span class="section-sub">空気と土の目安（出典つき）</span>
       </div>
-      <button class="ref-toggle-btn" id="refToggleBtn" onclick="toggleRefGuide()">▲ 閉じる</button>
+      <button class="ref-toggle-btn" id="refToggleBtn" onclick="toggleRefGuide()">▼ 開く</button>
     </div>
-    <div id="refContent">
+    <div id="refContent" class="collapsed">
 
       <!-- 🌿 ハウス内の空気（出典つき） -->
       <div class="ref-section">
@@ -1486,42 +1523,6 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
   </div>
 
   <!-- 💡 ハウス管理アドバイス -->
-  <div class="card" id="adviceCard" style="padding:20px;">
-    <div class="card-head-row" style="margin-bottom:14px;">
-      <span class="section-title">💡 管理アドバイス</span>
-      <span class="card-head-time" id="adviceTime">--</span>
-    </div>
-    <div id="adviceList" style="display:flex;flex-direction:column;gap:10px;">
-      <div style="font-size:0.92rem;color:var(--text-tertiary);padding:8px 0;">データ取得後に表示されます...</div>
-    </div>
-  </div>
-
-  <!-- 天気情報 -->
-  <div class="card" id="weatherCard" style="padding:20px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <span style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">🌤️ 天気予報（農園）</span>
-      <span style="font-size:0.85rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="weatherSource">JMA</span>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="weatherGrid">
-      <div style="text-align:center;padding:10px;background:rgba(0,122,255,0.05);border-radius:12px;border:1px solid rgba(0,122,255,0.1);">
-        <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">今日</div>
-        <div style="font-size:2rem;margin-bottom:4px;" id="todayWeatherIcon">--</div>
-        <div style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:4px;" id="todayWeatherDesc">取得中...</div>
-        <div style="font-size:0.92rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="todayWeatherTemp">--/--℃</div>
-        <div style="font-size:0.87rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="todayWeatherPrecip">--</div>
-      </div>
-      <div style="text-align:center;padding:10px;background:rgba(52,199,89,0.05);border-radius:12px;border:1px solid rgba(52,199,89,0.1);">
-        <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">明日</div>
-        <div style="font-size:2rem;margin-bottom:4px;" id="tomorrowWeatherIcon">--</div>
-        <div style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:4px;" id="tomorrowWeatherDesc">取得中...</div>
-        <div style="font-size:0.92rem;font-weight:600;font-family:'DM Mono',monospace;margin-bottom:4px;" id="tomorrowWeatherTemp">--/--℃</div>
-        <div style="font-size:0.87rem;color:var(--text-tertiary);font-family:'DM Mono',monospace;" id="tomorrowWeatherPrecip">--</div>
-      </div>
-    </div>
-    <!-- 週間（参謀のホームと同じデータ） -->
-    <div class="weather-week" id="weatherWeek" hidden></div>
-  </div>
-
   <!-- 接続情報のみ（コンパクト） -->
   <div class="card" style="padding:20px;">
     <div style="font-size:0.87rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">接続情報</div>
@@ -1548,7 +1549,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
     <a href="https://pest-map-ebon.vercel.app/">🐛 病害虫マップ</a>
   </nav>
   <button class="to-top-btn" id="toTopBtn" type="button" aria-label="一番上へ戻る" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">↑</button>
-  <div class="footer"><span>自動更新 5分ごと</span><span>送信間隔 気温湿度10分／土壌5分</span></div>
+  <div class="footer"><span>自動更新 5分ごと</span></div>
 
 </div>
 
@@ -3405,11 +3406,11 @@ function getAxisColor(score) {
 function getDiffStatus(diff, type) {
   const a = Math.abs(diff);
   if (type === 'temp') {
-    if (a < 3) return { className: 'diff-ok',     text: '差 ' + diff.toFixed(1) + '℃' };
+    if (a < 3) return { className: 'diff-ok',     text: '北と南の差 ' + Math.abs(diff).toFixed(1) + '℃' };
     if (a < 5) return { className: 'diff-warn',   text: '⚠️ 差 ' + diff.toFixed(1) + '℃' };
     return       { className: 'diff-danger', text: '🚨 差 ' + diff.toFixed(1) + '℃' };
   } else { // hum
-    if (a < 10) return { className: 'diff-ok',     text: '差 ' + diff.toFixed(0) + '%' };
+    if (a < 10) return { className: 'diff-ok',     text: '北と南の差 ' + Math.abs(diff).toFixed(0) + '%' };
     if (a < 15) return { className: 'diff-warn',   text: '⚠️ 差 ' + diff.toFixed(0) + '%' };
     return        { className: 'diff-danger', text: '🚨 差 ' + diff.toFixed(0) + '%' };
   }
@@ -3826,6 +3827,17 @@ function renderScore() {
 
     // 説明文：軸ごとの状態を踏まえたプロ視点コメント
     descEl.textContent = buildScoreDescription(result);
+
+    // 目安（満点の帯）から外れた項目があるのに「絶好調」と出ると、下の注意と食い違って読みにくい（2026-11-27 見直し）。
+    // 外れた項目があるときは見出しを「目安の外 N項目」にして名前を出す。帯は PEPPER_TARGETS のまま（新しい数字は足さない）
+    const out = outOfBandItems(result);
+    if (out.length > 0 && result.total >= 60) {
+      labelEl.textContent = '⚠️ 目安の外 ' + out.length + '項目';
+      labelEl.style.color = '#ff9500';
+      numEl.style.color = '#ff9500';
+      ringEl.setAttribute('stroke', '#ff9500');
+      descEl.textContent = out.join('・') + ' が目安から外れています（今の値）。下のカードで確認を。';
+    }
   }
 
   // ----- 軸スコア表示 -----
@@ -3874,6 +3886,12 @@ function renderScore() {
   }
 }
 
+// 今の値が目安（満点の帯）から外れている項目の名前
+function outOfBandItems(result) {
+  return [['気温', result.temp], ['飽差', result.vpd], ['CO2', result.co2], ['地温', result.soilTemp], ['水分', result.soilMoisture], ['EC', result.ec]]
+    .filter(([, v]) => v !== null && v !== undefined && !isNaN(v) && v < 100).map(([n]) => n);
+}
+
 // ===== スコア説明文（メイン） =====
 function buildScoreDescription(result) {
   if (result.upper === null && result.root === null) return 'データ取得中です';
@@ -3891,7 +3909,7 @@ function buildScoreDescription(result) {
   const diff = Math.abs(u - r);
 
   if (result.total >= 85) {
-    return '地上部・根圏ともに最適範囲。光合成効率と草勢のバランス良好です。';
+    return outOfBandItems(result).length === 0 ? '今の値はすべて目安の範囲です。' : '地上部・根圏とも、おおむね目安の範囲です。';
   } else if (result.total >= 70) {
     if (diff < 10) return '両軸とも良好。安定した生育が期待できます。';
     return (u < r) ? '光合成の効率がやや低下中。気温・飽差・CO2を確認。'
@@ -3921,13 +3939,12 @@ function buildBalanceDiagnosis(result) {
     { name: 'EC',      score: result.ec,           axis: '根圏'   }
   ].filter(x => x.score !== null);
   const weakest = items.slice().sort((a, b) => a.score - b.score)[0];
-  const strongest = items.slice().sort((a, b) => b.score - a.score)[0];
 
   if (!weakest) return null;
 
   // 全体が良好
   if (result.total >= 85) {
-    return `💎 <strong>${strongest.name}</strong> が満点級。この状態を維持できれば収量・品質ともにトップクラスです。`;
+    return null;   // 見出しと説明で足りる（出典のない「トップクラス」等は出さない）
   }
 
   // 軸間に大きな差
@@ -4295,6 +4312,8 @@ function renderWeatherWeek(days) {
       + `<div class="wd-rain">${rain}</div></div>`;
   }).join('');
   el.hidden = days.length === 0;
+  const grid = document.getElementById('weatherGrid');
+  if (grid) grid.style.display = days.length >= 2 ? 'none' : 'grid';   // 週間に今日・明日も入っているので二重に出さない
 }
 
 async function fetchWeather() {
@@ -4378,7 +4397,7 @@ async function fetchTodayData() {
     document.getElementById('todayMax').innerHTML = todayMax + '<span class="stat-tile-unit">℃</span>';
     document.getElementById('todayMin').innerHTML = todayMin + '<span class="stat-tile-unit">℃</span>';
     const [tmLabel, tmClass] = getTempStatus(parseFloat(todayMax), true);
-    document.getElementById('todayMaxStatus').textContent = `最高 ${tmLabel}`;
+    document.getElementById('todayMaxStatus').textContent = `今日の最高は ${tmLabel}`;
     document.getElementById('todayMaxStatus').className = 'metric-status today-status ' + tmClass;
 
     // 本日最高・最低湿度（2センサー合算）
@@ -4388,7 +4407,7 @@ async function fetchTodayData() {
       document.getElementById('todayMaxHum').innerHTML = todayMaxHum + '<span class="stat-tile-unit">%</span>';
       document.getElementById('todayMinHum').innerHTML = todayMinHum + '<span class="stat-tile-unit">%</span>';
       const [hmaxLabel, hmaxClass] = getHumStatus(parseFloat(todayMaxHum));
-      document.getElementById('todayMaxHumStatus').textContent = `最高 ${hmaxLabel}`;
+      document.getElementById('todayMaxHumStatus').textContent = `今日の最高は ${hmaxLabel}`;
       document.getElementById('todayMaxHumStatus').className = 'metric-status today-status ' + hmaxClass;
     }
 
@@ -4407,7 +4426,7 @@ async function fetchTodayData() {
       document.getElementById('todayMaxVpd').innerHTML = todayMaxVpd + '<span class="stat-tile-unit">g/m³</span>';
       document.getElementById('todayMinVpd').innerHTML = todayMinVpd + '<span class="stat-tile-unit">g/m³</span>';
       const [vmaxLabel, vmaxClass] = getVpdStatus(parseFloat(todayMaxVpd));
-      document.getElementById('todayMaxVpdStatus').textContent = `最高 ${vmaxLabel}`;
+      document.getElementById('todayMaxVpdStatus').textContent = `今日の最高は ${vmaxLabel}`;
       document.getElementById('todayMaxVpdStatus').className = 'metric-status today-status ' + vmaxClass;
     }
 
@@ -4419,7 +4438,7 @@ async function fetchTodayData() {
       document.getElementById('todayMaxCo2').innerHTML = todayMaxCo2 + '<span class="stat-tile-unit">ppm</span>';
       document.getElementById('todayMinCo2').innerHTML = todayMinCo2 + '<span class="stat-tile-unit">ppm</span>';
       const [cmaxLabel, cmaxClass] = getCo2Status(todayMaxCo2);
-      document.getElementById('todayMaxCo2Status').textContent = `最高 ${cmaxLabel}`;
+      document.getElementById('todayMaxCo2Status').textContent = `今日の最高は ${cmaxLabel}`;
       document.getElementById('todayMaxCo2Status').className = 'metric-status today-status ' + cmaxClass;
     }
 
@@ -5507,7 +5526,7 @@ function _formatTrendHTML(diff, unit, digits, isSoil) {
   const labelCls = isSoil ? 'soil-item-trend-label' : 'metric-trend-label';
   const arrowCls = isSoil ? 'soil-item-trend-arrow' : 'metric-trend-arrow';
   if (diff === null || diff === undefined || isNaN(diff)) {
-    return { html: `— <span class="${labelCls}">30分前比</span>`, cls: '' };
+    return { html: `<span class="${labelCls}">30分前の値なし</span>`, cls: '' };
   }
   const eps = unit === '℃' ? 0.1
     : unit === '%' ? 0.5
@@ -5522,7 +5541,7 @@ function _formatTrendHTML(diff, unit, digits, isSoil) {
   const sign  = diff > 0 ? '+' : '';
   const num   = diff.toFixed(digits);
   return {
-    html: `<span class="${arrowCls}">${arrow}</span> ${sign}${num}${unit} <span class="${labelCls}">30分前比</span>`,
+    html: cls === 'flat' ? `<span class="${arrowCls}">${arrow}</span> <span class="${labelCls}">30分前とほぼ同じ</span>` : `<span class="${arrowCls}">${arrow}</span> <span class="${labelCls}">30分前より</span> ${sign}${num}${unit}`,
     cls
   };
 }
@@ -5539,8 +5558,6 @@ function setTrend(elId, diff, unit, digits, isSoil) {
 function updateAllTrends(envData, soilData) {
   // ----- Environment (温度・湿度・VPD・CO2) -----
   if (envData && envData.length > 0) {
-    const latest = envData[0];
-    const old    = findOldRecord(envData, 30);
 
     const avgTemp = (r) => {
       const t1 = parseFloat(r.d1);
@@ -5555,14 +5572,28 @@ function updateAllTrends(envData, soilData) {
       return vs.length ? vs.reduce((a,b) => a + b, 0) / vs.length : NaN;
     };
 
-    const tNow = avgTemp(latest);
-    const tOld = old ? avgTemp(old) : NaN;
-    const hNow = avgHum(latest);
-    const hOld = old ? avgHum(old) : NaN;
+    // 行は端末ごとに届く（気温湿度の端末と CO2 の端末は別の行）。いちばん新しい行に欲しい値が無いことがあるので、
+    // 値ごとに「値のある、いちばん新しい行」と「そこから30分〜1時間前で値のある行」を比べる
+    const tsOf = (r) => new Date(r.created_at || r.created).getTime();
+    const pair = (fn) => {
+      let iNow = -1;
+      for (let i = 0; i < envData.length && i < 50; i++) { if (!isNaN(fn(envData[i]))) { iNow = i; break; } }
+      if (iNow < 0) return [NaN, NaN];
+      const tNowMs = tsOf(envData[iNow]);
+      for (let i = iNow + 1; i < envData.length; i++) {
+        const t = tsOf(envData[i]);
+        if (isNaN(t) || t > tNowMs - 30 * 60 * 1000) continue;
+        if (t < tNowMs - 60 * 60 * 1000) break;   // 1時間より前は「30分前」と言わない
+        const v = fn(envData[i]);
+        if (!isNaN(v)) return [fn(envData[iNow]), v];
+      }
+      return [fn(envData[iNow]), NaN];
+    };
+    const [tNow, tOld] = pair(avgTemp);
+    const [hNow, hOld] = pair(avgHum);
     const vNow = (!isNaN(tNow) && !isNaN(hNow)) ? calcVPD(tNow, hNow) : NaN;
     const vOld = (!isNaN(tOld) && !isNaN(hOld)) ? calcVPD(tOld, hOld) : NaN;
-    const cNow = latest ? parseFloat(latest.d7) : NaN;
-    const cOld = old    ? parseFloat(old.d7)    : NaN;
+    const [cNow, cOld] = pair((r) => parseFloat(r.d7));
 
     const diff = (a, b) => (!isNaN(a) && !isNaN(b)) ? (a - b) : null;
     setTrend('tempTrend', diff(tNow, tOld), '℃',  1, false);
