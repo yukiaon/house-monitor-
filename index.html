@@ -1163,7 +1163,7 @@ canvas#chart { height: 210px !important; display: block; width: 100% !important;
         <div class="soil-item-status status-normal" id="soilEcStatus">--</div>
       </div>
       <div class="soil-item ph" id="soilPhItem">
-        <div class="soil-item-head"><span class="soil-item-icon">⚗️</span><span>pH（参考）</span></div>
+        <div class="soil-item-head"><span class="soil-item-icon">⚗️</span><span style="text-transform:none;">pH</span></div>
         <div class="soil-item-main">
           <div class="soil-item-val" id="soilPhVal">--</div>
           <div class="soil-item-trend" id="soilPhTrend"><span class="soil-item-trend-label">30分前の値なし</span></div>
@@ -3227,11 +3227,11 @@ function getHumStatus(h, t) {
 function getSoilStatus(s) {
   const M = PEPPER_TARGETS.soilMoisture;
   if (s === null || isNaN(s)) return ['--', 'status-normal'];
-  if (s >= M.saturated) return ['🌊 水が多すぎる（根腐れに注意）', 'status-danger'];
+  if (s >= M.saturated) return ['🌊 多すぎ（根腐れ注意）', 'status-danger'];
   if (s >= M.okMax) return ['💧 やや多め', 'status-warn'];
   if (s >= M.okMin) return ['✅ 適正', 'status-normal'];
   if (s >= M.dry) return ['⚠️ やや乾燥', 'status-warn'];
-  return ['🏜️ 乾いている（水やりが必要）', 'status-danger'];
+  return ['🏜️ 乾燥（水やりを）', 'status-danger'];
 }
 
 // 地温判定（とうがらしの最適培地温度 22〜25℃ 橘 1989）。危険側の線は出典が無いので出さない
@@ -3828,16 +3828,6 @@ function renderScore() {
     // 説明文：軸ごとの状態を踏まえたプロ視点コメント
     descEl.textContent = buildScoreDescription(result);
 
-    // 目安（満点の帯）から外れた項目があるのに「絶好調」と出ると、下の注意と食い違って読みにくい（2026-11-27 見直し）。
-    // 外れた項目があるときは見出しを「目安の外 N項目」にして名前を出す。帯は PEPPER_TARGETS のまま（新しい数字は足さない）
-    const out = outOfBandItems(result);
-    if (out.length > 0 && result.total >= 60) {
-      labelEl.textContent = '⚠️ 要確認 ' + out.length + '項目';
-      labelEl.style.color = '#ff9500';
-      numEl.style.color = '#ff9500';
-      ringEl.setAttribute('stroke', '#ff9500');
-      descEl.textContent = out.join('・') + 'が今、目安から外れています。下のカードで確かめてください。';
-    }
   }
 
   // ----- 軸スコア表示 -----
@@ -5400,7 +5390,7 @@ async function fetchData() {
       document.getElementById('soilPhVal').innerHTML = soilPh.toFixed(1);
       // 判定はしない（センサーの pH は当てにならない。土壌分析の値で判断する）
       const el = document.getElementById('soilPhStatus');
-      el.textContent = '参考に出すだけ（判定しない）'; el.className = 'soil-item-status status-ref';
+      el.textContent = '参考値'; el.className = 'soil-item-status status-ref';
       document.getElementById('soilPhItem').classList.remove('soil-offline');
     } else {
       document.getElementById('soilPhVal').innerHTML = '──';
